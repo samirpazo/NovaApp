@@ -1,4 +1,20 @@
+import { z } from 'zod';
+
 export type ValidationErrors = string[] | Record<string, string[]>;
+
+export const ValidationErrorsSchema = z.union([
+  z.array(z.string()),
+  z.record(z.string(), z.array(z.string())),
+]);
+
+export function createResponseApiSchema<TSchema extends z.ZodType>(dataSchema: TSchema) {
+  return z.object({
+    Succeeded: z.boolean(),
+    Message: z.string().nullable(),
+    Errors: ValidationErrorsSchema.nullish(),
+    Data: dataSchema.nullable(),
+  });
+}
 
 export interface ResponseApi<T> {
   Succeeded: boolean;

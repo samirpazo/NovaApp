@@ -1,12 +1,15 @@
-import type { EntityBaseContract } from '@/contracts/entities/EntityBaseContract';
+import { EntityBaseContractSchema } from '@/contracts/entities/EntityBaseContract';
+import { z } from 'zod';
 
-export interface RstBranch extends EntityBaseContract {
-  BrhID: number;
-  BrhResID: number;
-  BrhName: string;
-  BrhAddress: string | null;
-  BrhPhone: string | null;
-  BrhEmail: string | null;
-  BrhManagerName: string | null;
-  BrhCurrencyDefID: number | null;
-}
+export const RstBranchSchema = EntityBaseContractSchema.extend({
+  BrhID: z.number().int(),
+  BrhResID: z.number().int(),
+  BrhName: z.string(),
+  BrhAddress: z.string().nullable(),
+  BrhPhone: z.string().nullable(),
+  BrhEmail: z.string().nullable(),
+  BrhManagerName: z.string().nullable(),
+  BrhCurrencyDefID: z.number().int().nullable(),
+});
+
+export type RstBranch = z.infer<typeof RstBranchSchema>;

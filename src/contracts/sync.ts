@@ -1,4 +1,14 @@
-import type { GenDefinition, GenDefinitionDetail, RstBranch, RstTable } from '@/contracts/entities';
+import {
+  GenDefinitionDetailSchema,
+  GenDefinitionSchema,
+  RstBranchSchema,
+  RstTableSchema,
+  type GenDefinition,
+  type GenDefinitionDetail,
+  type RstBranch,
+  type RstTable,
+} from '@/contracts/entities';
+import { z } from 'zod';
 
 export const SYNC_RESOURCES = {
   GenDefinition: 'GenDefinition',
@@ -7,8 +17,16 @@ export const SYNC_RESOURCES = {
   RstTable: 'RstTable',
 } as const;
 
-export type SyncResource = (typeof SYNC_RESOURCES)[keyof typeof SYNC_RESOURCES];
-export type SyncOperation = 'C' | 'U' | 'D';
+export const SyncResourceSchema = z.enum([
+  SYNC_RESOURCES.GenDefinition,
+  SYNC_RESOURCES.GenDefinitionDetail,
+  SYNC_RESOURCES.RstBranch,
+  SYNC_RESOURCES.RstTable,
+]);
+export const SyncOperationSchema = z.enum(['C', 'U', 'D']);
+
+export type SyncResource = z.infer<typeof SyncResourceSchema>;
+export type SyncOperation = z.infer<typeof SyncOperationSchema>;
 export type SyncAccess = 'ReadOnly' | 'ReadWrite';
 
 export interface SyncEntityMap {
@@ -36,9 +54,27 @@ export type AnySyncPullChange = {
   [TResource in SyncResource]: SyncPullChange<TResource>;
 }[SyncResource];
 
-export interface SyncPullResponse {
-  Cursor: number;
-  HasMore: boolean;
-  IsBootstrap: boolean;
-  Changes: AnySyncPullChange[];
-}
+const syncChangeBase = {
+  SyncId: z.string().uuid(),
+  Operation: SyncOperationSchema,
+};
+
+export const SyncPullChangeSchema = z.discriminatedUnion('Resource', [
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.GenDefinition), Data: GenDefinitionSchema.nullable() }),
+  z.object({
+    ...syncChangeBase,
+    Resource: z.literal(SYNC_RESOURCES.GenDefinitionDetail),
+    Data: GenDefinitionDetailSchema.nullable(),
+  }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.RstBranch), Data: RstBranchSchema.nullable() }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.RstTable), Data: RstTableSchema.nullable() }),
+]);
+
+export const SyncPullResponseSchema = z.object({
+  Cursor: z.number().int().nonnegative(),
+  HasMore: z.boolean(),
+  IsBootstrap: z.boolean(),
+  Changes: z.array(SyncPullChangeSchema),
+});
+
+export type SyncPullResponse = z.infer<typeof SyncPullResponseSchema>;

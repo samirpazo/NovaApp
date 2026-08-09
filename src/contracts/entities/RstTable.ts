@@ -1,16 +1,19 @@
-import type { EntityBaseContract } from '@/contracts/entities/EntityBaseContract';
+import { EntityBaseContractSchema } from '@/contracts/entities/EntityBaseContract';
+import { z } from 'zod';
 
-export interface RstTable extends EntityBaseContract {
-  TabID: number;
-  TabTableNumber: number;
-  TabCapacity: number;
-  TabStatus: number;
-  BrhID: number | null;
-  TabPosX: number;
-  TabPosY: number;
-  TabWidth: number;
-  TabHeight: number;
-  TabRotation: number;
-  TabShape: string;
-  TabZIndex: number;
-}
+export const RstTableSchema = EntityBaseContractSchema.extend({
+  TabID: z.number().int(),
+  TabTableNumber: z.number().int(),
+  TabCapacity: z.number().int(),
+  TabStatus: z.number().int(),
+  BrhID: z.number().int().nullable(),
+  TabPosX: z.number().int(),
+  TabPosY: z.number().int(),
+  TabWidth: z.number().int(),
+  TabHeight: z.number().int(),
+  TabRotation: z.number().int(),
+  TabShape: z.string(),
+  TabZIndex: z.number().int(),
+});
+
+export type RstTable = z.infer<typeof RstTableSchema>;

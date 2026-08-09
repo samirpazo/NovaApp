@@ -1,8 +1,11 @@
-import type { EntityBaseContract } from '@/contracts/entities/EntityBaseContract';
+import { EntityBaseContractSchema } from '@/contracts/entities/EntityBaseContract';
+import { z } from 'zod';
 
-export interface GenDefinition extends EntityBaseContract {
-  DefID: number;
-  DefDescription: string;
-  DefCode: string;
-  DefStated: number;
-}
+export const GenDefinitionSchema = EntityBaseContractSchema.extend({
+  DefID: z.number().int(),
+  DefDescription: z.string(),
+  DefCode: z.string(),
+  DefStated: z.number().int(),
+});
+
+export type GenDefinition = z.infer<typeof GenDefinitionSchema>;
