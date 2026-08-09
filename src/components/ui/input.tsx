@@ -4,9 +4,13 @@ import { Platform, TextInput } from 'react-native';
 
 type InputProps = React.ComponentProps<typeof TextInput>;
 
-function Input({ className, editable = true, ...props }: InputProps) {
+const Input = React.forwardRef<React.ElementRef<typeof TextInput>, InputProps>(function Input(
+  { className, editable = true, ...props },
+  ref,
+) {
   return (
     <TextInput
+      ref={ref}
       className={cn(
         'h-10 w-full rounded-md border border-input bg-background px-3 text-base text-foreground',
         'placeholder:text-muted-foreground',
@@ -19,7 +23,7 @@ function Input({ className, editable = true, ...props }: InputProps) {
       {...props}
     />
   );
-}
+});
 
 export { Input };
 export type { InputProps };
