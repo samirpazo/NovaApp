@@ -12,14 +12,20 @@ export const SyncConnectionSchema = z.object({
 
 export type SyncConnection = z.infer<typeof SyncConnectionSchema>;
 
+export function getEnvironmentSyncConnection(): SyncConnection {
+  const baseUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (!baseUrl) throw new Error('EXPO_PUBLIC_API_URL no está configurado.');
+  return SyncConnectionSchema.parse({ BaseUrl: baseUrl.replace(/\/+$/, '') });
+}
+
 export async function getSyncConnection(): Promise<SyncConnection | null> {
   const value = await storage.getItem(CONNECTION_KEY);
-  if (!value) return null;
+  if (!value) return getEnvironmentSyncConnection();
   try {
     const parsed = SyncConnectionSchema.safeParse(JSON.parse(value));
-    return parsed.success ? parsed.data : null;
+    return parsed.success ? parsed.data : getEnvironmentSyncConnection();
   } catch {
-    return null;
+    return getEnvironmentSyncConnection();
   }
 }
 

@@ -11,7 +11,7 @@ interface AuthState {
   IsReady: boolean;
   Error: string | null;
   initialize: () => Promise<void>;
-  signIn: (baseUrl: string, user: string, password: string) => Promise<void>;
+  signIn: (user: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -44,10 +44,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ IsReady: true });
   },
 
-  signIn: async (baseUrl, user, password) => {
+  signIn: async (user, password) => {
     set({ IsLoading: true, Error: null });
     try {
-      const Session = await login(baseUrl, user, password);
+      const Session = await login(user, password);
       set({ Session, IsAuthenticated: true, IsLoading: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudo iniciar sesión.';

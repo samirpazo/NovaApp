@@ -9,7 +9,7 @@ import {
   getRefreshToken,
   saveAccessToken,
   saveRefreshToken,
-  saveSyncConnection,
+  getEnvironmentSyncConnection,
 } from '@/sync/config';
 import type { AxiosResponse } from 'axios';
 import { Platform } from 'react-native';
@@ -35,14 +35,15 @@ async function persistSession(session: AuthSession): Promise<void> {
   await storage.setItem(SESSION_KEY, JSON.stringify(session));
 }
 
-export async function login(baseUrl: string, user: string, password: string): Promise<AuthSession> {
+export async function login(user: string, password: string): Promise<AuthSession> {
   try {
+    const { BaseUrl: baseUrl } = getEnvironmentSyncConnection();
     const client = createApiClient({ baseUrl });
     const response = await client.post('/Token', { User: user.trim(), Password: await hashPassword(password) });
     const envelope = AuthResponseSchema.parse(response.data);
     if (!envelope.Succeeded || !envelope.Data) throw new Error(envelope.Message || 'Credenciales inválidas.');
     await persistTokens(response);
-    await Promise.all([saveSyncConnection({ BaseUrl: baseUrl }), persistSession(envelope.Data)]);
+    await persistSession(envelope.Data);
     return envelope.Data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error), { cause: error });

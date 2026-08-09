@@ -1,26 +1,16 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Database, LogOut, RefreshCw, Server, ShieldCheck } from 'lucide-react-native';
 import * as React from 'react';
-import { useForm } from 'react-hook-form';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { z } from 'zod';
 
 import { useAuthStore } from '@/auth';
-import { FormNText } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import { database } from '@/database';
-import { getLastPull, getSyncConnection, pullNova, saveSyncConnection, useSyncState } from '@/sync';
-
-const formSchema = z.object({
-  BaseUrl: z.string().trim().url('Ingresa una URL válida.'),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+import { getLastPull, pullNova, useSyncState } from '@/sync';
 type LocalCounts = Record<(typeof SYNC_RESOURCES)[keyof typeof SYNC_RESOURCES], number>;
 
 const emptyCounts: LocalCounts = {
@@ -43,17 +33,12 @@ export default function SyncScreen() {
   const { Session, signOut } = useAuthStore();
   const [counts, setCounts] = React.useState<LocalCounts>(emptyCounts);
   const [ready, setReady] = React.useState(false);
-  const { control, handleSubmit, reset } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { BaseUrl: process.env.EXPO_PUBLIC_API_URL ?? '' },
-  });
 
   React.useEffect(() => {
     let mounted = true;
-    Promise.all([getSyncConnection(), getLastPull(), readLocalCounts()]).then(
-      ([connection, lastPull, localCounts]) => {
+    Promise.all([getLastPull(), readLocalCounts()]).then(
+      ([lastPull, localCounts]) => {
         if (!mounted) return;
-        reset({ BaseUrl: connection?.BaseUrl ?? process.env.EXPO_PUBLIC_API_URL ?? '' });
         if (lastPull) useSyncState.getState().completePull(lastPull);
         setCounts(localCounts);
         setReady(true);
@@ -62,17 +47,16 @@ export default function SyncScreen() {
     return () => {
       mounted = false;
     };
-  }, [reset]);
+  }, []);
 
-  const synchronize = handleSubmit(async ({ BaseUrl }) => {
-    await saveSyncConnection({ BaseUrl });
+  const synchronize = async () => {
     try {
       await pullNova();
       setCounts(await readLocalCounts());
     } catch {
       // The store exposes the normalized error below.
     }
-  });
+  };
 
   const statusLabel = sync.Status === 'syncing' ? 'Sincronizando' : sync.Status === 'success' ? 'Sincronizado' : sync.Status === 'error' ? 'Error' : 'Sin ejecutar';
   const statusColor = sync.Status === 'success' ? 'bg-success' : sync.Status === 'error' ? 'bg-destructive' : sync.Status === 'syncing' ? 'bg-warning' : 'bg-muted-foreground';
@@ -99,7 +83,10 @@ export default function SyncScreen() {
             <CardTitle className="text-base">Conexión</CardTitle>
           </CardHeader>
           <CardContent className="gap-4">
-            <FormNText control={control} name="BaseUrl" label="Servidor" placeholder="https://nova.empresa.com" autoCapitalize="none" autoCorrect={false} keyboardType="url" required />
+            <View className="rounded-md border border-border bg-muted px-3 py-2.5">
+              <Text variant="caption">Servidor configurado</Text>
+              <Text variant="small" numberOfLines={1}>{process.env.EXPO_PUBLIC_API_URL}</Text>
+            </View>
             <Button disabled={!ready || sync.Status === 'syncing'} onPress={synchronize}>
               <RefreshCw size={17} className="text-primary-foreground" />
               <Text>{sync.Status === 'syncing' ? 'Sincronizando...' : 'Ejecutar Pull'}</Text>

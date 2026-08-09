@@ -15,7 +15,6 @@ import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 
 const loginSchema = z.object({
-  BaseUrl: z.string().trim().url('Ingresa una URL válida.'),
   User: z.string().trim().min(3, 'El usuario debe tener al menos 3 caracteres.'),
   Password: z.string().min(4, 'La contraseña debe tener al menos 4 caracteres.'),
 });
@@ -28,12 +27,12 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = React.useState(false);
   const { control, handleSubmit } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { BaseUrl: process.env.EXPO_PUBLIC_API_URL ?? '', User: '', Password: '' },
+    defaultValues: { User: '', Password: '' },
   });
 
-  const submit = handleSubmit(async ({ BaseUrl, User, Password }) => {
+  const submit = handleSubmit(async ({ User, Password }) => {
     try {
-      await signIn(BaseUrl, User, Password);
+      await signIn(User, Password);
       router.replace('/');
     } catch {
       // The authentication store renders the normalized error.
@@ -62,7 +61,6 @@ export default function LoginScreen() {
               </View>
 
               <View className="gap-4">
-                <FormNText control={control} name="BaseUrl" label="Servidor" placeholder="http://localhost:8080" autoCapitalize="none" autoCorrect={false} keyboardType="url" required />
                 <FormNText control={control} name="User" label="Usuario" placeholder="Usuario" autoCapitalize="none" autoCorrect={false} required />
                 <FormNText
                   control={control}
