@@ -1,6 +1,7 @@
 import { localStorageKey, type DirtyRaw } from '@nozbe/watermelondb';
 import { synchronize, type SyncDatabaseChangeSet, type SyncTableChangeSet } from '@nozbe/watermelondb/sync';
 
+import { ensureOnlineSession } from '@/auth/service';
 import { createResponseApiSchema } from '@/contracts/api';
 import {
   SYNC_RESOURCES,
@@ -11,7 +12,7 @@ import {
 } from '@/contracts/sync';
 import { database } from '@/database';
 import { createApiClient, getApiErrorMessage } from '@/lib/api';
-import { getAccessToken, getSyncConnection, SyncConnectionSchema, type SyncConnection } from '@/sync/config';
+import { getSyncConnection, SyncConnectionSchema, type SyncConnection } from '@/sync/config';
 import { type PullResult, useSyncState } from '@/sync/state';
 
 const ACTIVE_SCOPE_KEY = localStorageKey<string>('nova.sync.activeScope');
@@ -88,8 +89,7 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
     const storedConnection = options.connection ?? (await getSyncConnection());
     if (!storedConnection) throw new Error('Debe configurar el servidor y la sucursal antes de sincronizar.');
     const connection = SyncConnectionSchema.parse(storedConnection);
-    const accessToken = options.accessToken?.trim() || (await getAccessToken());
-    if (!accessToken) throw new Error('Debe iniciar sesión antes de sincronizar.');
+    const accessToken = options.accessToken?.trim() || (await ensureOnlineSession(connection.BaseUrl));
 
     await prepareScope(connection);
     const api = createApiClient({ baseUrl: connection.BaseUrl, accessToken });

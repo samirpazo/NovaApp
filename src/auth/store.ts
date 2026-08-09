@@ -1,0 +1,64 @@
+import type { AuthSession } from '@/contracts/auth';
+import { getSyncConnection } from '@/sync/config';
+import { create } from 'zustand';
+
+import { getStoredSession, isSessionExpired, login, logoutSession, refreshSession } from '@/auth/service';
+
+interface AuthState {
+  Session: AuthSession | null;
+  IsAuthenticated: boolean;
+  IsLoading: boolean;
+  IsReady: boolean;
+  Error: string | null;
+  initialize: () => Promise<void>;
+  signIn: (baseUrl: string, user: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  Session: null,
+  IsAuthenticated: false,
+  IsLoading: false,
+  IsReady: false,
+  Error: null,
+
+  initialize: async () => {
+    const storedSession = await getStoredSession();
+    if (!storedSession) {
+      set({ IsReady: true });
+      return;
+    }
+
+    set({ Session: storedSession, IsAuthenticated: true });
+    if (isSessionExpired(storedSession)) {
+      const connection = await getSyncConnection();
+      if (connection) {
+        try {
+          const Session = await refreshSession(connection.BaseUrl);
+          set({ Session });
+        } catch {
+          // Keep local access while offline. The next online request can retry refresh.
+        }
+      }
+    }
+    set({ IsReady: true });
+  },
+
+  signIn: async (baseUrl, user, password) => {
+    set({ IsLoading: true, Error: null });
+    try {
+      const Session = await login(baseUrl, user, password);
+      set({ Session, IsAuthenticated: true, IsLoading: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo iniciar sesión.';
+      set({ Error: message, IsLoading: false });
+      throw error;
+    }
+  },
+
+  signOut: async () => {
+    const connection = await getSyncConnection();
+    set({ Session: null, IsAuthenticated: false, Error: null });
+    if (connection) await logoutSession(connection.BaseUrl);
+  },
+}));

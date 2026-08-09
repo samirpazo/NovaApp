@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 
 export interface ApiClientOptions {
   baseUrl: string;
-  accessToken: string;
+  accessToken?: string | null;
 }
 
 export function createApiClient({ baseUrl, accessToken }: ApiClientOptions) {
@@ -13,8 +13,8 @@ export function createApiClient({ baseUrl, accessToken }: ApiClientOptions) {
     withCredentials: Platform.OS === 'web',
     headers: {
       Accept: 'application/json',
-      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(Platform.OS === 'web' ? {} : { 'X-Client-Platform': 'native' }),
     },
   });

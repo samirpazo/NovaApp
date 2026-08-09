@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { Building2, Database, RefreshCw, Settings2, TableProperties } from 'lucide-react-native';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuthStore } from '@/auth';
 
 const modules = [
   {
@@ -29,6 +30,7 @@ const modules = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const user = useAuthStore((state) => state.Session?.User);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -36,7 +38,7 @@ export default function HomeScreen() {
         <View className="h-16 flex-row items-center justify-between">
           <View>
             <Text variant="title">Nova</Text>
-            <Text variant="caption">Datos disponibles sin conexión</Text>
+            <Text variant="caption">{user?.FullName || user?.UsrName || 'Datos disponibles sin conexión'}</Text>
           </View>
           <Button variant="ghost" size="icon" accessibilityLabel="Configuración">
             <Settings2 size={20} color="#64748b" />

@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 const CONNECTION_KEY = 'nova.sync.connection';
 const ACCESS_TOKEN_KEY = 'nova.auth.accessToken';
+const REFRESH_TOKEN_KEY = 'nova.auth.refreshToken';
 
 export const SyncConnectionSchema = z.object({
   BaseUrl: z.string().url(),
@@ -42,4 +43,16 @@ export async function saveAccessToken(accessToken: string): Promise<void> {
 
 export async function clearAccessToken(): Promise<void> {
   await storage.removeItem(ACCESS_TOKEN_KEY);
+}
+
+export async function getRefreshToken(): Promise<string | null> {
+  return storage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export async function saveRefreshToken(refreshToken: string): Promise<void> {
+  await storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+}
+
+export async function clearRefreshToken(): Promise<void> {
+  await storage.removeItem(REFRESH_TOKEN_KEY);
 }

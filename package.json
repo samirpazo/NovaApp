@@ -29,6 +29,7 @@
     "clsx": "^2.1.1",
     "expo": "~55.0.28",
     "expo-constants": "~55.0.17",
+    "expo-crypto": "~55.0.17",
     "expo-dev-client": "~55.0.37",
     "expo-device": "~55.0.19",
     "expo-font": "~55.0.8",

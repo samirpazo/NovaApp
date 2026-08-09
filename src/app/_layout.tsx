@@ -6,6 +6,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'nativewind';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { AuthGate } from '@/auth';
 
 export default function RootLayout() {
   const { colorScheme } = useColorScheme();
@@ -15,7 +16,9 @@ export default function RootLayout() {
     <GestureHandlerRootView className="flex-1 bg-background">
       <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
-        <Stack screenOptions={{ headerShown: false }} />
+        <AuthGate>
+          <Stack screenOptions={{ headerShown: false }} />
+        </AuthGate>
         <PortalHost />
       </ThemeProvider>
     </GestureHandlerRootView>
