@@ -103,7 +103,7 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
       sendCreatedAsUpdated: true,
       pullChanges: async ({ lastPulledAt }) => {
         const changes = createChangeSet();
-        let cursor = lastPulledAt === undefined ? undefined : lastPulledAt - 1;
+        let cursor = lastPulledAt == null ? undefined : lastPulledAt - 1;
         let hasMore: boolean;
 
         do {
