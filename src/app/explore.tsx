@@ -1,181 +1,152 @@
-import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
-import React from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'expo-router';
+import { ArrowLeft, Database, RefreshCw, Server, ShieldCheck } from 'lucide-react-native';
+import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { ScrollView, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { z } from 'zod';
 
-import { ExternalLink } from '@/components/external-link';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Collapsible } from '@/components/ui/collapsible';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { FormNText } from '@/components/forms';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Text } from '@/components/ui/text';
+import { SYNC_RESOURCES } from '@/contracts/sync';
+import { database } from '@/database';
+import { getAccessToken, getLastPull, getSyncConnection, pullNova, saveAccessToken, saveSyncConnection, useSyncState } from '@/sync';
 
-export default function TabTwoScreen() {
-  const safeAreaInsets = useSafeAreaInsets();
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
-  };
-  const theme = useTheme();
+const formSchema = z.object({
+  BaseUrl: z.string().trim().url('Ingresa una URL válida.'),
+  AccessToken: z.string().trim().min(1, 'Ingresa un token de acceso.'),
+});
 
-  const contentPlatformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
-    web: {
-      paddingTop: Spacing.six,
-      paddingBottom: Spacing.four,
-    },
-  });
+type FormValues = z.infer<typeof formSchema>;
+type LocalCounts = Record<(typeof SYNC_RESOURCES)[keyof typeof SYNC_RESOURCES], number>;
 
-  return (
-    <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentInset={insets}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-      <ThemedView style={styles.container}>
-        <ThemedView style={styles.titleContainer}>
-          <ThemedText type="subtitle">Explore</ThemedText>
-          <ThemedText style={styles.centerText} themeColor="textSecondary">
-            This starter app includes example{'\n'}code to help you get started.
-          </ThemedText>
+const emptyCounts: LocalCounts = {
+  GenDefinition: 0,
+  GenDefinitionDetail: 0,
+  RstBranch: 0,
+  RstTable: 0,
+};
 
-          <ExternalLink href="https://docs.expo.dev" asChild>
-            <Pressable style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedView type="backgroundElement" style={styles.linkButton}>
-                <ThemedText type="link">Expo documentation</ThemedText>
-                <SymbolView
-                  tintColor={theme.text}
-                  name={{ ios: 'arrow.up.right.square', android: 'link', web: 'link' }}
-                  size={12}
-                />
-              </ThemedView>
-            </Pressable>
-          </ExternalLink>
-        </ThemedView>
-
-        <ThemedView style={styles.sectionsWrapper}>
-          <Collapsible title="File-based routing">
-            <ThemedText type="small">
-              This app has two screens: <ThemedText type="code">src/app/index.tsx</ThemedText> and{' '}
-              <ThemedText type="code">src/app/explore.tsx</ThemedText>
-            </ThemedText>
-            <ThemedText type="small">
-              The layout file in <ThemedText type="code">src/app/_layout.tsx</ThemedText> sets up
-              the tab navigator.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/router/introduction">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
-
-          <Collapsible title="Android, iOS, and web support">
-            <ThemedView type="backgroundElement" style={styles.collapsibleContent}>
-              <ThemedText type="small">
-                You can open this project on Android, iOS, and the web. To open the web version,
-                press <ThemedText type="smallBold">w</ThemedText> in the terminal running this
-                project.
-              </ThemedText>
-              <Image
-                source={require('@/assets/images/tutorial-web.png')}
-                style={styles.imageTutorial}
-              />
-            </ThemedView>
-          </Collapsible>
-
-          <Collapsible title="Images">
-            <ThemedText type="small">
-              For static images, you can use the <ThemedText type="code">@2x</ThemedText> and{' '}
-              <ThemedText type="code">@3x</ThemedText> suffixes to provide files for different
-              screen densities.
-            </ThemedText>
-            <Image source={require('@/assets/images/react-logo.png')} style={styles.imageReact} />
-            <ExternalLink href="https://reactnative.dev/docs/images">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
-
-          <Collapsible title="Light and dark mode components">
-            <ThemedText type="small">
-              This template has light and dark mode support. The{' '}
-              <ThemedText type="code">useColorScheme()</ThemedText> hook lets you inspect what the
-              user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
-
-          <Collapsible title="Animations">
-            <ThemedText type="small">
-              This template includes an example of an animated component. The{' '}
-              <ThemedText type="code">src/components/ui/collapsible.tsx</ThemedText> component uses
-              the powerful <ThemedText type="code">react-native-reanimated</ThemedText> library to
-              animate opening this hint.
-            </ThemedText>
-          </Collapsible>
-        </ThemedView>
-        {Platform.OS === 'web' && <WebBadge />}
-      </ThemedView>
-    </ScrollView>
+async function readLocalCounts(): Promise<LocalCounts> {
+  const entries = await Promise.all(
+    Object.values(SYNC_RESOURCES).map(async (resource) => [resource, await database.get(resource).query().fetchCount()] as const),
   );
+  return Object.fromEntries(entries) as LocalCounts;
 }
 
-const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  container: {
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
-  },
-  titleContainer: {
-    gap: Spacing.three,
-    alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.six,
-  },
-  centerText: {
-    textAlign: 'center',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  linkButton: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.five,
-    justifyContent: 'center',
-    gap: Spacing.one,
-    alignItems: 'center',
-  },
-  sectionsWrapper: {
-    gap: Spacing.five,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-  },
-  collapsibleContent: {
-    alignItems: 'center',
-  },
-  imageTutorial: {
-    width: '100%',
-    aspectRatio: 296 / 171,
-    borderRadius: Spacing.three,
-    marginTop: Spacing.two,
-  },
-  imageReact: {
-    width: 100,
-    height: 100,
-    alignSelf: 'center',
-  },
-});
+export default function SyncScreen() {
+  const router = useRouter();
+  const sync = useSyncState();
+  const [counts, setCounts] = React.useState<LocalCounts>(emptyCounts);
+  const [ready, setReady] = React.useState(false);
+  const { control, handleSubmit, reset } = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { BaseUrl: process.env.EXPO_PUBLIC_API_URL ?? '', AccessToken: '' },
+  });
+
+  React.useEffect(() => {
+    let mounted = true;
+    Promise.all([getSyncConnection(), getAccessToken(), getLastPull(), readLocalCounts()]).then(
+      ([connection, token, lastPull, localCounts]) => {
+        if (!mounted) return;
+        reset({ BaseUrl: connection?.BaseUrl ?? process.env.EXPO_PUBLIC_API_URL ?? '', AccessToken: token ?? '' });
+        if (lastPull) useSyncState.getState().completePull(lastPull);
+        setCounts(localCounts);
+        setReady(true);
+      },
+    );
+    return () => {
+      mounted = false;
+    };
+  }, [reset]);
+
+  const synchronize = handleSubmit(async ({ BaseUrl, AccessToken }) => {
+    await saveSyncConnection({ BaseUrl });
+    await saveAccessToken(AccessToken);
+    try {
+      await pullNova();
+      setCounts(await readLocalCounts());
+    } catch {
+      // The store exposes the normalized error below.
+    }
+  });
+
+  const statusLabel = sync.Status === 'syncing' ? 'Sincronizando' : sync.Status === 'success' ? 'Sincronizado' : sync.Status === 'error' ? 'Error' : 'Sin ejecutar';
+  const statusColor = sync.Status === 'success' ? 'bg-success' : sync.Status === 'error' ? 'bg-destructive' : sync.Status === 'syncing' ? 'bg-warning' : 'bg-muted-foreground';
+
+  return (
+    <SafeAreaView className="flex-1 bg-background">
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-3xl gap-5 px-4 pb-28 pt-5" keyboardShouldPersistTaps="handled">
+        <View className="flex-row items-center gap-3">
+          <Button variant="ghost" size="icon" onPress={() => router.back()} accessibilityLabel="Volver">
+            <ArrowLeft size={20} />
+          </Button>
+          <View className="gap-1">
+            <Text variant="title">Sincronización</Text>
+            <View className="flex-row items-center gap-2">
+              <View className={`h-2.5 w-2.5 rounded-full ${statusColor}`} />
+              <Text variant="muted">{statusLabel}</Text>
+            </View>
+          </View>
+        </View>
+
+        <Card>
+          <CardHeader className="flex-row items-center gap-3">
+            <Server size={20} className="text-primary" />
+            <CardTitle className="text-base">Conexión</CardTitle>
+          </CardHeader>
+          <CardContent className="gap-4">
+            <FormNText control={control} name="BaseUrl" label="Servidor" placeholder="https://nova.empresa.com" autoCapitalize="none" autoCorrect={false} keyboardType="url" required />
+            <FormNText control={control} name="AccessToken" label="Token de acceso" placeholder="JWT" autoCapitalize="none" autoCorrect={false} secureTextEntry required />
+            <Button disabled={!ready || sync.Status === 'syncing'} onPress={synchronize}>
+              <RefreshCw size={17} className="text-primary-foreground" />
+              <Text>{sync.Status === 'syncing' ? 'Sincronizando...' : 'Ejecutar Pull'}</Text>
+            </Button>
+            {sync.Error ? (
+              <Text className="text-sm text-destructive" role="alert">{sync.Error}</Text>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <View className="flex-row gap-3">
+          <Card className="min-w-0 flex-1">
+            <Database size={19} className="mb-3 text-accent" />
+            <Text variant="caption">Cursor</Text>
+            <Text className="mt-1 text-xl font-semibold">{sync.LastPull?.Cursor ?? 0}</Text>
+          </Card>
+          <Card className="min-w-0 flex-1">
+            <ShieldCheck size={19} className="mb-3 text-success" />
+            <Text variant="caption">Descargados</Text>
+            <Text className="mt-1 text-xl font-semibold">{sync.LastPull?.Downloaded ?? 0}</Text>
+          </Card>
+          <Card className="min-w-0 flex-1">
+            <RefreshCw size={19} className="mb-3 text-primary" />
+            <Text variant="caption">Páginas</Text>
+            <Text className="mt-1 text-xl font-semibold">{sync.LastPull?.Pages ?? 0}</Text>
+          </Card>
+        </View>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Registros locales</CardTitle></CardHeader>
+          <CardContent className="gap-3">
+            {Object.entries(counts).map(([resource, count]) => (
+              <View key={resource} className="flex-row items-center justify-between border-b border-border pb-3 last:border-b-0 last:pb-0">
+                <Text variant="small">{resource}</Text>
+                <Text className="font-semibold">{count}</Text>
+              </View>
+            ))}
+          </CardContent>
+        </Card>
+
+        {sync.LastPull ? (
+          <Text variant="caption" className="text-center">
+            Última ejecución: {new Date(sync.LastPull.FinishedAt).toLocaleString()}
+          </Text>
+        ) : null}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

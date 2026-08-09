@@ -51,7 +51,7 @@ function applyLatestChange(changes: MutableChangeSet, change: AnySyncPullChange)
 }
 
 function scopeFor(connection: SyncConnection): string {
-  return `${connection.BaseUrl.replace(/\/+$/, '').toLowerCase()}|${connection.BranchId}`;
+  return `${connection.BaseUrl.replace(/\/+$/, '').toLowerCase()}|${connection.BranchId ?? 'general'}`;
 }
 
 async function prepareScope(connection: SyncConnection): Promise<void> {
@@ -109,7 +109,11 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
         do {
           if (++pages > MAX_PULL_PAGES) throw new Error('Nova devolvió demasiadas páginas de sincronización.');
           const response = await api.get('/sync/pull', {
-            params: { branchId: connection.BranchId, limit, ...(cursor === undefined ? {} : { cursor }) },
+            params: {
+              limit,
+              ...(connection.BranchId === undefined ? {} : { branchId: connection.BranchId }),
+              ...(cursor === undefined ? {} : { cursor }),
+            },
             signal: options.signal,
           });
           const envelope = createResponseApiSchema(SyncPullResponseSchema).parse(response.data);

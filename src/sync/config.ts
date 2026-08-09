@@ -6,7 +6,7 @@ const ACCESS_TOKEN_KEY = 'nova.auth.accessToken';
 
 export const SyncConnectionSchema = z.object({
   BaseUrl: z.string().url(),
-  BranchId: z.number().int().positive(),
+  BranchId: z.number().int().positive().optional(),
 });
 
 export type SyncConnection = z.infer<typeof SyncConnectionSchema>;

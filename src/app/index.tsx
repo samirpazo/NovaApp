@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
+import { useRouter } from 'expo-router';
 import { Building2, Database, RefreshCw, Settings2, TableProperties } from 'lucide-react-native';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,13 +28,15 @@ const modules = [
 ] as const;
 
 export default function HomeScreen() {
+  const router = useRouter();
+
   return (
     <SafeAreaView className="flex-1 bg-background">
       <ScrollView contentContainerClassName="px-4 pb-8" showsVerticalScrollIndicator={false}>
         <View className="h-16 flex-row items-center justify-between">
           <View>
             <Text variant="title">Nova</Text>
-            <Text variant="caption">Sucursal sin seleccionar</Text>
+            <Text variant="caption">Datos disponibles sin conexión</Text>
           </View>
           <Button variant="ghost" size="icon" accessibilityLabel="Configuración">
             <Settings2 size={20} color="#64748b" />
@@ -45,7 +48,7 @@ export default function HomeScreen() {
             <View className="h-2.5 w-2.5 rounded-full bg-warning" />
             <Text variant="small">Pendiente de sincronización inicial</Text>
           </View>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onPress={() => router.push('/explore')}>
             <RefreshCw size={16} color="#2563eb" />
             <Text>Sincronizar</Text>
           </Button>
