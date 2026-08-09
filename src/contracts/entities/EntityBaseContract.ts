@@ -1,15 +1,16 @@
+import { GuidSchema, nullableIntegerSchema, nullableStringSchema } from '@/contracts/common';
 import { z } from 'zod';
 
 export const EntityBaseContractSchema = z.object({
-  SyncId: z.string().uuid(),
+  SyncId: GuidSchema,
   SyncVersion: z.string(),
   SecStatus: z.boolean(),
   CreateUserId: z.number().int(),
-  UpdateUserId: z.number().int().nullable(),
-  DeleteUserId: z.number().int().nullable(),
+  UpdateUserId: nullableIntegerSchema,
+  DeleteUserId: nullableIntegerSchema,
   CreateDate: z.string(),
-  UpdateDate: z.string().nullable(),
-  DeleteDate: z.string().nullable(),
+  UpdateDate: nullableStringSchema,
+  DeleteDate: nullableStringSchema,
 });
 
 export type EntityBaseContract = z.infer<typeof EntityBaseContractSchema>;

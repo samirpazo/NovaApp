@@ -8,6 +8,7 @@ import {
   type RstBranch,
   type RstTable,
 } from '@/contracts/entities';
+import { GuidSchema } from '@/contracts/common';
 import { z } from 'zod';
 
 export const SYNC_RESOURCES = {
@@ -55,7 +56,7 @@ export type AnySyncPullChange = {
 }[SyncResource];
 
 const syncChangeBase = {
-  SyncId: z.string().uuid(),
+  SyncId: GuidSchema,
   Operation: SyncOperationSchema,
 };
 

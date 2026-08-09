@@ -1,21 +1,22 @@
 import { EntityBaseContractSchema } from '@/contracts/entities/EntityBaseContract';
+import { nullableStringSchema } from '@/contracts/common';
 import { z } from 'zod';
 
 export const GenDefinitionDetailSchema = EntityBaseContractSchema.extend({
   DedID: z.number().int(),
-  DedCode: z.string().nullable(),
+  DedCode: nullableStringSchema,
   DedDescription: z.string(),
   DedValue: z.number().int(),
-  DedAbbreviation: z.string().nullable(),
-  DedFormat: z.string().nullable(),
-  DedHelper: z.string().nullable(),
-  DedHelper2: z.string().nullable(),
-  DedIcon: z.string().nullable(),
-  DedColor: z.string().nullable(),
+  DedAbbreviation: nullableStringSchema,
+  DedFormat: nullableStringSchema,
+  DedHelper: nullableStringSchema,
+  DedHelper2: nullableStringSchema,
+  DedIcon: nullableStringSchema,
+  DedColor: nullableStringSchema,
   DedStated: z.number().int(),
   DefID: z.number().int(),
-  DedGroup: z.string().nullable(),
-  DedImagePath: z.string().nullable(),
+  DedGroup: nullableStringSchema,
+  DedImagePath: nullableStringSchema,
 });
 
 export type GenDefinitionDetail = z.infer<typeof GenDefinitionDetailSchema>;

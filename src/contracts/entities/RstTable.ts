@@ -1,4 +1,5 @@
 import { EntityBaseContractSchema } from '@/contracts/entities/EntityBaseContract';
+import { nullableIntegerSchema } from '@/contracts/common';
 import { z } from 'zod';
 
 export const RstTableSchema = EntityBaseContractSchema.extend({
@@ -6,7 +7,7 @@ export const RstTableSchema = EntityBaseContractSchema.extend({
   TabTableNumber: z.number().int(),
   TabCapacity: z.number().int(),
   TabStatus: z.number().int(),
-  BrhID: z.number().int().nullable(),
+  BrhID: nullableIntegerSchema,
   TabPosX: z.number().int(),
   TabPosY: z.number().int(),
   TabWidth: z.number().int(),
