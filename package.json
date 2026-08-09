@@ -61,6 +61,8 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@babel/plugin-proposal-decorators": "^7.29.0",
+    "@babel/plugin-transform-class-properties": "^7.27.1",
     "@types/luxon": "^3.7.2",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "~55.0.8",
