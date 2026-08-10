@@ -184,8 +184,10 @@ export default function DefinitionDetailsScreen() {
           return;
         }
         const temporaryId = Math.min(0, ...details.map((detail) => detail.DedID)) - 1;
+        const syncId = randomUUID();
         await database.get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail).create((record) => {
-          record.SyncId = randomUUID();
+          record._raw.id = syncId;
+          record.SyncId = syncId;
           record.SyncVersion = '';
           record.CreateUserId = userId;
           record.UpdateUserId = null;

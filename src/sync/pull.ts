@@ -16,7 +16,7 @@ import {
   type SyncPushChange,
   type SyncResource,
 } from '@/contracts/sync';
-import { database } from '@/database';
+import { database, type EntityBaseModel } from '@/database';
 import { createApiClient, getApiErrorMessage } from '@/lib/api';
 import { getSyncConnection, SyncConnectionSchema, type SyncConnection } from '@/sync/config';
 import { type PullResult, useSyncState } from '@/sync/state';
@@ -95,6 +95,22 @@ async function prepareScope(connection: SyncConnection): Promise<void> {
     await database.write(() => database.unsafeResetDatabase(), 'change sync scope');
   }
   await database.localStorage.set(ACTIVE_SCOPE_KEY, nextScope);
+}
+
+async function removeReconciledDuplicates(): Promise<void> {
+  await database.write(async () => {
+    const duplicates = [];
+    for (const resource of Object.values(SYNC_RESOURCES)) {
+      const records = await database.get<EntityBaseModel>(resource).query().fetch();
+      const canonicalIds = new Set(records.filter((record) => record.id === record.SyncId).map((record) => record.SyncId));
+      duplicates.push(
+        ...records
+          .filter((record) => record.syncStatus === 'synced' && record.id !== record.SyncId && canonicalIds.has(record.SyncId))
+          .map((record) => record.prepareDestroyPermanently()),
+      );
+    }
+    if (duplicates.length) await database.batch(duplicates);
+  }, 'remove reconciled sync duplicates');
 }
 
 export interface PullNovaOptions {
@@ -201,6 +217,7 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
     if (uploaded > 0) {
       await synchronize({ database, sendCreatedAsUpdated: true, pullChanges });
     }
+    await removeReconciledDuplicates();
 
     const result: PullResult = {
       Cursor: finalCursor,

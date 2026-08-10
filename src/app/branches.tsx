@@ -105,8 +105,9 @@ export default function BranchesScreen() {
           return;
         }
         const temporaryId = Math.min(0, ...branches.map((branch) => branch.BrhID)) - 1;
+        const syncId = randomUUID();
         await database.get<RstBranchModel>(SYNC_RESOURCES.RstBranch).create((record) => {
-          record.SyncId = randomUUID(); record.SyncVersion = ''; record.CreateUserId = userId; record.UpdateUserId = null;
+          record._raw.id = syncId; record.SyncId = syncId; record.SyncVersion = ''; record.CreateUserId = userId; record.UpdateUserId = null;
           record.DeleteUserId = null; record.CreateDate = new Date().toISOString(); record.UpdateDate = null; record.DeleteDate = null;
           record.BrhID = temporaryId; apply(record);
         });
