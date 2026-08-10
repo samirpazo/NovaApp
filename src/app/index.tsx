@@ -20,14 +20,14 @@ const modules = [
     description: 'Configuración de la sucursal activa',
     icon: Building2,
     color: '#0f766e',
-    route: null,
+    route: '/branches',
   },
   {
     name: 'Mesas',
     description: 'Consulta del salón sincronizado',
     icon: TableProperties,
     color: '#b45309',
-    route: null,
+    route: '/tables',
   },
 ] as const;
 
