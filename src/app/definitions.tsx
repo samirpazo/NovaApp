@@ -1,6 +1,6 @@
 import { randomUUID } from 'expo-crypto';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Save, X } from 'lucide-react-native';
+import { ArrowLeft, ListTree, Save, X } from 'lucide-react-native';
 import * as React from 'react';
 import { Alert, Platform, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -178,6 +178,10 @@ export default function DefinitionsScreen() {
             <Text variant="title">Definiciones</Text>
             <Text variant="caption">Datos disponibles sin conexión</Text>
           </View>
+          <Button variant="outline" size="sm" onPress={() => router.push('/definition-details')}>
+            <ListTree size={17} />
+            <Text>Ver valores</Text>
+          </Button>
         </View>
 
         {formMode ? (
