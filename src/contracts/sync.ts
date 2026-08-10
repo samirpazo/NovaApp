@@ -61,14 +61,26 @@ const syncChangeBase = {
 };
 
 export const SyncPullChangeSchema = z.discriminatedUnion('Resource', [
-  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.GenDefinition), Data: GenDefinitionSchema.nullable() }),
+  z.object({
+    ...syncChangeBase,
+    Resource: z.literal(SYNC_RESOURCES.GenDefinition),
+    Data: GenDefinitionSchema.nullish().transform((value) => value ?? null),
+  }),
   z.object({
     ...syncChangeBase,
     Resource: z.literal(SYNC_RESOURCES.GenDefinitionDetail),
-    Data: GenDefinitionDetailSchema.nullable(),
+    Data: GenDefinitionDetailSchema.nullish().transform((value) => value ?? null),
   }),
-  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.RstBranch), Data: RstBranchSchema.nullable() }),
-  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.RstTable), Data: RstTableSchema.nullable() }),
+  z.object({
+    ...syncChangeBase,
+    Resource: z.literal(SYNC_RESOURCES.RstBranch),
+    Data: RstBranchSchema.nullish().transform((value) => value ?? null),
+  }),
+  z.object({
+    ...syncChangeBase,
+    Resource: z.literal(SYNC_RESOURCES.RstTable),
+    Data: RstTableSchema.nullish().transform((value) => value ?? null),
+  }),
 ]);
 
 export const SyncPullResponseSchema = z.object({
