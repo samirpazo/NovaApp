@@ -1,11 +1,17 @@
+import { useAuthStore } from '@/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
-import { useRouter } from 'expo-router';
+import { database } from '@/database';
+import { getLastPull } from '@/sync';
+import { hasUnsyncedChanges } from '@nozbe/watermelondb/sync';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Building2, Database, RefreshCw, Settings2, TableProperties } from 'lucide-react-native';
+import * as React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuthStore } from '@/auth';
+
+type HomeSyncStatus = 'initial' | 'pending' | 'synced';
 
 const modules = [
   {
@@ -34,6 +40,27 @@ const modules = [
 export default function HomeScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.Session?.User);
+  const [syncStatus, setSyncStatus] = React.useState<HomeSyncStatus>('initial');
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let active = true;
+      Promise.all([getLastPull(), hasUnsyncedChanges({ database })]).then(([lastPull, hasPendingChanges]) => {
+        if (!active) return;
+        setSyncStatus(!lastPull ? 'initial' : hasPendingChanges ? 'pending' : 'synced');
+      });
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
+  const syncLabel = syncStatus === 'initial'
+    ? 'Pendiente de sincronización inicial'
+    : syncStatus === 'pending'
+      ? 'Cambios pendientes de sincronización'
+      : 'Sincronizado';
+  const syncColor = syncStatus === 'synced' ? 'bg-success' : 'bg-warning';
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -50,8 +77,8 @@ export default function HomeScreen() {
 
         <View className="mb-6 flex-row items-center justify-between border-y border-border py-3">
           <View className="flex-row items-center gap-2">
-            <View className="h-2.5 w-2.5 rounded-full bg-warning" />
-            <Text variant="small">Pendiente de sincronización inicial</Text>
+            <View className={`h-2.5 w-2.5 rounded-full ${syncColor}`} />
+            <Text variant="small">{syncLabel}</Text>
           </View>
           <Button variant="outline" size="sm" onPress={() => router.push('/explore')}>
             <RefreshCw size={16} color="#2563eb" />
