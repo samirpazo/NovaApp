@@ -5,6 +5,7 @@ export type PullStatus = 'idle' | 'syncing' | 'success' | 'error';
 export interface PullResult {
   Cursor: number;
   Downloaded: number;
+  Uploaded: number;
   Pages: number;
   FinishedAt: string;
 }

@@ -89,7 +89,7 @@ export default function SyncScreen() {
             </View>
             <Button disabled={!ready || sync.Status === 'syncing'} onPress={synchronize}>
               <RefreshCw size={17} className="text-primary-foreground" />
-              <Text>{sync.Status === 'syncing' ? 'Sincronizando...' : 'Ejecutar Pull'}</Text>
+              <Text>{sync.Status === 'syncing' ? 'Sincronizando...' : 'Sincronizar'}</Text>
             </Button>
             {sync.Error ? (
               <Text className="text-sm text-destructive" role="alert">{sync.Error}</Text>
@@ -122,6 +122,11 @@ export default function SyncScreen() {
             <Text variant="caption">Páginas</Text>
             <Text className="mt-1 text-xl font-semibold">{sync.LastPull?.Pages ?? 0}</Text>
           </Card>
+        </View>
+
+        <View className="flex-row items-center justify-between border-y border-border py-3">
+          <Text variant="small">Cambios enviados</Text>
+          <Text className="font-semibold">{sync.LastPull?.Uploaded ?? 0}</Text>
         </View>
 
         <Card>

@@ -79,3 +79,23 @@ export const SyncPullResponseSchema = z.object({
 });
 
 export type SyncPullResponse = z.infer<typeof SyncPullResponseSchema>;
+
+export const SyncPushChangeSchema = z.object({
+  Resource: SyncResourceSchema,
+  SyncId: GuidSchema,
+  Operation: SyncOperationSchema,
+  SyncVersion: z.string().nullish(),
+  Data: z.record(z.string(), z.unknown()).nullable(),
+});
+
+export const SyncPushResultSchema = z.object({
+  Resource: SyncResourceSchema,
+  SyncId: GuidSchema,
+  Status: z.enum(['Applied', 'Conflict', 'Rejected']),
+  Message: z.string().nullish(),
+  Data: z.unknown().nullish(),
+});
+
+export const SyncPushResponseSchema = z.object({ Results: z.array(SyncPushResultSchema) });
+export type SyncPushChange = z.infer<typeof SyncPushChangeSchema>;
+export type SyncPushResponse = z.infer<typeof SyncPushResponseSchema>;
