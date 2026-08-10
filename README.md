@@ -1,56 +1,103 @@
-# Welcome to your Expo app 👋
+# Nova App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicación móvil y web offline-first de Nova. Está construida con Expo SDK 55, React Native,
+Expo Router, React Native Reusables, NativeWind y WatermelonDB. Nova App consume una instalación
+de Nova por empresa; no es una plataforma SaaS multiempresa compartida.
 
-## Get started
+Nova Connect está orientado a colaboradores. Nova App, en cambio, lleva funciones del sistema
+Nova al dispositivo y permite trabajar sin conexión para sincronizar después.
 
-1. Install dependencies
+## Estado funcional
 
-   ```bash
-   npm install
-   ```
+- Inicio de sesión contra NovaApi y conservación de acceso local si no hay red.
+- Pull inicial e incremental con cursor.
+- CRUD local para `GenDefinition`, `GenDefinitionDetail` y `RstBranch`.
+- Consulta local de solo lectura para `RstTable`.
+- Push de altas, modificaciones y eliminaciones.
+- UUID estable desde el dispositivo e IDs enteros negativos temporales.
+- Reconciliación de IDs enteros asignados por el servidor.
+- Idempotencia del Push.
+- Detección de conflictos mediante `SyncVersion`.
+- Resolución manual: usar servidor o conservar local.
+- Pantalla técnica con estado, cursor, conteos y conflictos.
 
-2. Start the app
+## Lectura recomendada
 
-   ```bash
-   npx expo start
-   ```
+1. [Contexto para IA](docs/AI-CONTEXT.md): reglas obligatorias y mapa rápido del sistema.
+2. [Arquitectura](docs/ARCHITECTURE.md): capas, directorios, autenticación y base local.
+3. [Sincronización](docs/SYNC.md): protocolo completo de Pull, Push, IDs y conflictos.
+4. [Extender Nova App](docs/EXTENDING.md): procedimiento para agregar una entidad o pantalla.
+5. [Pruebas y diagnóstico](docs/TESTING.md): casos manuales, validaciones y errores conocidos.
 
-In the output, you'll find options to open the app in a
+## Requisitos
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- Node.js compatible con Expo SDK 55.
+- NovaApi ejecutándose y accesible desde el dispositivo.
+- Para iOS/Android, un development build; WatermelonDB no debe asumirse compatible con Expo Go.
+- Xcode para iOS o Android Studio para Android cuando se pruebe de forma nativa.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+Antes de modificar código relacionado con Expo, consultar la documentación exacta de
+[Expo SDK 55](https://docs.expo.dev/versions/v55.0.0/), tal como exige `AGENTS.md`.
 
-## Get a fresh project
+## Configuración
 
-When you're ready, run:
+Crear `.env.local` a partir de `.env.example`:
 
-```bash
-npm run reset-project
+```env
+EXPO_PUBLIC_API_URL=http://localhost:8080
+EXPO_PUBLIC_PASSWORD_PEPPER=client-password-pepper
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+`EXPO_PUBLIC_API_URL` no se edita desde una pantalla: es configuración del entorno. En un
+teléfono físico, `localhost` apunta al teléfono, no al equipo de desarrollo; se debe usar una
+IP o nombre de host alcanzable por el dispositivo.
 
-### Other setup steps
+El pepper debe coincidir con la configuración usada por Nova Web/NovaApi para preparar la
+contraseña antes del login. No guardar credenciales reales en archivos versionados.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Ejecución
 
-## Learn more
+```bash
+npm install
+npm run web -- --port 8081
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Comandos disponibles:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm run start       # Development client
+npm run web         # Web
+npm run android     # Android
+npm run ios         # iOS
+npm run typecheck   # TypeScript
+npm run lint        # ESLint de Expo
+```
 
-## Join the community
+Durante el desarrollo actual:
 
-Join our community of developers creating universal apps.
+- NovaApi: `http://localhost:8080`
+- Nova App Web: `http://localhost:8081`
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Proyectos relacionados
+
+- `/Users/programador03/Nova`: backend NovaApi, dominios e infraestructura.
+- `/Users/programador03/Nova/nova-web`: aplicación web principal de Nova.
+- Nova Connect: aplicación para colaboradores; comparte filosofía tecnológica, pero no el
+  propósito ni necesariamente el modelo de sincronización de Nova App.
+
+## Convenciones principales
+
+- Los nombres de recursos son idénticos en backend, contratos y app:
+  `GenDefinition`, `GenDefinitionDetail`, `RstBranch`, `RstTable`.
+- Cada entidad hereda el estándar de `EntityBase`: `SyncId`, `SyncVersion`, auditoría y estado.
+- El `id` interno de WatermelonDB debe ser exactamente igual a `SyncId`.
+- Una alta local usa UUID definitivo e ID entero negativo temporal.
+- Nunca se escribe directamente al servidor desde una pantalla CRUD; primero se guarda localmente.
+- Las eliminaciones usan `markAsDeleted()`, no destrucción permanente.
+- `RstTable` es de solo lectura en Nova App porque su diseño requiere una pantalla grande.
+
+## Git
+
+El repositorio de Nova App se inicializó antes de implementar la funcionalidad. Los cambios del
+backend vinculados al protocolo se encuentran en el repositorio Nova y deben revisarse/registrarse
+allí respetando los cambios preexistentes de ese repositorio.
