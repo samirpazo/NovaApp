@@ -3,7 +3,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/ca
 import { Text } from '@/components/ui/text';
 import { useRouter } from 'expo-router';
 import { Building2, Database, RefreshCw, Settings2, TableProperties } from 'lucide-react-native';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/auth';
 
@@ -13,18 +13,21 @@ const modules = [
     description: 'Parámetros generales disponibles localmente',
     icon: Database,
     color: '#2563eb',
+    route: '/definitions',
   },
   {
     name: 'Sucursales',
     description: 'Configuración de la sucursal activa',
     icon: Building2,
     color: '#0f766e',
+    route: null,
   },
   {
     name: 'Mesas',
     description: 'Consulta del salón sincronizado',
     icon: TableProperties,
     color: '#b45309',
+    route: null,
   },
 ] as const;
 
@@ -60,16 +63,18 @@ export default function HomeScreen() {
           Módulos
         </Text>
         <View className="gap-3">
-          {modules.map(({ name, description, icon: Icon, color }) => (
-            <Card key={name} className="min-h-24 flex-row items-center gap-4">
-              <View className="h-11 w-11 items-center justify-center rounded-md bg-muted">
-                <Icon size={22} color={color} />
-              </View>
-              <CardHeader className="min-w-0 flex-1">
-                <CardTitle>{name}</CardTitle>
-                <CardDescription numberOfLines={2}>{description}</CardDescription>
-              </CardHeader>
-            </Card>
+          {modules.map(({ name, description, icon: Icon, color, route }) => (
+            <Pressable key={name} disabled={!route} onPress={() => route && router.push(route)}>
+              <Card className="min-h-24 flex-row items-center gap-4">
+                <View className="h-11 w-11 items-center justify-center rounded-md bg-muted">
+                  <Icon size={22} color={color} />
+                </View>
+                <CardHeader className="min-w-0 flex-1">
+                  <CardTitle>{name}</CardTitle>
+                  <CardDescription numberOfLines={2}>{description}</CardDescription>
+                </CardHeader>
+              </Card>
+            </Pressable>
           ))}
         </View>
       </ScrollView>
