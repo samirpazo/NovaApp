@@ -80,9 +80,8 @@ Durante el desarrollo actual:
 
 ## Proyectos relacionados
 
-- `/Users/programador03/Nova`: backend NovaApi, dominios e infraestructura.
-- `/Users/programador03/Nova/nova-web`: aplicación web principal de Nova.
-- Nova Connect: aplicación para colaboradores; comparte filosofía tecnológica, pero no el
+- **Nova**: repositorio del backend NovaApi, dominios, infraestructura y Nova Web.
+- **Nova Connect**: aplicación para colaboradores; comparte filosofía tecnológica, pero no el
   propósito ni necesariamente el modelo de sincronización de Nova App.
 
 ## Convenciones principales

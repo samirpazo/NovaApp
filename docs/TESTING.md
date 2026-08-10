@@ -11,8 +11,9 @@ npm run lint
 
 Cuando se modifica NovaApi:
 
+Desde la raíz del repositorio Nova:
+
 ```bash
-cd /Users/programador03/Nova
 dotnet build NovaApi/NovaApi.csproj --no-restore
 ```
 
