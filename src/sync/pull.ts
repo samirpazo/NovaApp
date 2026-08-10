@@ -2,7 +2,6 @@ import { localStorageKey, type DirtyRaw } from '@nozbe/watermelondb';
 import { synchronize, type SyncDatabaseChangeSet, type SyncPushArgs, type SyncTableChangeSet } from '@nozbe/watermelondb/sync';
 import { CryptoDigestAlgorithm, digestStringAsync } from 'expo-crypto';
 import { isAxiosError } from 'axios';
-import { Platform } from 'react-native';
 
 import { ensureOnlineSession } from '@/auth/service';
 import { createResponseApiSchema } from '@/contracts/api';
@@ -202,8 +201,6 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
       if (changes.length > 500) throw new Error('Hay más de 500 cambios pendientes. Sincronice en lotes más pequeños.');
       const serialized = JSON.stringify(changes);
       const idempotencyKey = `nova-sync-${await digestStringAsync(CryptoDigestAlgorithm.SHA256, serialized)}`;
-      const csrfResponse = Platform.OS === 'web' ? await api.get('/Token/CsrfToken', { signal: options.signal }) : null;
-      const csrfToken = typeof csrfResponse?.data?.Data === 'string' ? csrfResponse.data.Data : null;
       try {
         const response = await api.post(
           '/sync/push',
@@ -211,7 +208,6 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
           {
             headers: {
               'Idempotency-Key': idempotencyKey,
-              ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
             },
             signal: options.signal,
           },

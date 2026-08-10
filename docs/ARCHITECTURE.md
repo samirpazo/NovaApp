@@ -68,6 +68,9 @@ Flujo de login:
 5. En web, NovaApi administra cookies HTTP.
 6. En nativo, se extraen tokens de la respuesta y se guardan en SecureStore.
 7. La información no secreta de la sesión se conserva para habilitar el acceso offline.
+8. En web se intenta inicializar el token CSRF tras el login, el refresh y la restauración de
+   sesión. Un fallo aislado de ese GET no invalida una autenticación ya completada; la primera
+   mutación puede reinicializarlo y reintentarse una vez.
 
 Implementación de storage:
 
@@ -76,6 +79,27 @@ Implementación de storage:
 - Entidades: WatermelonDB, separado del storage de autenticación.
 
 Cerrar sesión siempre borra la sesión local, incluso si el servidor no responde.
+
+### Renovación de tokens en el cliente
+
+Todos los clientes creados por `createApiClient` comparten dos interceptores de seguridad:
+
+1. **CSRF (web)**: las mutaciones envían `X-CSRF-TOKEN` con el request token en memoria. Si el
+   servidor responde 400 por CSRF, se reinicializa el token y se reintenta una vez.
+2. **Refresh en 401**: ante un 401 no autenticado se ejecuta un único refresh compartido
+   (single-flight). Si el refresh funciona, se reintenta la petición original una vez con el token
+   rotado (nativo) o las cookies nuevas (web). Si falla:
+   - Falla transitoria (sin respuesta de red, 5xx, 429): se conserva la sesión local
+     (offline-first) y la siguiente petición en línea reintenta el refresh.
+   - Falla permanente (400/401/403 o token inválido): se revoca la sesión local y la app vuelve al
+     login.
+
+Al cerrar o invalidar una sesión también se elimina el token CSRF mantenido en memoria. Durante el
+arranque, un refresh rechazado permanentemente elimina el acceso local; solo los fallos transitorios
+conservan la sesión para continuar offline.
+
+Los endpoints `/Token*` quedan excluidos de ambos interceptores para evitar recursión.
+
 
 ## Base de datos local
 

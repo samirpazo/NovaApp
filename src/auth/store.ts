@@ -2,7 +2,16 @@ import type { AuthSession } from '@/contracts/auth';
 import { getSyncConnection } from '@/sync/config';
 import { create } from 'zustand';
 
-import { getStoredSession, isSessionExpired, login, logoutSession, refreshSession } from '@/auth/service';
+import {
+  clearLocalSession,
+  getStoredSession,
+  initCsrf,
+  isSessionExpired,
+  isTransientAuthFailure,
+  login,
+  logoutSession,
+  refreshSession,
+} from '@/auth/service';
 
 interface AuthState {
   Session: AuthSession | null;
@@ -36,10 +45,17 @@ export const useAuthStore = create<AuthState>((set) => ({
         try {
           const Session = await refreshSession(connection.BaseUrl);
           set({ Session });
-        } catch {
-          // Keep local access while offline. The next online request can retry refresh.
+        } catch (error) {
+          if (!isTransientAuthFailure(error)) {
+            await clearLocalSession();
+            set({ Session: null, IsAuthenticated: false });
+          }
         }
       }
+    }
+    if (useAuthStore.getState().IsAuthenticated) {
+      const connection = await getSyncConnection();
+      if (connection) await initCsrf(connection.BaseUrl);
     }
     set({ IsReady: true });
   },

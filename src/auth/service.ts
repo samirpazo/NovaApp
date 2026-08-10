@@ -1,5 +1,5 @@
 import { AuthResponseSchema, AuthSessionSchema, type AuthSession } from '@/contracts/auth';
-import { createApiClient, getApiErrorMessage } from '@/lib/api';
+import { createApiClient, getApiErrorMessage, setCsrfToken } from '@/lib/api';
 import { hashPassword } from '@/lib/security';
 import { storage } from '@/lib/storage';
 import {
@@ -11,7 +11,7 @@ import {
   saveRefreshToken,
   getEnvironmentSyncConnection,
 } from '@/sync/config';
-import type { AxiosResponse } from 'axios';
+import { isAxiosError, type AxiosResponse } from 'axios';
 import { Platform } from 'react-native';
 
 const SESSION_KEY = 'nova.auth.session';
@@ -44,6 +44,7 @@ export async function login(user: string, password: string): Promise<AuthSession
     if (!envelope.Succeeded || !envelope.Data) throw new Error(envelope.Message || 'Credenciales inválidas.');
     await persistTokens(response);
     await persistSession(envelope.Data);
+    await initCsrf(baseUrl);
     return envelope.Data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error), { cause: error });
@@ -58,20 +59,46 @@ export async function refreshSession(baseUrl: string): Promise<AuthSession> {
   if (!envelope.Succeeded || !envelope.Data) throw new Error(envelope.Message || 'No se pudo renovar la sesión.');
   await persistTokens(response);
   await persistSession(envelope.Data);
+  await initCsrf(baseUrl);
   return envelope.Data;
+}
+
+export async function initCsrf(baseUrl: string): Promise<boolean> {
+  if (Platform.OS !== 'web') return true;
+  try {
+    const client = createApiClient({ baseUrl });
+    const response = await client.get('/Token/CsrfToken');
+    const token = typeof response.data?.Data === 'string' ? response.data.Data : null;
+    if (!token) return false;
+    setCsrfToken(token);
+    return true;
+  } catch {
+    // Login and refresh already succeeded. A future mutation can retry CSRF initialization.
+    return false;
+  }
+}
+
+export async function clearLocalSession(): Promise<void> {
+  setCsrfToken(null);
+  await Promise.all([storage.removeItem(SESSION_KEY), clearAccessToken(), clearRefreshToken()]);
+}
+
+export function isTransientAuthFailure(error: unknown): boolean {
+  const cause = error instanceof Error && error.cause ? error.cause : error;
+  if (!isAxiosError(cause)) return false;
+  const status = cause.response?.status;
+  return !status || status >= 500 || status === 429;
 }
 
 export async function logoutSession(baseUrl: string): Promise<void> {
   try {
     const accessToken = await getAccessToken();
     const client = createApiClient({ baseUrl, accessToken });
-    const csrfResponse = await client.get('/Token/CsrfToken');
-    const csrfToken = typeof csrfResponse.data?.Data === 'string' ? csrfResponse.data.Data : null;
-    await client.post('/Token/Logout', {}, { headers: csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : undefined });
+    await client.post('/Token/Logout');
   } catch {
     // Local logout must still complete while offline or after token expiration.
   } finally {
-    await Promise.all([storage.removeItem(SESSION_KEY), clearAccessToken(), clearRefreshToken()]);
+    await clearLocalSession();
   }
 }
 
