@@ -97,6 +97,7 @@ export const SyncPushChangeSchema = z.object({
   SyncId: GuidSchema,
   Operation: SyncOperationSchema,
   SyncVersion: z.string().nullish(),
+  Force: z.boolean().optional(),
   Data: z.record(z.string(), z.unknown()).nullable(),
 });
 
@@ -111,3 +112,16 @@ export const SyncPushResultSchema = z.object({
 export const SyncPushResponseSchema = z.object({ Results: z.array(SyncPushResultSchema) });
 export type SyncPushChange = z.infer<typeof SyncPushChangeSchema>;
 export type SyncPushResponse = z.infer<typeof SyncPushResponseSchema>;
+
+export const SyncConflictSchema = z.object({
+  Resource: SyncResourceSchema,
+  SyncId: GuidSchema,
+  Operation: SyncOperationSchema,
+  Message: z.string(),
+  LocalData: z.record(z.string(), z.unknown()).nullable(),
+  ServerData: z.record(z.string(), z.unknown()),
+  KeepLocal: z.boolean().default(false),
+  DetectedAt: z.string(),
+});
+
+export type SyncConflict = z.infer<typeof SyncConflictSchema>;

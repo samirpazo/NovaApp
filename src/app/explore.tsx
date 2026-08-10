@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Database, LogOut, RefreshCw, Server, ShieldCheck } from 'lucide-react-native';
+import { AlertTriangle, ArrowLeft, ChevronRight, Database, LogOut, RefreshCw, Server, ShieldCheck } from 'lucide-react-native';
 import * as React from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import { database } from '@/database';
-import { getLastPull, pullNova, useSyncState } from '@/sync';
+import { getLastPull, getSyncConflicts, pullNova, useSyncConflictState, useSyncState } from '@/sync';
 type LocalCounts = Record<(typeof SYNC_RESOURCES)[keyof typeof SYNC_RESOURCES], number>;
 
 const emptyCounts: LocalCounts = {
@@ -33,10 +33,11 @@ export default function SyncScreen() {
   const { Session, signOut } = useAuthStore();
   const [counts, setCounts] = React.useState<LocalCounts>(emptyCounts);
   const [ready, setReady] = React.useState(false);
+  const conflictCount = useSyncConflictState((state) => state.Conflicts.length);
 
   React.useEffect(() => {
     let mounted = true;
-    Promise.all([getLastPull(), readLocalCounts()]).then(
+    Promise.all([getLastPull(), readLocalCounts(), getSyncConflicts()]).then(
       ([lastPull, localCounts]) => {
         if (!mounted) return;
         if (lastPull) useSyncState.getState().completePull(lastPull);
@@ -128,6 +129,15 @@ export default function SyncScreen() {
           <Text variant="small">Cambios enviados</Text>
           <Text className="font-semibold">{sync.LastPull?.Uploaded ?? 0}</Text>
         </View>
+
+        <Button variant="outline" className="h-14 justify-start px-4" onPress={() => router.push('/conflicts')}>
+          <AlertTriangle size={18} className={conflictCount ? 'text-warning' : 'text-muted-foreground'} />
+          <View className="min-w-0 flex-1 items-start">
+            <Text variant="small">Conflictos</Text>
+            <Text variant="caption">{conflictCount} pendiente{conflictCount === 1 ? '' : 's'}</Text>
+          </View>
+          <ChevronRight size={18} />
+        </Button>
 
         <Card>
           <CardHeader><CardTitle className="text-base">Registros locales</CardTitle></CardHeader>

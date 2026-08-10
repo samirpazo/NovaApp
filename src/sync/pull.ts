@@ -1,6 +1,7 @@
 import { localStorageKey, type DirtyRaw } from '@nozbe/watermelondb';
 import { synchronize, type SyncDatabaseChangeSet, type SyncPushArgs, type SyncTableChangeSet } from '@nozbe/watermelondb/sync';
 import { CryptoDigestAlgorithm, digestStringAsync } from 'expo-crypto';
+import { isAxiosError } from 'axios';
 import { Platform } from 'react-native';
 
 import { ensureOnlineSession } from '@/auth/service';
@@ -14,11 +15,13 @@ import {
   type AnySyncPullChange,
   type SyncEntityMap,
   type SyncPushChange,
+  type SyncConflict,
   type SyncResource,
 } from '@/contracts/sync';
 import { database, type EntityBaseModel } from '@/database';
 import { createApiClient, getApiErrorMessage } from '@/lib/api';
 import { getSyncConnection, SyncConnectionSchema, type SyncConnection } from '@/sync/config';
+import { conflictForChange, getSyncConflicts, removeSyncConflict, saveSyncConflicts } from '@/sync/conflicts';
 import { type PullResult, useSyncState } from '@/sync/state';
 
 const ACTIVE_SCOPE_KEY = localStorageKey<string>('nova.sync.activeScope');
@@ -64,6 +67,11 @@ function scopeFor(connection: SyncConnection): string {
 function rawData(raw: DirtyRaw): Record<string, unknown> {
   const { id: _id, _status, _changed, ...data } = raw;
   return data;
+}
+
+function preservePendingSyncVersion(_table: string, local: DirtyRaw, _remote: DirtyRaw, resolved: DirtyRaw): DirtyRaw {
+  if (local._status !== 'synced') resolved.SyncVersion = local.SyncVersion;
+  return resolved;
 }
 
 function pushChangesFrom({ changes }: SyncPushArgs): SyncPushChange[] {
@@ -180,34 +188,76 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
     };
 
     const pushChanges = async (args: SyncPushArgs) => {
-      const changes = pushChangesFrom(args);
-      if (!changes.length) return;
+      const pendingChanges = pushChangesFrom(args);
+      const storedConflicts = await getSyncConflicts();
+      const rejectedIds: Partial<Record<SyncResource, string[]>> = {};
+      const changes = pendingChanges.flatMap((change) => {
+        const conflict = conflictForChange(storedConflicts, change);
+        if (!conflict) return [change];
+        if (conflict.KeepLocal) return [{ ...change, Force: true }];
+        (rejectedIds[change.Resource] ??= []).push(change.SyncId);
+        return [];
+      });
+      if (!changes.length) return Object.keys(rejectedIds).length ? { experimentalRejectedIds: rejectedIds } : undefined;
       if (changes.length > 500) throw new Error('Hay más de 500 cambios pendientes. Sincronice en lotes más pequeños.');
       const serialized = JSON.stringify(changes);
       const idempotencyKey = `nova-sync-${await digestStringAsync(CryptoDigestAlgorithm.SHA256, serialized)}`;
       const csrfResponse = Platform.OS === 'web' ? await api.get('/Token/CsrfToken', { signal: options.signal }) : null;
       const csrfToken = typeof csrfResponse?.data?.Data === 'string' ? csrfResponse.data.Data : null;
-      const response = await api.post(
-        '/sync/push',
-        { BranchId: connection.BranchId, Changes: changes },
-        {
-          headers: {
-            'Idempotency-Key': idempotencyKey,
-            ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+      try {
+        const response = await api.post(
+          '/sync/push',
+          { BranchId: connection.BranchId, Changes: changes },
+          {
+            headers: {
+              'Idempotency-Key': idempotencyKey,
+              ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+            },
+            signal: options.signal,
           },
-          signal: options.signal,
-        },
-      );
-      const envelope = createResponseApiSchema(SyncPushResponseSchema).parse(response.data);
-      if (!envelope.Succeeded || !envelope.Data) throw new Error(envelope.Message || 'Nova no confirmó el Push.');
-      const failed = envelope.Data.Results.find((result) => result.Status !== 'Applied');
-      if (failed) throw new Error(failed.Message || `No se pudo sincronizar ${failed.Resource}.`);
-      uploaded += changes.length;
+        );
+        const envelope = createResponseApiSchema(SyncPushResponseSchema).parse(response.data);
+        if (!envelope.Succeeded || !envelope.Data) throw new Error(envelope.Message || 'Nova no confirmó el Push.');
+        const failed = envelope.Data.Results.find((result) => result.Status !== 'Applied');
+        if (failed) throw new Error(failed.Message || `No se pudo sincronizar ${failed.Resource}.`);
+        for (const result of envelope.Data.Results) {
+          const conflict = conflictForChange(storedConflicts, { Resource: result.Resource, SyncId: result.SyncId } as SyncPushChange);
+          if (conflict?.KeepLocal) await removeSyncConflict(result.Resource, result.SyncId);
+        }
+        uploaded += changes.length;
+        return Object.keys(rejectedIds).length ? { experimentalRejectedIds: rejectedIds } : undefined;
+      } catch (error) {
+        if (isAxiosError(error) && error.response?.status === 409) {
+          const envelope = createResponseApiSchema(SyncPushResponseSchema).safeParse(error.response.data);
+          if (envelope.success && envelope.data.Data) {
+            const detected = envelope.data.Data.Results.flatMap<SyncConflict>((result) => {
+              if (result.Status !== 'Conflict' || !result.Data || typeof result.Data !== 'object') return [];
+              const local = changes.find((change) => change.Resource === result.Resource && change.SyncId === result.SyncId);
+              return [{
+                Resource: result.Resource,
+                SyncId: result.SyncId,
+                Operation: local?.Operation ?? 'U',
+                Message: result.Message || 'El registro cambió también en el servidor.',
+                LocalData: local?.Data ?? null,
+                ServerData: result.Data as Record<string, unknown>,
+                KeepLocal: false,
+                DetectedAt: new Date().toISOString(),
+              }];
+            });
+            if (detected.length) {
+              await saveSyncConflicts(detected);
+              throw new Error(`Se detectaron ${detected.length} conflicto${detected.length === 1 ? '' : 's'} pendiente${detected.length === 1 ? '' : 's'} de resolución.`);
+            }
+          }
+        }
+        throw error;
+      }
     };
 
     await synchronize({
       database,
       sendCreatedAsUpdated: true,
+      conflictResolver: preservePendingSyncVersion,
       pullChanges,
       pushChanges,
     });
@@ -215,7 +265,7 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
     // The server owns numeric IDs and rowversions. A second Pull reconciles those
     // fields after WatermelonDB has marked the accepted local batch as synced.
     if (uploaded > 0) {
-      await synchronize({ database, sendCreatedAsUpdated: true, pullChanges });
+      await synchronize({ database, sendCreatedAsUpdated: true, conflictResolver: preservePendingSyncVersion, pullChanges });
     }
     await removeReconciledDuplicates();
 
