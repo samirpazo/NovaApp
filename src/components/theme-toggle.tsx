@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { saveOrQueueAppearance, useAppearanceStore } from '@/theme/appearance';
 
 export function ThemeToggle() {
-  const { colorScheme, setColorScheme } = useColorScheme();
+  const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const preferences = useAppearanceStore((state) => state.preferences);
   const previewChanges = useAppearanceStore((state) => state.previewChanges);
@@ -20,7 +20,6 @@ export function ThemeToggle() {
 
   const toggle = () => {
     const next = isDark ? 'light' : 'dark';
-    setColorScheme(next);
     const nextPreferences = { ...preferences, Theme: next };
     previewChanges(nextPreferences);
     void commit(nextPreferences);

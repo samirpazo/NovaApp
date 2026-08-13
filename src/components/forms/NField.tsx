@@ -16,20 +16,20 @@ export interface NFieldProps extends PropsWithChildren {
 
 export function NField({ children, label, required, errorMessage, hint, disabled, className, labelClassName }: NFieldProps) {
   return (
-    <View className={cn('w-full gap-1.5', className)}>
+    <View className={cn('w-full gap-1', className)}>
       {label ? (
-        <Label disabled={disabled} className={labelClassName}>
+        <Label disabled={disabled} className={cn('text-[11px] font-poppins-semibold', labelClassName)}>
           {label}
           {required ? <Text className="text-destructive"> *</Text> : null}
         </Label>
       ) : null}
       {children}
       {errorMessage ? (
-        <Text className="text-xs text-destructive" role="alert">
+        <Text className="text-[10px] text-destructive" role="alert">
           {errorMessage}
         </Text>
       ) : hint ? (
-        <Text className="text-xs text-muted-foreground">{hint}</Text>
+        <Text className="text-[10px] text-muted-foreground">{hint}</Text>
       ) : null}
     </View>
   );

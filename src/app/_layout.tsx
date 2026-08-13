@@ -14,7 +14,6 @@ import { useColorScheme, vars } from 'nativewind';
 import * as React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthGate } from '@/auth';
-import { getStoredTheme } from '@/theme/theme';
 import { hexToHslChannels, useAppearanceStore } from '@/theme/appearance';
 
 export default function RootLayout() {
@@ -24,18 +23,18 @@ export default function RootLayout() {
   const appearanceReady = useAppearanceStore((state) => state.ready);
   const hydrateAppearance = useAppearanceStore((state) => state.hydrate);
   const isDark = colorScheme === 'dark';
+  const setColorSchemeRef = React.useRef(setColorScheme);
+
+  setColorSchemeRef.current = setColorScheme;
 
   React.useEffect(() => {
     void hydrateAppearance();
   }, [hydrateAppearance]);
 
   React.useEffect(() => {
-    if (appearanceReady) {
-      setColorScheme(appearance.Theme === 'light' ? 'light' : 'dark');
-      return;
-    }
-    getStoredTheme().then((theme) => theme && setColorScheme(theme));
-  }, [appearance.Theme, appearanceReady, setColorScheme]);
+    if (!appearanceReady) return;
+    setColorSchemeRef.current(appearance.Theme === 'light' ? 'light' : 'dark');
+  }, [appearance.Theme, appearanceReady]);
 
   if (!fontsLoaded || !appearanceReady) return null;
 

@@ -38,6 +38,26 @@ una sucursal en Nova App. `BranchId` está preparado como opcional para una fase
 
 No sustituir estas tecnologías sin una decisión explícita del responsable del proyecto.
 
+## Densidad de componentes
+
+Nova App conserva la densidad visual de Nova Web. Los formularios funcionales deben construirse con
+la serie `N*`, no ensamblando controles nativos directamente:
+
+Antes de crear o rediseñar una pantalla, consultar `PRODUCT.md` para las decisiones estratégicas y
+`DESIGN.md` para tokens, jerarquía, densidad, responsive y reglas visuales. Las skills compartidas
+con Nova Web están bajo `.agents/skills/`; aplicar sus reglas de producto y adaptación móvil, pero no
+trasladar literalmente patrones exclusivos de DOM o Next.js.
+
+- `NText`, `NSelect` y `NDate` para campos;
+- `NSwitch` para booleanos con tamaño consistente entre web y nativo;
+- `NFormPanel` para encabezado, cierre, contenido y acciones de un formulario CRUD;
+- `NCrud` para componer filtros, formulario, listado, selección, ordenamiento y paginación. El
+  formulario se entrega mediante su propiedad `form`; cuando está presente, `NCrud` oculta el
+  listado y lo reemplaza. Las pantallas no deben duplicar este condicional por fuera del componente.
+
+La escala estándar es control de 32 px, texto de 12 px y label de 11 px. Una pantalla puede declarar
+una variante mayor por una razón concreta, como el login, pero no debe cambiar los defaults globales.
+
 ## Invariantes que no se deben romper
 
 1. `record.id === record.SyncId` para toda entidad sincronizable.
@@ -83,8 +103,17 @@ Nova Web y requiere una pantalla grande.
 - `src/sync/conflicts.ts`: persistencia y resolución de conflictos.
 - `src/sync/config.ts`: URL y futuro alcance de sucursal.
 - `src/components/crud/offline-crud.tsx`: listado CRUD reutilizable.
-- `src/app/explore.tsx`: pantalla técnica de sincronización.
-- `src/app/conflicts.tsx`: resolución manual.
+- `src/components/sync/conflict-comparison.tsx`: comparación responsive entre versión local y
+  versión del servidor.
+- `src/app/(tabs)/_layout.tsx`: shell autenticado con header y cinco tabs.
+- `src/features/security/options/`: consulta y caché local del menú móvil autorizado.
+- `src/app/(tabs)/sync-details.tsx`: pantalla técnica de sincronización.
+- `src/app/(tabs)/conflict-resolution.tsx`: resolución manual.
+
+Todas las pantallas autenticadas deben vivir dentro de `src/app/(tabs)/`, incluso cuando no sean
+una de las cinco pestañas principales. Las rutas secundarias se registran con `href: null` en el
+layout para conservar siempre el header y la barra inferior sin añadir botones nuevos. `login.tsx`
+es la única pantalla funcional que permanece fuera del shell autenticado.
 
 Backend relacionado:
 
@@ -106,6 +135,24 @@ No empezar por la pantalla. Seguir este orden:
 8. Probar alta, edición, eliminación, reconciliación y conflicto.
 
 Consultar [EXTENDING.md](EXTENDING.md) para el procedimiento completo.
+
+## Opciones de navegación móvil
+
+Nova App no replica todo el menú de Nova Web. `SecOption.OptIsMobile` define qué opciones finales
+pueden aparecer en la app y se administra desde `Seguridad > Opciones` en Nova Web.
+
+- La app consulta `GET /SecUser/MyOptions?mobileOnly=true` con la sesión actual.
+- NovaApi aplica primero los permisos del usuario y luego el filtro móvil.
+- Los menús ancestros necesarios se incluyen como contenedores aunque no estén marcados, pero solo
+  las opciones `TypeOption = 2` con `OptIsMobile = true` se muestran como destinos.
+- El árbol validado con Zod se guarda en WatermelonDB con una clave aislada por `UsrID`. La pantalla
+  lee primero esa caché y la muestra inmediatamente; después actualiza permisos en segundo plano.
+  Una falla de red no debe ocultar un menú local válido ni mostrar un error bloqueante. El botón de
+  actualizar sí fuerza una consulta visible. Nunca reutilizar una caché global o perteneciente a
+  otro usuario, aunque eso implique una primera carga en línea para una cuenta nueva.
+- Una opción nueva requiere además registrar su `OptCode` en el archivo del módulo bajo
+  `src/lib/routes/`; `src/lib/routeMapping.ts` compone el mapa central. Una opción sin ruta se
+  muestra deshabilitada y nunca intenta navegar a una pantalla inexistente.
 
 ## Criterio de terminado
 

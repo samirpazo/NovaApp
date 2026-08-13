@@ -104,8 +104,8 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
         accessibilityState={{ disabled, expanded: open }}
         disabled={disabled || loading}
         onPress={() => setOpen(true)}
-        className={cn('h-10 flex-row items-center rounded-md border border-input bg-background px-3', errorMessage && 'border-destructive', (disabled || loading) && 'opacity-50')}>
-        <Text numberOfLines={1} className={cn('flex-1 text-sm', !selectedItems.length && 'text-muted-foreground')}>
+        className={cn('h-8 flex-row items-center rounded-md border border-input bg-background px-2.5', errorMessage && 'border-destructive', (disabled || loading) && 'opacity-50')}>
+        <Text numberOfLines={1} className={cn('flex-1 text-xs', !selectedItems.length && 'text-muted-foreground')}>
           {loading ? 'Cargando...' : displayText}
         </Text>
         {clearable && selectedItems.length ? (
@@ -116,10 +116,10 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
               event.stopPropagation();
               emit(multiple ? [] : null);
             }}>
-            <X size={17} className="text-muted-foreground" />
+            <X size={14} className="text-muted-foreground" />
           </Pressable>
         ) : (
-          <ChevronDown size={18} className="text-muted-foreground" />
+          <ChevronDown size={15} className="text-muted-foreground" />
         )}
       </Pressable>
 

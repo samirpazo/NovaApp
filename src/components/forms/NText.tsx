@@ -103,19 +103,19 @@ export const NText = React.forwardRef<React.ElementRef<typeof Input>, NTextProps
             editable={editable}
             keyboardType={number ? 'number-pad' : decimal ? 'decimal-pad' : props.keyboardType}
             aria-invalid={Boolean(errorMessage)}
-            className={cn((suffix || (clearable && textValue && editable)) && 'pr-11', errorMessage && 'border-destructive', className)}
+            className={cn('h-8 px-2.5 text-xs', (suffix || (clearable && textValue && editable)) && 'pr-8', errorMessage && 'border-destructive', className)}
             {...props}
           />
-          {suffix ? <View className="absolute right-0 h-10 w-10 items-center justify-center">{suffix}</View> : clearable && textValue && editable ? (
+          {suffix ? <View className="absolute right-0 h-8 w-8 items-center justify-center">{suffix}</View> : clearable && textValue && editable ? (
             <Pressable
               accessibilityLabel={`Limpiar ${label ?? 'campo'}`}
-              className="absolute right-0 h-10 w-10 items-center justify-center"
+              className="absolute right-0 h-8 w-8 items-center justify-center"
               hitSlop={8}
               onPress={() => {
                 updateValue('');
                 onClear?.();
               }}>
-              <X size={17} className="text-muted-foreground" />
+              <X size={14} className="text-muted-foreground" />
             </Pressable>
           ) : null}
         </View>

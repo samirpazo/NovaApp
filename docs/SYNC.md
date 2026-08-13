@@ -248,6 +248,21 @@ En ejecuciones siguientes, un conflicto sin resolver se excluye del POST y su UU
 `experimentalRejectedIds`. WatermelonDB conserva ese registro pendiente, pero puede confirmar el
 resto del lote.
 
+### Presentación en la app
+
+La pantalla de resolución muestra cada campo divergente mediante `ConflictComparison`. En móvil,
+las versiones se apilan para conservar legibilidad; desde tablet se presentan en paralelo. La
+procedencia siempre combina icono y texto (`En este dispositivo` / `En el servidor`) y no depende
+solo del color.
+
+Las acciones deben conservar su significado exacto:
+
+- `Usar versión del servidor`: descarta la modificación local pendiente y aplica `ServerData`.
+- `Mantener mi cambio`: marca la decisión local y ejecuta el Push forzado seguido de Pull.
+
+Mientras cualquiera de las decisiones se procesa, ambas acciones del conflicto permanecen
+deshabilitadas y muestran actividad. No añadir una resolución automática desde la interfaz.
+
 ### Usar servidor
 
 1. Se valida `ServerData` como si fuera un cambio Pull.

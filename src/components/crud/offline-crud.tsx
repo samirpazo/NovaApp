@@ -22,6 +22,7 @@ export interface NCrudColumn<T extends NCrudRow> {
 
 interface NCrudProps<T extends NCrudRow, TFilter extends object = Record<string, never>> {
   title: string;
+  form?: React.ReactNode;
   rows?: T[];
   dataSource?: NCrudDataSource<T, TFilter>;
   filter?: TFilter;
@@ -61,7 +62,7 @@ function CellContent<T extends NCrudRow>({ row, column }: { row: T; column: NCru
 }
 
 export function NCrud<T extends NCrudRow, TFilter extends object = Record<string, never>>({
-  title, rows = [], dataSource, filter, extraFilters, columns, loading: externalLoading = false, readOnly = false, pageSizes = [10, 25, 50],
+  title, form, rows = [], dataSource, filter, extraFilters, columns, loading: externalLoading = false, readOnly = false, pageSizes = [10, 25, 50],
   searchPlaceholder = 'Buscar...', searchText, onAdd, onEdit, onDelete,
 }: NCrudProps<T>) {
   const compact = useWindowDimensions().width < 768;
@@ -69,6 +70,7 @@ export function NCrud<T extends NCrudRow, TFilter extends object = Record<string
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [actionsOpen, setActionsOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
+  const [pageSizeOpen, setPageSizeOpen] = React.useState(false);
   const initialFilter = React.useMemo(() => filter ?? ({} as TFilter), [filter]);
   const controller = useNCrudController({ dataSource, initialFilter, initialPageSize: pageSizes[0] ?? 10 });
   const filterSignature = JSON.stringify(filter ?? {});
@@ -115,6 +117,8 @@ export function NCrud<T extends NCrudRow, TFilter extends object = Record<string
       ? <ArrowDown size={13} className="text-foreground" />
       : <ArrowUp size={13} className="text-foreground" />;
   };
+
+  if (form) return <>{form}</>;
 
   return (
     <View
@@ -192,9 +196,26 @@ export function NCrud<T extends NCrudRow, TFilter extends object = Record<string
       ) : null}
       {!loading && !visible.length ? <View className="h-36 items-center justify-center"><Text variant="muted">No se encontraron registros</Text></View> : null}
 
-      <View className="h-9 flex-row items-center justify-between gap-2 border-t border-border bg-muted/50 px-3">
-        <View className="flex-row items-center gap-1">{pageSizes.map((size) => <Pressable key={size} onPress={() => controller.setPageSize(size)} className={cn('h-6 min-w-7 items-center justify-center rounded-md px-2', pageSize === size ? 'bg-primary' : 'bg-background')}><Text className={cn('text-[10px]', pageSize === size ? 'text-primary-foreground' : 'text-muted-foreground')}>{size}</Text></Pressable>)}</View>
-        <View className="flex-row items-center gap-1"><Text className="text-[10px] text-muted-foreground">{from}-{to} de {totalRecords}</Text><Button variant="ghost" size="icon" className="h-7 w-7" disabled={currentPage === 1} onPress={() => controller.setPage(1)} accessibilityLabel="Primera página"><ChevronsLeft size={15} /></Button><Button variant="ghost" size="icon" className="h-7 w-7" disabled={currentPage === 1} onPress={() => controller.setPage(Math.max(1, currentPage - 1))} accessibilityLabel="Anterior"><ChevronLeft size={15} /></Button><Text className="w-5 text-center text-[11px] font-semibold">{currentPage}</Text><Button variant="ghost" size="icon" className="h-7 w-7" disabled={currentPage === totalPages} onPress={() => controller.setPage(Math.min(totalPages, currentPage + 1))} accessibilityLabel="Siguiente"><ChevronRight size={15} /></Button><Button variant="ghost" size="icon" className="h-7 w-7" disabled={currentPage === totalPages} onPress={() => controller.setPage(totalPages)} accessibilityLabel="Última página"><ChevronsRight size={15} /></Button></View>
+      <View className="h-10 flex-row items-center justify-between gap-2 border-t border-border bg-muted/50 px-3">
+        <View className="flex-row items-center gap-2">
+          {!compact ? <Text className="text-[10px] text-muted-foreground">Filas por página</Text> : null}
+          <View className="relative z-50">
+            <Pressable accessibilityRole="button" accessibilityLabel="Filas por página" onPress={() => setPageSizeOpen((open) => !open)} className="h-7 min-w-16 flex-row items-center justify-between gap-2 rounded-md bg-background px-2">
+              <Text className="text-[10px] font-semibold">{pageSize}</Text>
+              <ChevronDown size={13} className="text-muted-foreground" />
+            </Pressable>
+            {pageSizeOpen ? (
+              <View className="absolute bottom-8 left-0 min-w-16 overflow-hidden rounded-md border border-border bg-card py-1 shadow-lg">
+                {pageSizes.map((size) => (
+                  <Pressable key={size} onPress={() => { controller.setPageSize(size); setPageSizeOpen(false); }} className={cn('h-7 justify-center px-2', pageSize === size && 'bg-primary-selection')}>
+                    <Text className="text-[10px] font-semibold">{size}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        </View>
+        <View className="flex-row items-center gap-0.5"><Text className="mr-1 text-[10px] text-muted-foreground">{from}-{to}/{totalRecords}</Text><Button variant="ghost" size="icon" className="h-7 w-7" disabled={currentPage === 1} onPress={() => controller.setPage(1)} accessibilityLabel="Primera página"><ChevronsLeft size={15} /></Button><Button variant="ghost" size="icon" className="h-7 w-7" disabled={currentPage === 1} onPress={() => controller.setPage(Math.max(1, currentPage - 1))} accessibilityLabel="Anterior"><ChevronLeft size={15} /></Button><Text className="w-5 text-center text-[11px] font-semibold">{currentPage}</Text><Button variant="ghost" size="icon" className="h-7 w-7" disabled={currentPage === totalPages} onPress={() => controller.setPage(Math.min(totalPages, currentPage + 1))} accessibilityLabel="Siguiente"><ChevronRight size={15} /></Button><Button variant="ghost" size="icon" className="h-7 w-7" disabled={currentPage === totalPages} onPress={() => controller.setPage(totalPages)} accessibilityLabel="Última página"><ChevronsRight size={15} /></Button></View>
       </View>
     </View>
   );
