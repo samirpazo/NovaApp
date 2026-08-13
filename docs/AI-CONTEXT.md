@@ -23,6 +23,19 @@ una sucursal en Nova App. `BranchId` está preparado como opcional para una fase
 - React Native Reusables, NativeWind y componentes propios `N*`.
 - Lucide para iconos.
 
+## Seguridad de datos locales
+
+- En iOS y Android, access token, refresh token y sesión se guardan exclusivamente con Expo
+  SecureStore. Las nuevas escrituras usan `WHEN_UNLOCKED_THIS_DEVICE_ONLY`: no migran a otro
+  dispositivo mediante respaldos y solo están disponibles cuando el dispositivo está desbloqueado.
+- En web, los tokens permanecen en cookies HttpOnly administradas por NovaApi. `localStorage` solo
+  conserva la sesión mínima validada por `AuthSessionSchema`; nunca debe almacenar access token ni
+  refresh token.
+- `AuthUserSchema` es una lista permitida: Zod elimina cualquier campo adicional que NovaApi envíe.
+  No ampliar esa lista con documento, teléfono, dirección, datos médicos u otra información sensible
+  salvo que exista una necesidad funcional explícita.
+- Toda sesión recuperada del almacenamiento vuelve a validarse con Zod antes de entrar a Zustand.
+
 No sustituir estas tecnologías sin una decisión explícita del responsable del proyecto.
 
 ## Invariantes que no se deben romper

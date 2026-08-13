@@ -1,4 +1,5 @@
 import { storage } from '@/lib/storage';
+import { Platform } from 'react-native';
 import { z } from 'zod';
 
 const CONNECTION_KEY = 'nova.sync.connection';
@@ -38,10 +39,12 @@ export async function saveSyncConnection(connection: SyncConnection): Promise<vo
 }
 
 export async function getAccessToken(): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
   return storage.getItem(ACCESS_TOKEN_KEY);
 }
 
 export async function saveAccessToken(accessToken: string): Promise<void> {
+  if (Platform.OS === 'web') throw new Error('Los tokens web deben permanecer en cookies HttpOnly.');
   const token = accessToken.trim();
   if (!token) throw new Error('El token de acceso no puede estar vacío.');
   await storage.setItem(ACCESS_TOKEN_KEY, token);
@@ -52,10 +55,12 @@ export async function clearAccessToken(): Promise<void> {
 }
 
 export async function getRefreshToken(): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
   return storage.getItem(REFRESH_TOKEN_KEY);
 }
 
 export async function saveRefreshToken(refreshToken: string): Promise<void> {
+  if (Platform.OS === 'web') throw new Error('Los tokens web deben permanecer en cookies HttpOnly.');
   await storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 }
 

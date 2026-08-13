@@ -1,9 +1,13 @@
 import { createResponseApiSchema } from '@/contracts/api';
 import { z } from 'zod';
 
+const expirationSchema = z
+  .string()
+  .refine((value) => !Number.isNaN(Date.parse(value)), 'La fecha de expiración de la sesión no es válida.');
+
 export const AuthUserSchema = z.object({
-  UsrID: z.number().int(),
-  UsrName: z.string(),
+  UsrID: z.number().int().positive(),
+  UsrName: z.string().min(1),
   UsrEmail: z.string().nullish(),
   FullName: z.string().nullish(),
   PrsName: z.string().nullish(),
@@ -15,8 +19,8 @@ export const AuthUserSchema = z.object({
 });
 
 export const AuthSessionSchema = z.object({
-  AccessTokenExpiration: z.string(),
-  SsnID: z.number().int(),
+  AccessTokenExpiration: expirationSchema,
+  SsnID: z.number().int().positive(),
   User: AuthUserSchema,
 });
 

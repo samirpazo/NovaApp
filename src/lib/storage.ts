@@ -1,6 +1,10 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
+const secureStoreOptions: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+};
+
 export const storage = {
   async getItem(key: string): Promise<string | null> {
     if (Platform.OS === 'web') {
@@ -14,7 +18,7 @@ export const storage = {
       if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
       return;
     }
-    await SecureStore.setItemAsync(key, value);
+    await SecureStore.setItemAsync(key, value, secureStoreOptions);
   },
 
   async removeItem(key: string): Promise<void> {
