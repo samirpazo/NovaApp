@@ -199,6 +199,11 @@ await database.write(() => model.markAsDeleted());
 WatermelonDB conserva el tombstone para Push. NovaApi realiza soft delete actualizando `SecStatus`,
 `DeleteUserId` y `DeleteDate`. Tras la confirmación, WatermelonDB elimina el tombstone local.
 
+Una eliminación originada en Nova Web puede llegar en Pull como un registro con
+`SecStatus = false`, según la entrada del journal. Por ello, todas las consultas funcionales de
+WatermelonDB deben incluir `Q.where('SecStatus', true)`. El almacenamiento local puede conservar el
+registro inactivo; la interfaz, los selectores y las relaciones activas no deben mostrarlo.
+
 No usar `destroyPermanently()` antes de sincronizar: se perdería la intención de borrado.
 
 ## Conflictos

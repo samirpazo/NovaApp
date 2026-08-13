@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
+import { Q } from '@nozbe/watermelondb';
 import * as React from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,7 +25,11 @@ export default function TablesScreen() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   React.useEffect(() => {
-    const subscription = database.get<RstTableModel>(SYNC_RESOURCES.RstTable).query().observe().subscribe({ next: (records) => { setModels([...records].sort((a, b) => a.TabTableNumber - b.TabTableNumber)); setLoading(false); }, error: (reason) => { setError(reason instanceof Error ? reason.message : 'No se pudieron leer las mesas locales.'); setLoading(false); } });
+    const subscription = database
+      .get<RstTableModel>(SYNC_RESOURCES.RstTable)
+      .query(Q.where('SecStatus', true))
+      .observe()
+      .subscribe({ next: (records) => { setModels([...records].sort((a, b) => a.TabTableNumber - b.TabTableNumber)); setLoading(false); }, error: (reason) => { setError(reason instanceof Error ? reason.message : 'No se pudieron leer las mesas locales.'); setLoading(false); } });
     return () => subscription.unsubscribe();
   }, []);
   const rows = React.useMemo(() => models.map(toRow), [models]);

@@ -1,6 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Save, X } from 'lucide-react-native';
+import { Q } from '@nozbe/watermelondb';
 import * as React from 'react';
 import { Alert, Platform, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -82,12 +83,20 @@ export default function DefinitionDetailsScreen() {
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const definitionSubscription = database.get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition).query().observe().subscribe((records) => {
+    const definitionSubscription = database
+      .get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition)
+      .query(Q.where('SecStatus', true))
+      .observe()
+      .subscribe((records) => {
       const sorted = [...records].sort((a, b) => a.DefDescription.localeCompare(b.DefDescription));
       setDefinitions(sorted);
       setDefinitionId((current) => current ?? sorted[0]?.DefID ?? null);
     });
-    const detailSubscription = database.get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail).query().observe().subscribe({
+    const detailSubscription = database
+      .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
+      .query(Q.where('SecStatus', true))
+      .observe()
+      .subscribe({
       next: (records) => {
         setDetails([...records]);
         setLoading(false);

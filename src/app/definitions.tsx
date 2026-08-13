@@ -1,6 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ListTree, Save, X } from 'lucide-react-native';
+import { Q } from '@nozbe/watermelondb';
 import * as React from 'react';
 import { Alert, Platform, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -62,7 +63,9 @@ export default function DefinitionsScreen() {
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const query = database.get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition).query();
+    const query = database
+      .get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition)
+      .query(Q.where('SecStatus', true));
     const subscription = query.observe().subscribe({
       next: (records) => {
         setModels([...records].sort((a, b) => a.DefDescription.localeCompare(b.DefDescription)));

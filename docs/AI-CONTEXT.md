@@ -57,6 +57,9 @@ No sustituir estas tecnologías sin una decisión explícita del responsable del
     marque como sincronizado.
 14. Los nombres de recursos deben coincidir exactamente entre todos los proyectos; no pluralizar.
 15. Los datos recibidos del servidor deben pasar por Zod antes de llegar a WatermelonDB.
+16. Las consultas funcionales deben filtrar `SecStatus = true`. Los registros con eliminación
+    lógica pueden conservarse localmente para sincronización, pero no deben aparecer en listados,
+    selectores ni relaciones activas.
 
 ## Estado de recursos
 

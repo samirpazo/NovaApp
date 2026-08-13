@@ -1,6 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Save, X } from 'lucide-react-native';
+import { Q } from '@nozbe/watermelondb';
 import * as React from 'react';
 import { Alert, Platform, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -64,11 +65,23 @@ export default function BranchesScreen() {
 
   React.useEffect(() => {
     let definitionIds: number[] = [];
-    const definitionsSubscription = database.get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition).query().observe().subscribe((records) => {
+    const definitionsSubscription = database
+      .get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition)
+      .query(Q.where('SecStatus', true))
+      .observe()
+      .subscribe((records) => {
       definitionIds = records.filter((record) => record.DefCode === 'GEN_CURRENCY').map((record) => record.DefID);
-      database.get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail).query().fetch().then((details) => setCurrencies(details.filter((detail) => definitionIds.includes(detail.DefID))));
+      database
+        .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
+        .query(Q.where('SecStatus', true))
+        .fetch()
+        .then((details) => setCurrencies(details.filter((detail) => definitionIds.includes(detail.DefID))));
     });
-    const branchSubscription = database.get<RstBranchModel>(SYNC_RESOURCES.RstBranch).query().observe().subscribe({
+    const branchSubscription = database
+      .get<RstBranchModel>(SYNC_RESOURCES.RstBranch)
+      .query(Q.where('SecStatus', true))
+      .observe()
+      .subscribe({
       next: (records) => { setBranches([...records].sort((a, b) => a.BrhName.localeCompare(b.BrhName))); setLoading(false); },
       error: (reason) => { setError(reason instanceof Error ? reason.message : 'No se pudieron leer las sucursales locales.'); setLoading(false); },
     });
