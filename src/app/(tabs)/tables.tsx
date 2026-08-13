@@ -1,11 +1,8 @@
-import { useRouter } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
 import * as React from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { NCrud, type NCrudColumn, type NCrudRow } from '@/components/crud';
-import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { rstTableQueries, type RstTableListItem } from '@/features/restaurant/tables';
 
@@ -18,7 +15,6 @@ const columns: NCrudColumn<TableRow>[] = [
 const toRow = (model: RstTableListItem): TableRow => ({ id: model.LocalId, syncStatus: model.SyncStatus, TabID: model.TabID, TabTableNumber: model.TabTableNumber, TabCapacity: model.TabCapacity, TabStatus: model.TabStatus, BrhID: model.BrhID, TabShape: model.TabShape });
 
 export default function TablesScreen() {
-  const router = useRouter();
   const [models, setModels] = React.useState<RstTableListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -28,7 +24,7 @@ export default function TablesScreen() {
   }, []);
   const rows = React.useMemo(() => models.map(toRow), [models]);
   return <SafeAreaView className="flex-1 bg-background"><ScrollView contentContainerClassName="mx-auto w-full max-w-6xl gap-4 pb-24 pt-4">
-    <View className="flex-row items-center gap-3"><Button variant="ghost" size="icon" onPress={() => router.back()} accessibilityLabel="Volver"><ArrowLeft size={20} /></Button><View><Text variant="title">Mesas</Text><Text variant="caption">RstTable · consulta local</Text></View></View>
+    <View><Text variant="title">Mesas</Text><Text variant="caption">RstTable · consulta local</Text></View>
     {error ? <Text className="text-sm text-destructive" role="alert">{error}</Text> : null}
     <NCrud title="RstTable" rows={rows} columns={columns} loading={loading} readOnly searchPlaceholder="Número, capacidad o forma" searchText={(row) => `${row.TabTableNumber} ${row.TabCapacity} ${row.TabShape}`} />
   </ScrollView></SafeAreaView>;

@@ -305,13 +305,20 @@ sucursal se debe bloquear el cambio cuando haya pendientes o pedir sincronizarlo
 - `Pages`
 - `FinishedAt`
 
-La pantalla de inicio combina `getLastPull()` y `hasUnsyncedChanges()` para mostrar:
+El header combina `getLastPull()` con el conteo local de cambios para mostrar:
 
 - pendiente de sincronización inicial;
 - cambios pendientes;
 - sincronizado.
 
 Un Push exitoso cuenta como sincronización aunque la última operación haya descargado cero cambios.
+
+`useSyncIndicators()` observa todas las tablas de `SYNC_RESOURCES` y cuenta los registros creados,
+editados y eliminados que WatermelonDB enviaría en el próximo Push. También hidrata y observa los
+conflictos guardados en `nova.sync.conflicts`. Estos datos son completamente locales: el badge de
+`Sincronizar` y el del icono del header muestran los cambios pendientes, mientras el badge de
+`Conflictos` muestra decisiones sin resolver. Los badges se ocultan en cero y presentan `99+` al
+superar 99 elementos.
 
 ## Preferencias de apariencia
 

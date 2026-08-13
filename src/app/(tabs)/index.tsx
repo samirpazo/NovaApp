@@ -6,7 +6,7 @@ export default function HomeTab() {
   return (
     <View className="flex-1 items-center justify-center bg-background pb-16 opacity-20">
       <Image
-        source={require('@/assets/images/logo-nova.svg')}
+        source={require('@/assets/images/logo-nova-monochrome.svg')}
         accessibilityLabel="Logo de Nova"
         contentFit="contain"
         style={{ width: 96, height: 96 }}

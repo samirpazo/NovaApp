@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { pullNova, useSyncState } from '@/sync';
 import { useRouter } from 'expo-router';
-import { CheckCircle2, RefreshCw, Server } from 'lucide-react-native';
+import { CheckCircle2, RefreshCw } from 'lucide-react-native';
 import { ScrollView, View } from 'react-native';
 
 export default function SyncTab() {
@@ -26,10 +26,10 @@ export default function SyncTab() {
       </View>
       <Card className="gap-3 p-3">
         <View className="flex-row items-center gap-2">
-          <Server size={17} className="text-primary" />
+          <RefreshCw size={17} className="text-primary" />
           <View className="min-w-0 flex-1">
-            <Text variant="small">Servidor Nova</Text>
-            <Text variant="caption" numberOfLines={1}>{process.env.EXPO_PUBLIC_API_URL}</Text>
+            <Text variant="small">Actualizar datos</Text>
+            <Text variant="caption">Envía tus cambios y recibe la información más reciente</Text>
           </View>
         </View>
         <Button className="h-9" disabled={sync.Status === 'syncing'} onPress={() => void synchronize()}>

@@ -217,3 +217,13 @@ altura fija. El acceso a resolución usa una fila principal de 56px con título 
 - **Don't** depender exclusivamente del color para distinguir estados o decisiones.
 - **Don't** apilar formulario y listado cuando `NCrud` debe reemplazar uno por el otro.
 - **Don't** usar radios superiores a 10px en paneles funcionales.
+# Indicadores de sincronización
+
+- La pestaña `Sincronizar` usa un badge ámbar para el total de altas, ediciones y eliminaciones
+  pendientes en WatermelonDB.
+- La pestaña `Conflictos` usa un badge rojo para decisiones pendientes.
+- El icono de sincronización del header repite el conteo pendiente para hacerlo visible desde
+  cualquier pantalla.
+- No mostrar badges con valor cero y abreviar cualquier cifra superior a 99 como `99+`.
+- Los indicadores son informativos y compactos; no deben modificar las dimensiones del header ni
+  de la barra inferior.

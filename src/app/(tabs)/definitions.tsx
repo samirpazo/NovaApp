@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, ListTree, Save } from 'lucide-react-native';
+import { ListTree, Save } from 'lucide-react-native';
 import * as React from 'react';
 import { Alert, Platform, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -124,9 +124,6 @@ export default function DefinitionsScreen() {
     <SafeAreaView className="flex-1 bg-background">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-7xl gap-3 pb-16 pt-3" keyboardShouldPersistTaps="handled">
         <View className="flex-row items-center gap-2">
-          <Button className="h-8 w-8" variant="ghost" size="icon" onPress={() => router.back()} accessibilityLabel="Volver">
-            <ArrowLeft size={17} className="text-foreground" />
-          </Button>
           <View className="min-w-0 flex-1">
             <Text className="text-lg font-poppins-semibold">Definiciones</Text>
             <Text className="text-xs text-muted-foreground">Datos disponibles sin conexión</Text>

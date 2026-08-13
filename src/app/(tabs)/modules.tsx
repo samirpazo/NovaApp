@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '@/lib/api';
 import { getRouteByCode } from '@/lib/routeMapping';
 import { cn } from '@/lib/utils';
 import { useFocusEffect, useRouter } from 'expo-router';
+import Fuse from 'fuse.js';
 import {
   Building2,
   CalendarDays,
@@ -64,13 +65,15 @@ function optionIcon(option: SecOption): LucideIcon {
     (option.TypeOption === 1 ? Folder : FileText);
 }
 
-function filterTree(nodes: SecOption[], search: string): SecOption[] {
-  const term = search.trim().toLocaleLowerCase();
-  if (!term) return nodes;
+function flattenTree(nodes: SecOption[]): SecOption[] {
+  return nodes.flatMap((node) => [node, ...flattenTree(node.Children)]);
+}
+
+function filterTree(nodes: SecOption[], matchedIds: Set<number>): SecOption[] {
   return nodes.flatMap((node) => {
-    const children = filterTree(node.Children, term);
-    const matches = `${node.OptName} ${node.OptCode}`.toLocaleLowerCase().includes(term);
-    return matches || children.length ? [{ ...node, Children: children }] : [];
+    if (matchedIds.has(node.OptID)) return [node];
+    const children = filterTree(node.Children, matchedIds);
+    return children.length ? [{ ...node, Children: children }] : [];
   });
 }
 
@@ -202,7 +205,21 @@ export default function ModulesTab() {
     }, [load]),
   );
 
-  const visibleOptions = React.useMemo(() => filterTree(options, search), [options, search]);
+  const searchIndex = React.useMemo(
+    () => new Fuse(flattenTree(options), {
+      keys: ['OptName', 'OptCode'],
+      threshold: 0.2,
+      minMatchCharLength: 3,
+      ignoreLocation: true,
+    }),
+    [options],
+  );
+  const visibleOptions = React.useMemo(() => {
+    const term = search.trim();
+    if (!term) return options;
+    const matchedIds = new Set(searchIndex.search(term).map(({ item }) => item.OptID));
+    return filterTree(options, matchedIds);
+  }, [options, search, searchIndex]);
   const toggle = React.useCallback((id: number) => {
     setOpenIds((current) => {
       const next = new Set(current);

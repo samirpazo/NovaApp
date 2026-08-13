@@ -101,6 +101,7 @@ Nova Web y requiere una pantalla grande.
 - `src/database/models/`: modelos WatermelonDB.
 - `src/sync/pull.ts`: orquestación Pull + Push + reconciliación.
 - `src/sync/conflicts.ts`: persistencia y resolución de conflictos.
+- `src/sync/useSyncIndicators.ts`: conteos reactivos locales para badges de cambios y conflictos.
 - `src/sync/config.ts`: URL y futuro alcance de sucursal.
 - `src/components/crud/offline-crud.tsx`: listado CRUD reutilizable.
 - `src/components/sync/conflict-comparison.tsx`: comparación responsive entre versión local y

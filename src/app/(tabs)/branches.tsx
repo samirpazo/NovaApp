@@ -1,5 +1,4 @@
-import { useRouter } from 'expo-router';
-import { ArrowLeft, Save } from 'lucide-react-native';
+import { Save } from 'lucide-react-native';
 import * as React from 'react';
 import { Alert, Platform, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -49,7 +48,6 @@ function toRow(model: RstBranchListItem): BranchRow {
 }
 
 export default function BranchesScreen() {
-  const router = useRouter();
   const userId = useAuthStore((state) => state.Session?.User.UsrID ?? 0);
   const [branches, setBranches] = React.useState<RstBranchListItem[]>([]);
   const [currencies, setCurrencies] = React.useState<CurrencyOption[]>([]);
@@ -104,7 +102,7 @@ export default function BranchesScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background"><ScrollView contentContainerClassName="mx-auto w-full max-w-6xl gap-4 pb-24 pt-4" keyboardShouldPersistTaps="handled">
-      <View className="flex-row items-center gap-3"><Button variant="ghost" size="icon" onPress={() => router.back()} accessibilityLabel="Volver"><ArrowLeft size={20} /></Button><View><Text variant="title">Sucursales</Text><Text variant="caption">RstBranch · datos locales</Text></View></View>
+      <View><Text variant="title">Sucursales</Text><Text variant="caption">RstBranch · datos locales</Text></View>
       {error ? <Text className="text-sm text-destructive" role="alert">{error}</Text> : null}
       <NCrud
         title="RstBranch"

@@ -1,12 +1,12 @@
 import { useRouter } from 'expo-router';
-import { AlertTriangle, ArrowLeft, ChevronRight, Database, LogOut, RefreshCw, Server, ShieldCheck } from 'lucide-react-native';
+import { AlertTriangle, ChevronRight, CloudDownload, CloudUpload, RefreshCw } from 'lucide-react-native';
 import * as React from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/auth';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import { database } from '@/database';
@@ -20,6 +20,13 @@ const emptyCounts: LocalCounts = {
   RstTable: 0,
 };
 
+const resourceLabels: Record<keyof LocalCounts, string> = {
+  GenDefinition: 'Definiciones',
+  GenDefinitionDetail: 'Valores de definiciones',
+  RstBranch: 'Sucursales',
+  RstTable: 'Mesas',
+};
+
 async function readLocalCounts(): Promise<LocalCounts> {
   const entries = await Promise.all(
     Object.values(SYNC_RESOURCES).map(async (resource) => [resource, await database.get(resource).query().fetchCount()] as const),
@@ -30,7 +37,7 @@ async function readLocalCounts(): Promise<LocalCounts> {
 export default function SyncScreen() {
   const router = useRouter();
   const sync = useSyncState();
-  const { Session, signOut } = useAuthStore();
+  const user = useAuthStore((state) => state.Session?.User);
   const [counts, setCounts] = React.useState<LocalCounts>(emptyCounts);
   const [ready, setReady] = React.useState(false);
   const conflictCount = useSyncConflictState((state) => state.Conflicts.length);
@@ -64,91 +71,67 @@ export default function SyncScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-3xl gap-5 pb-28 pt-5" keyboardShouldPersistTaps="handled">
-        <View className="flex-row items-center gap-3">
-          <Button variant="ghost" size="icon" onPress={() => router.replace('/(tabs)/sync')} accessibilityLabel="Volver a sincronización">
-            <ArrowLeft size={20} />
-          </Button>
-          <View className="gap-1">
-            <Text variant="title">Sincronización</Text>
-            <View className="flex-row items-center gap-2">
-              <View className={`h-2.5 w-2.5 rounded-full ${statusColor}`} />
-              <Text variant="muted">{statusLabel} · {Session?.User.FullName || Session?.User.UsrName}</Text>
-            </View>
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-3xl gap-3 pb-24 pt-3" keyboardShouldPersistTaps="handled">
+        <View>
+          <Text className="font-poppins-semibold text-lg">Sincronización</Text>
+          <View className="mt-0.5 flex-row items-center gap-1.5">
+            <View className={`h-2 w-2 rounded-full ${statusColor}`} />
+            <Text variant="caption" numberOfLines={1}>
+              {statusLabel} · {user?.FullName || user?.UsrName}
+            </Text>
           </View>
         </View>
 
-        <Card>
-          <CardHeader className="flex-row items-center gap-3">
-            <Server size={20} className="text-primary" />
-            <CardTitle className="text-base">Conexión</CardTitle>
-          </CardHeader>
-          <CardContent className="gap-4">
-            <View className="rounded-md border border-border bg-muted px-3 py-2.5">
-              <Text variant="caption">Servidor configurado</Text>
-              <Text variant="small" numberOfLines={1}>{process.env.EXPO_PUBLIC_API_URL}</Text>
+        <Card className="gap-3 p-3">
+          <View className="flex-row items-center gap-2">
+            <RefreshCw size={16} className="text-primary" />
+            <View className="min-w-0 flex-1">
+              <Text variant="small">Actualizar datos</Text>
+              <Text variant="caption">Envía tus cambios y recibe la información más reciente</Text>
             </View>
-            <Button disabled={!ready || sync.Status === 'syncing'} onPress={synchronize}>
-              <RefreshCw size={17} className="text-primary-foreground" />
-              <Text>{sync.Status === 'syncing' ? 'Sincronizando...' : 'Sincronizar'}</Text>
-            </Button>
-            {sync.Error ? (
-              <Text className="text-sm text-destructive" role="alert">{sync.Error}</Text>
-            ) : null}
-            <Button
-              variant="ghost"
-              onPress={async () => {
-                await signOut();
-                router.replace('/login');
-              }}>
-              <LogOut size={17} />
-              <Text>Cerrar sesión</Text>
-            </Button>
-          </CardContent>
+          </View>
+          <Button className="h-9" disabled={!ready || sync.Status === 'syncing'} onPress={synchronize}>
+            <RefreshCw size={15} className="text-primary-foreground" />
+            <Text>{sync.Status === 'syncing' ? 'Sincronizando...' : 'Sincronizar'}</Text>
+          </Button>
+          {sync.Error ? <Text className="text-xs text-destructive" role="alert">{sync.Error}</Text> : null}
         </Card>
 
-        <View className="flex-row gap-3">
-          <Card className="min-w-0 flex-1">
-            <Database size={19} className="mb-3 text-accent" />
-            <Text variant="caption">Cursor</Text>
-            <Text className="mt-1 text-xl font-semibold">{sync.LastPull?.Cursor ?? 0}</Text>
-          </Card>
-          <Card className="min-w-0 flex-1">
-            <ShieldCheck size={19} className="mb-3 text-success" />
-            <Text variant="caption">Descargados</Text>
-            <Text className="mt-1 text-xl font-semibold">{sync.LastPull?.Downloaded ?? 0}</Text>
-          </Card>
-          <Card className="min-w-0 flex-1">
-            <RefreshCw size={19} className="mb-3 text-primary" />
-            <Text variant="caption">Páginas</Text>
-            <Text className="mt-1 text-xl font-semibold">{sync.LastPull?.Pages ?? 0}</Text>
-          </Card>
+        <View className="flex-row overflow-hidden rounded-md border border-border bg-card">
+          <View className="min-w-0 flex-1 gap-0.5 border-r border-border p-3">
+            <CloudDownload size={15} className="text-primary" />
+            <Text variant="caption">Recibidos</Text>
+            <Text className="font-poppins-semibold text-base">{sync.LastPull?.Downloaded ?? 0}</Text>
+          </View>
+          <View className="min-w-0 flex-1 gap-0.5 border-r border-border p-3">
+            <CloudUpload size={15} className="text-success" />
+            <Text variant="caption">Enviados</Text>
+            <Text className="font-poppins-semibold text-base">{sync.LastPull?.Uploaded ?? 0}</Text>
+          </View>
+          <View className="min-w-0 flex-1 gap-0.5 p-3">
+            <AlertTriangle size={15} className={conflictCount ? 'text-warning' : 'text-muted-foreground'} />
+            <Text variant="caption">Conflictos</Text>
+            <Text className="font-poppins-semibold text-base">{conflictCount}</Text>
+          </View>
         </View>
 
-        <View className="flex-row items-center justify-between border-y border-border py-3">
-          <Text variant="small">Cambios enviados</Text>
-          <Text className="font-semibold">{sync.LastPull?.Uploaded ?? 0}</Text>
-        </View>
-
-        <Button variant="outline" className="h-14 justify-start px-4" onPress={() => router.push('/conflict-resolution')}>
-          <AlertTriangle size={18} className={conflictCount ? 'text-warning' : 'text-muted-foreground'} />
+        <Button variant="outline" className="h-12 justify-start px-3" onPress={() => router.push('/conflict-resolution')}>
+          <AlertTriangle size={16} className={conflictCount ? 'text-warning' : 'text-muted-foreground'} />
           <View className="min-w-0 flex-1 items-start">
             <Text variant="small">Conflictos</Text>
             <Text variant="caption">{conflictCount} pendiente{conflictCount === 1 ? '' : 's'}</Text>
           </View>
-          <ChevronRight size={18} />
+          <ChevronRight size={16} className="text-muted-foreground" />
         </Button>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">Registros locales</CardTitle></CardHeader>
-          <CardContent className="gap-3">
-            {Object.entries(counts).map(([resource, count]) => (
-              <View key={resource} className="flex-row items-center justify-between border-b border-border pb-3 last:border-b-0 last:pb-0">
-                <Text variant="small">{resource}</Text>
-                <Text className="font-semibold">{count}</Text>
-              </View>
-            ))}
-          </CardContent>
+        <Card className="p-3">
+          <Text variant="small" className="mb-1">Registros locales</Text>
+          {Object.entries(counts).map(([resource, count]) => (
+            <View key={resource} className="flex-row items-center justify-between border-b border-border py-2 last:border-b-0 last:pb-0">
+              <Text variant="caption">{resourceLabels[resource as keyof LocalCounts]}</Text>
+              <Text className="font-poppins-semibold text-xs">{count}</Text>
+            </View>
+          ))}
         </Card>
 
         {sync.LastPull ? (
