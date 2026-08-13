@@ -1,8 +1,8 @@
 import type { SyncStatus } from '@nozbe/watermelondb/Model';
 
 export interface GenDefinitionListItem {
-  LocalId: string;
-  SyncStatus: SyncStatus;
+  id: string;
+  syncStatus: SyncStatus;
   DefID: number;
   DefCode: string;
   DefDescription: string;

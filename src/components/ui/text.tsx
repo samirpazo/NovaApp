@@ -5,15 +5,15 @@ import * as React from 'react';
 import { Platform, Text as RNText } from 'react-native';
 
 const textVariants = cva(
-  cn('text-foreground text-base', Platform.select({ web: 'select-text' })),
+  cn('font-poppins text-foreground text-base', Platform.select({ web: 'select-text' })),
   {
     variants: {
       variant: {
         default: '',
-        title: 'text-2xl font-bold',
-        heading: 'text-lg font-semibold',
+        title: 'font-poppins-bold text-2xl',
+        heading: 'font-poppins-semibold text-lg',
         body: 'text-base leading-6',
-        small: 'text-sm font-medium',
+        small: 'font-poppins-semibold text-sm',
         muted: 'text-muted-foreground text-sm',
         caption: 'text-muted-foreground text-xs',
       },

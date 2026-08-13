@@ -9,10 +9,10 @@ import { NCrud, type NCrudColumn, type NCrudRow } from '@/components/crud';
 import { NText } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
+import { ThemeToggle } from '@/components/theme-toggle';
 import {
-  genDefinitionQueries,
+  genDefinitionDataSource,
   genDefinitionService,
-  type GenDefinitionListItem,
 } from '@/features/general/definitions';
 
 interface DefinitionRow extends NCrudRow {
@@ -31,49 +31,35 @@ interface DefinitionDraft {
 const emptyDraft: DefinitionDraft = { DefCode: '', DefDescription: '', active: true };
 
 const columns: NCrudColumn<DefinitionRow>[] = [
-  { key: 'DefID', title: 'ID', width: 80, align: 'right' },
-  { key: 'DefCode', title: 'Código', width: 220 },
-  { key: 'DefDescription', title: 'Descripción', width: 320 },
-  { key: 'DefStated', title: 'Estado', width: 110, format: (row) => (row.DefStated === 1 ? 'Activo' : 'Inactivo') },
+  { key: 'DefID', title: 'ID', width: 64, align: 'right' },
+  { key: 'DefCode', title: 'Código', width: 180, flex: 1 },
+  { key: 'DefDescription', title: 'Descripción', width: 240, flex: 1.5 },
+  {
+    key: 'DefStated',
+    title: 'Estado',
+    width: 96,
+    align: 'center',
+    format: (row) => (
+      <Text
+        className={
+          row.DefStated === 1
+            ? 'rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-bold uppercase text-success'
+            : 'rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[10px] font-bold uppercase text-destructive'
+        }>
+        {row.DefStated === 1 ? 'Activo' : 'Inactivo'}
+      </Text>
+    ),
+  },
 ];
-
-function toRow(model: GenDefinitionListItem): DefinitionRow {
-  return {
-    id: model.LocalId,
-    syncStatus: model.SyncStatus,
-    DefID: model.DefID,
-    DefCode: model.DefCode,
-    DefDescription: model.DefDescription,
-    DefStated: model.DefStated,
-  };
-}
 
 export default function DefinitionsScreen() {
   const router = useRouter();
   const userId = useAuthStore((state) => state.Session?.User.UsrID ?? 0);
-  const [models, setModels] = React.useState<GenDefinitionListItem[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [formMode, setFormMode] = React.useState<'add' | 'edit' | null>(null);
   const [editing, setEditing] = React.useState<DefinitionRow | null>(null);
   const [draft, setDraft] = React.useState<DefinitionDraft>(emptyDraft);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    const subscription = genDefinitionQueries.observeActive(
-      (records) => {
-        setModels(records);
-        setLoading(false);
-      },
-      (reason) => {
-        setError(reason instanceof Error ? reason.message : 'No se pudieron leer las definiciones locales.');
-        setLoading(false);
-      },
-    );
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const rows = React.useMemo(() => models.map(toRow), [models]);
 
   const beginAdd = () => {
     setFormMode('add');
@@ -136,19 +122,22 @@ export default function DefinitionsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-6xl gap-4 px-4 pb-24 pt-4" keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-7xl gap-3 px-4 pb-16 pt-3" keyboardShouldPersistTaps="handled">
         <View className="flex-row items-center gap-3">
           <Button variant="ghost" size="icon" onPress={() => router.back()} accessibilityLabel="Volver">
-            <ArrowLeft size={20} />
+            <ArrowLeft size={20} className="text-foreground" />
           </Button>
           <View className="min-w-0 flex-1">
-            <Text variant="title">Definiciones</Text>
-            <Text variant="caption">Datos disponibles sin conexión</Text>
+            <Text className="text-xl font-bold">Definiciones</Text>
+            <Text className="text-xs text-muted-foreground">Datos disponibles sin conexión</Text>
           </View>
-          <Button variant="outline" size="sm" onPress={() => router.push('/definition-details')}>
-            <ListTree size={17} />
-            <Text>Ver valores</Text>
-          </Button>
+          <View className="flex-row items-center gap-1">
+            <ThemeToggle />
+            <Button variant="outline" size="sm" onPress={() => router.push('/definition-details')}>
+              <ListTree size={16} className="text-foreground" />
+              <Text>Ver valores</Text>
+            </Button>
+          </View>
         </View>
 
         {formMode ? (
@@ -181,9 +170,8 @@ export default function DefinitionsScreen() {
 
         <NCrud
           title="GenDefinition"
-          rows={rows}
+          dataSource={genDefinitionDataSource}
           columns={columns}
-          loading={loading}
           searchPlaceholder="Código o descripción"
           searchText={(row) => `${row.DefCode} ${row.DefDescription}`}
           onAdd={beginAdd}

@@ -1,5 +1,4 @@
 import type { AuthSession } from '@/contracts/auth';
-import { getSyncConnection } from '@/sync/config';
 import { create } from 'zustand';
 
 import {
@@ -40,22 +39,18 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     set({ Session: storedSession, IsAuthenticated: true });
     if (isSessionExpired(storedSession)) {
-      const connection = await getSyncConnection();
-      if (connection) {
-        try {
-          const Session = await refreshSession(connection.BaseUrl);
-          set({ Session });
-        } catch (error) {
-          if (!isTransientAuthFailure(error)) {
-            await clearLocalSession();
-            set({ Session: null, IsAuthenticated: false });
-          }
+      try {
+        const Session = await refreshSession();
+        set({ Session });
+      } catch (error) {
+        if (!isTransientAuthFailure(error)) {
+          await clearLocalSession();
+          set({ Session: null, IsAuthenticated: false });
         }
       }
     }
     if (useAuthStore.getState().IsAuthenticated) {
-      const connection = await getSyncConnection();
-      if (connection) await initCsrf(connection.BaseUrl);
+      await initCsrf();
     }
     set({ IsReady: true });
   },
@@ -73,8 +68,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   signOut: async () => {
-    const connection = await getSyncConnection();
     set({ Session: null, IsAuthenticated: false, Error: null });
-    if (connection) await logoutSession(connection.BaseUrl);
+    await logoutSession();
   },
 }));

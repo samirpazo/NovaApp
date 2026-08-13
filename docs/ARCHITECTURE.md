@@ -168,11 +168,84 @@ gen_definition_details
 GenDefinitionDetails
 ```
 
+## Cliente HTTP
+
+`src/lib/api.ts` exporta una única instancia Axios llamada `api`. Lee `EXPO_PUBLIC_API_URL` una vez,
+al cargar el módulo, y centraliza cookies web, bearer token nativo, CSRF, timeout y refresh token.
+Los servicios deben limitarse a importar `api` y ejecutar `api.get`, `api.post`, etc.; no deben leer
+`BaseUrl`, recuperar tokens ni crear instancias Axios.
+
+`SyncConnection.BaseUrl` permanece en `src/sync/config.ts` únicamente como parte de la identidad del
+alcance local y para detectar cambios de instalación. No usarlo para construir clientes por servicio.
+
 ## Componentes reutilizables
 
 `NC​​rud` presenta registros WatermelonDB y su estado local. En escritorio usa tabla horizontal;
 en pantallas compactas usa filas verticales. Proporciona búsqueda, paginación, selección y comandos
 de alta/edición/eliminación.
+
+La presentación sigue la densidad operativa de Nova Web y usa la misma familia Poppins 400/600/700:
+encabezados y acciones compactos, filas de escritorio de altura fija, tipografía pequeña y columnas
+flexibles que ocupan todo el ancho del CRUD.
+No asignar a la tabla un ancho fijo menor que su contenedor. En móvil se conserva el formato vertical,
+el toolbar reemplaza los iconos por el selector `ACCIONES` y el ordenamiento usa una franja
+`ORDENAR POR`. Cada tarjeta agrega `SINCRONIZACIÓN` como dato propio de la aplicación offline,
+además de las columnas configuradas por el recurso.
+
+El tema claro/oscuro se controla con `ThemeToggle` y se persiste mediante `src/theme/theme.ts`. Las
+pantallas y los componentes compartidos deben usar los tokens de `global.css` (`background`, `card`,
+`foreground`, `border`, etc.) en vez de colores de superficie fijos, para heredar ambos temas.
+Estos tokens reflejan la paleta neutral de Nova Web. El valor predeterminado es Nova (`#002aff`),
+pero `SecUserPreference.PrimaryColor` lo reemplaza por usuario; `primary-selection` representa el
+primario vigente con 15 % de opacidad. Los iconos deben declarar un token
+de texto (`text-foreground`, `text-muted-foreground`, etc.) y nunca depender del negro predeterminado
+de la librería en modo oscuro.
+
+La identidad visual no debe teñir toda la interfaz. Fondos, tarjetas, campos, bordes y tipografía
+usan la escala neutral de Nova Web; `PrimaryColor` se reserva para foco, selección, acciones
+principales e indicadores. El login es independiente de la preferencia autenticada: tarjeta
+`neutral-100/80`, campos blancos translúcidos, textos neutral-800/500 y botón neutral-900. Esto
+evita mostrar el tema o color privado del usuario anterior antes de autenticar.
+
+El login reutiliza los mismos assets responsive que Nova Web: `logo-nova_b.svg` a 32 px desde el
+breakpoint de escritorio y `logo-nova.svg` a 40 px en móvil. El fondo `bg-nova.webp` es el mismo
+archivo en ambos proyectos. En web se conserva el desenfoque de 2 px del fondo y el desenfoque 2xl
+de la tarjeta; la estructura mide 440 px de ancho, con campos de 48 px y radio exterior de 40 px.
+
+La pantalla `appearance` administra `Theme`, `PrimaryColor` y `HeaderColor`. Mantiene una vista
+previa separada de la última preferencia confirmada: salir sin guardar restaura los colores previos.
+Al guardar, conserva primero una
+copia local para poder aplicar la apariencia offline y usa los mismos endpoints
+`SecUserPreference/MyPreferences` y `SecUserPreference/Save` de Nova Web. Al autenticar, la preferencia
+del servidor se aplica sobre el fallback local. Si Save no puede llegar al servidor, guarda una cola
+única en `nova.appearance.pending`; se reintenta antes de descargar preferencias al autenticar.
+
+### Contrato NCrud local
+
+El contrato replica el vocabulario de Nova Web: `Page`, `PageSize`, `SearchText`, `OrderBy`,
+`SortOrder` y `Filter`. Su ejecución es local:
+
+```text
+Pantalla -> NCrud -> useNCrudController -> NCrudDataSource -> WatermelonDB
+```
+
+`createLocalCrudDataSource` traduce el contrato a `Q.where`, `Q.like`, `Q.sortBy`, `Q.skip` y
+`Q.take`. Obtiene el total con `observeCount` y mantiene la página reactiva con
+`observeWithColumns`. No cargar una tabla completa para luego ejecutar `filter/sort/slice` en
+memoria.
+
+Cada datasource debe declarar explícitamente:
+
+- columnas buscables;
+- mapa permitido de columnas ordenables;
+- columnas observadas;
+- orden predeterminado;
+- filtros tipados;
+- proyección del modelo al DTO.
+
+La lista blanca de ordenamiento evita aceptar nombres arbitrarios. `GenDefinition` es el primer
+recurso migrado al datasource paginado; el modo `rows` de `NCrud` se conserva temporalmente durante
+la migración de las demás pantallas.
 
 Los formularios actuales reutilizan:
 

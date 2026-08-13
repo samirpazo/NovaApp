@@ -22,6 +22,7 @@ export interface NTextProps extends Omit<InputProps, 'onChange' | 'onChangeText'
   errorMessage?: string;
   hint?: string;
   containerClassName?: string;
+  labelClassName?: string;
   prefix?: React.ReactNode;
   suffix?: React.ReactNode;
   onClear?: () => void;
@@ -62,6 +63,7 @@ export const NText = React.forwardRef<React.ElementRef<typeof Input>, NTextProps
     errorMessage,
     hint,
     containerClassName,
+    labelClassName,
     prefix,
     suffix,
     onClear,
@@ -86,7 +88,7 @@ export const NText = React.forwardRef<React.ElementRef<typeof Input>, NTextProps
   );
 
   return (
-    <NField label={label} required={required} errorMessage={errorMessage} hint={hint} disabled={!editable} className={containerClassName}>
+    <NField label={label} required={required} errorMessage={errorMessage} hint={hint} disabled={!editable} className={containerClassName} labelClassName={labelClassName}>
       <View className="flex-row items-center gap-2">
         {prefix ? <View className="shrink-0">{prefix}</View> : null}
         <View className="relative flex-1 justify-center">
@@ -101,10 +103,10 @@ export const NText = React.forwardRef<React.ElementRef<typeof Input>, NTextProps
             editable={editable}
             keyboardType={number ? 'number-pad' : decimal ? 'decimal-pad' : props.keyboardType}
             aria-invalid={Boolean(errorMessage)}
-            className={cn(clearable && textValue && editable && 'pr-10', errorMessage && 'border-destructive', className)}
+            className={cn((suffix || (clearable && textValue && editable)) && 'pr-11', errorMessage && 'border-destructive', className)}
             {...props}
           />
-          {clearable && textValue && editable ? (
+          {suffix ? <View className="absolute right-0 h-10 w-10 items-center justify-center">{suffix}</View> : clearable && textValue && editable ? (
             <Pressable
               accessibilityLabel={`Limpiar ${label ?? 'campo'}`}
               className="absolute right-0 h-10 w-10 items-center justify-center"
@@ -117,7 +119,6 @@ export const NText = React.forwardRef<React.ElementRef<typeof Input>, NTextProps
             </Pressable>
           ) : null}
         </View>
-        {suffix ? <View className="shrink-0">{suffix}</View> : null}
       </View>
     </NField>
   );

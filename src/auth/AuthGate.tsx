@@ -3,11 +3,15 @@ import { Text } from '@/components/ui/text';
 import { usePathname, useRouter } from 'expo-router';
 import * as React from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { useColorScheme } from 'nativewind';
+import { flushPendingAppearance, loadServerAppearance, useAppearanceStore } from '@/theme/appearance';
 
 export function AuthGate({ children }: React.PropsWithChildren) {
   const router = useRouter();
   const pathname = usePathname();
   const { IsAuthenticated, IsReady, initialize } = useAuthStore();
+  const { setColorScheme } = useColorScheme();
+  const commitAppearance = useAppearanceStore((state) => state.commit);
 
   React.useEffect(() => {
     initialize();
@@ -18,6 +22,19 @@ export function AuthGate({ children }: React.PropsWithChildren) {
     if (!IsAuthenticated && pathname !== '/login') router.replace('/login');
     if (IsAuthenticated && pathname === '/login') router.replace('/');
   }, [IsAuthenticated, IsReady, pathname, router]);
+
+  React.useEffect(() => {
+    if (!IsAuthenticated) return;
+    const revision = useAppearanceStore.getState().revision;
+    flushPendingAppearance().then(async (flushed) => {
+      if (!flushed) return;
+      const preferences = await loadServerAppearance();
+      if (!preferences) return;
+      if (useAppearanceStore.getState().revision !== revision) return;
+      await commitAppearance(preferences);
+      setColorScheme(preferences.Theme === 'light' ? 'light' : 'dark');
+    });
+  }, [IsAuthenticated, commitAppearance, setColorScheme]);
 
   if (!IsReady) {
     return (

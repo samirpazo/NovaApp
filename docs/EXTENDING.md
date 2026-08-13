@@ -152,6 +152,29 @@ await database.write(() => model.markAsDeleted());
 - Mantener formularios compactos y operativos.
 - La pantalla no debe importar `database`, modelos WatermelonDB ni `SYNC_RESOURCES`.
 
+### Generador NCrud
+
+Cuando el contrato, recurso sincronizable, schema y modelo WatermelonDB ya existen, se puede
+generar la capa `features`:
+
+```bash
+npm run generate:crud -- \
+  --module=general \
+  --feature=periods \
+  --entity=GenPeriod \
+  --model=GenPeriodModel \
+  --resource=GenPeriod \
+  --pk=PerID \
+  --search=PerCode,PerName \
+  --sort=PerID,PerCode,PerName \
+  --access=ReadWrite \
+  --dry-run
+```
+
+Ejecutar primero con `--dry-run`. El generador inspecciona decoradores del modelo, pero no puede
+deducir reglas funcionales, relaciones, alcance ni permisos; revisar y completar el servicio antes
+de usarlo. Consultar `generator/README.md`.
+
 ### 9. Matriz mínima de pruebas
 
 | Caso | Resultado esperado |

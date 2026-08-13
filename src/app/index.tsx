@@ -2,11 +2,12 @@ import { useAuthStore } from '@/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { database } from '@/database';
 import { getLastPull } from '@/sync';
 import { hasUnsyncedChanges } from '@nozbe/watermelondb/sync';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Building2, Database, RefreshCw, Settings2, TableProperties } from 'lucide-react-native';
+import { Building2, Database, Palette, RefreshCw, TableProperties } from 'lucide-react-native';
 import * as React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -70,9 +71,10 @@ export default function HomeScreen() {
             <Text variant="title">Nova</Text>
             <Text variant="caption">{user?.FullName || user?.UsrName || 'Datos disponibles sin conexión'}</Text>
           </View>
-          <Button variant="ghost" size="icon" accessibilityLabel="Configuración">
-            <Settings2 size={20} color="#64748b" />
-          </Button>
+          <View className="flex-row items-center gap-1">
+            <Button variant="ghost" size="icon" onPress={() => router.push('/appearance')} accessibilityLabel="Personalización"><Palette size={18} className="text-foreground" /></Button>
+            <ThemeToggle />
+          </View>
         </View>
 
         <View className="mb-6 flex-row items-center justify-between border-y border-border py-3">

@@ -18,7 +18,8 @@ import {
   type SyncResource,
 } from '@/contracts/sync';
 import { database, type EntityBaseModel } from '@/database';
-import { createApiClient, getApiErrorMessage } from '@/lib/api';
+import { api, getApiErrorMessage } from '@/lib/api';
+import { flushPendingAppearance } from '@/theme/appearance';
 import { getSyncConnection, SyncConnectionSchema, type SyncConnection } from '@/sync/config';
 import { conflictForChange, getSyncConflicts, removeSyncConflict, saveSyncConflicts } from '@/sync/conflicts';
 import { type PullResult, useSyncState } from '@/sync/state';
@@ -122,7 +123,6 @@ async function removeReconciledDuplicates(): Promise<void> {
 
 export interface PullNovaOptions {
   connection?: SyncConnection;
-  accessToken?: string;
   signal?: AbortSignal;
   limit?: number;
 }
@@ -145,10 +145,13 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
     const storedConnection = options.connection ?? (await getSyncConnection());
     if (!storedConnection) throw new Error('Debe configurar el servidor y la sucursal antes de sincronizar.');
     const connection = SyncConnectionSchema.parse(storedConnection);
-    const accessToken = options.accessToken?.trim() || (await ensureOnlineSession(connection.BaseUrl));
+    await ensureOnlineSession();
+
+    // User appearance is a last-value singleton, not a WatermelonDB journal entity.
+    // Flush its offline queue alongside the regular manual synchronization.
+    await flushPendingAppearance();
 
     await prepareScope(connection);
-    const api = createApiClient({ baseUrl: connection.BaseUrl, accessToken });
     const limit = Math.min(500, Math.max(1, options.limit ?? 250));
     let downloaded = 0;
     let uploaded = 0;

@@ -297,3 +297,12 @@ La pantalla de inicio combina `getLastPull()` y `hasUnsyncedChanges()` para most
 - sincronizado.
 
 Un Push exitoso cuenta como sincronización aunque la última operación haya descargado cero cambios.
+
+## Preferencias de apariencia
+
+`SecUserPreference` no forma parte del journal de entidades WatermelonDB. Es un singleton por usuario
+y usa una cola local de último valor (`nova.appearance.pending`): un guardado offline confirma la
+preferencia en el dispositivo y reemplaza cualquier pendiente anterior. Al recuperar conectividad se
+envía `Theme`, `PrimaryColor` y `HeaderColor` a `SecUserPreference/Save`; solo después se elimina la
+cola. Antes de consultar `MyPreferences` al autenticar se intenta vaciarla, para no sobrescribir una
+decisión offline reciente con una versión antigua del servidor.

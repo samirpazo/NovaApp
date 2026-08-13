@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Eye, EyeOff, LogIn, ShieldAlert } from 'lucide-react-native';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
-import { ImageBackground, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
@@ -40,38 +40,47 @@ export default function LoginScreen() {
   });
 
   return (
-    <ImageBackground
-      source={require('@/assets/images/bg-nova.webp')}
-      className="flex-1"
-      resizeMode="cover"
-      style={{ width: '100%' }}>
-      <View className="absolute inset-0 bg-black/60" />
-      <SafeAreaView className="flex-1">
+    <View className="flex-1 bg-black">
+      <Image
+        source={require('@/assets/images/bg-nova.webp')}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        pointerEvents="none"
+      />
+      <View pointerEvents="none" className="absolute inset-0 z-0 bg-neutral-800/60 web:backdrop-blur-[2px]" />
+      <SafeAreaView className="relative z-10 flex-1">
         <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerClassName="min-h-full items-center justify-center px-4 py-8" keyboardShouldPersistTaps="handled">
-            <View className="mb-6 flex-row items-center gap-3">
-              <Image source={require('@/assets/images/logo-nova.svg')} style={{ width: 42, height: 42 }} contentFit="contain" />
-              <Text className="text-3xl font-bold text-white">NOVA</Text>
+          <ScrollView contentContainerClassName="relative min-h-full items-center justify-center px-4 py-8" keyboardShouldPersistTaps="handled">
+            <View className="mb-8 flex-row items-center gap-3 md:hidden">
+              <Image source={require('@/assets/images/logo-nova.svg')} style={{ width: 40, height: 40 }} contentFit="contain" />
+              <Text className="font-poppins-bold text-3xl text-neutral-100">NOVA</Text>
+            </View>
+            <View className="absolute left-8 top-8 hidden flex-row items-center gap-3 md:flex">
+              <Image source={require('@/assets/images/logo-nova_b.svg')} style={{ width: 32, height: 32 }} contentFit="contain" />
+              <Text className="font-poppins-bold text-2xl text-neutral-100">NOVA</Text>
             </View>
 
-            <Card className="w-full max-w-md border-white/40 bg-card/95 p-6 web:p-8">
-              <View className="mb-6 items-center gap-1">
-                <Text variant="title">Bienvenido</Text>
-                <Text variant="muted">Ingresa a tu espacio de trabajo</Text>
+            <Card className="w-full max-w-[440px] rounded-[40px] border-white/60 bg-neutral-100/80 p-8 shadow-2xl web:backdrop-blur-2xl md:p-10">
+              <View className="mb-10 items-center gap-2">
+                <Text className="font-poppins-semibold text-[28px] text-neutral-800">Bienvenido</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit className="max-w-[300px] text-center text-sm font-medium text-neutral-500">Toma el control total de tus operaciones.</Text>
               </View>
 
               <View className="gap-4">
-                <FormNText control={control} name="User" label="Usuario" placeholder="Usuario" autoCapitalize="none" autoCorrect={false} required />
+                <FormNText control={control} name="User" label="Usuario" labelClassName="font-poppins-semibold text-xs text-neutral-500" placeholder="Usuario" placeholderTextColor="#a3a3a3" autoCapitalize="none" autoCorrect={false} clearable={false} className="h-12 rounded-xl border-neutral-300/50 bg-white/60 px-4 text-sm text-neutral-800" />
                 <FormNText
                   control={control}
                   name="Password"
                   label="Contraseña"
-                  placeholder="Contraseña"
+                  labelClassName="font-poppins-semibold text-xs text-neutral-500"
+                  placeholder="••••••••"
+                  placeholderTextColor="#a3a3a3"
                   secureTextEntry={!showPassword}
-                  required
+                  clearable={false}
+                  className="h-12 rounded-xl border-neutral-300/50 bg-white/60 px-4 text-sm text-neutral-800"
                   suffix={
                     <Pressable accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} className="h-10 w-10 items-center justify-center" onPress={() => setShowPassword((current) => !current)}>
-                      {showPassword ? <EyeOff size={19} className="text-muted-foreground" /> : <Eye size={19} className="text-muted-foreground" />}
+                      {showPassword ? <EyeOff size={19} className="text-neutral-400" /> : <Eye size={19} className="text-neutral-400" />}
                     </Pressable>
                   }
                 />
@@ -83,15 +92,22 @@ export default function LoginScreen() {
                   </View>
                 ) : null}
 
-                <Button size="lg" disabled={IsLoading} onPress={submit}>
-                  <LogIn size={18} className="text-primary-foreground" />
-                  <Text>{IsLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}</Text>
+                <Pressable className="items-end pb-2 pt-1"><Text className="text-xs font-medium text-neutral-500">¿Olvidaste tu contraseña?</Text></Pressable>
+
+                <Button size="lg" className="h-12 rounded-xl bg-neutral-900" disabled={IsLoading} onPress={submit}>
+                  <LogIn size={18} color="white" />
+                  <Text className="font-poppins-semibold text-sm text-white">{IsLoading ? 'Iniciando sesión…' : 'Iniciar sesión'}</Text>
                 </Button>
+              </View>
+
+              <View className="mt-8 items-center gap-1 border-t border-neutral-200/50 pt-6">
+                <Text className="text-xs font-medium text-neutral-500">© 2026 Nova System</Text>
+                <Text className="text-[11px] text-neutral-400">Gestión inteligente y segura.</Text>
               </View>
             </Card>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </ImageBackground>
+    </View>
   );
 }

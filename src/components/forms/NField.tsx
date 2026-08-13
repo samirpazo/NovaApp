@@ -11,13 +11,14 @@ export interface NFieldProps extends PropsWithChildren {
   hint?: string;
   disabled?: boolean;
   className?: string;
+  labelClassName?: string;
 }
 
-export function NField({ children, label, required, errorMessage, hint, disabled, className }: NFieldProps) {
+export function NField({ children, label, required, errorMessage, hint, disabled, className, labelClassName }: NFieldProps) {
   return (
     <View className={cn('w-full gap-1.5', className)}>
       {label ? (
-        <Label disabled={disabled}>
+        <Label disabled={disabled} className={labelClassName}>
           {label}
           {required ? <Text className="text-destructive"> *</Text> : null}
         </Label>

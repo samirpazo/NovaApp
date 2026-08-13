@@ -1,14 +1,16 @@
-import { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig, create } from 'axios';
+import { AxiosError, type InternalAxiosRequestConfig, create } from 'axios';
 import { Platform } from 'react-native';
 
 import { getAccessToken } from '@/sync/config';
 
-export interface ApiClientOptions {
-  baseUrl: string;
-  accessToken?: string | null;
+const MUTATING_METHODS = ['post', 'put', 'patch', 'delete'];
+const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+
+if (!configuredApiUrl) {
+  throw new Error('EXPO_PUBLIC_API_URL no está configurada.');
 }
 
-const MUTATING_METHODS = ['post', 'put', 'patch', 'delete'];
+export const API_URL = configuredApiUrl.replace(/\/+$/, '');
 
 let csrfRequestToken: string | null = null;
 
@@ -27,26 +29,25 @@ interface NovaRequestConfig extends InternalAxiosRequestConfig {
 
 let refreshingPromise: Promise<boolean> | null = null;
 
-export function createApiClient({ baseUrl, accessToken }: ApiClientOptions): AxiosInstance {
-  const client = create({
-    baseURL: baseUrl.replace(/\/+$/, ''),
-    timeout: 30_000,
-    withCredentials: Platform.OS === 'web',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...(Platform.OS === 'web' ? {} : { 'X-Client-Platform': 'native' }),
-    },
-  });
+export const api = create({
+  baseURL: API_URL,
+  timeout: 30_000,
+  withCredentials: Platform.OS === 'web',
+  headers: {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    ...(Platform.OS === 'web' ? {} : { 'X-Client-Platform': 'native' }),
+  },
+});
 
-  attachSecurityInterceptors(client);
-  return client;
-}
-
-function attachSecurityInterceptors(client: AxiosInstance): void {
-  client.interceptors.request.use((config) => {
+function attachSecurityInterceptors(): void {
+  api.interceptors.request.use(async (config) => {
     const method = config.method?.toLowerCase();
+    if (Platform.OS !== 'web') {
+      const accessToken = await getAccessToken();
+      if (accessToken) config.headers.set('Authorization', `Bearer ${accessToken}`);
+      else config.headers.delete('Authorization');
+    }
     if (
       Platform.OS === 'web' &&
       method &&
@@ -58,7 +59,7 @@ function attachSecurityInterceptors(client: AxiosInstance): void {
     return config;
   });
 
-  client.interceptors.response.use(
+  api.interceptors.response.use(
     (response) => response,
     async (error: unknown) => {
       if (!(error instanceof AxiosError) || !error.config) throw error;
@@ -80,8 +81,8 @@ function attachSecurityInterceptors(client: AxiosInstance): void {
         originalRequest._csrfRetry = true;
         try {
           const { initCsrf } = await import('@/auth/service');
-          await initCsrf(String(originalRequest.baseURL ?? ''));
-          return client(originalRequest);
+          await initCsrf();
+          return api(originalRequest);
         } catch {
           // Fall through and reject with the original error.
         }
@@ -92,13 +93,13 @@ function attachSecurityInterceptors(client: AxiosInstance): void {
       if (status === 401 && !originalRequest._novaRetry && !isAuthEndpoint) {
         originalRequest._novaRetry = true;
         try {
-          const refreshed = await refreshAccessToken(String(originalRequest.baseURL ?? ''));
+          const refreshed = await refreshAccessToken();
           if (refreshed) {
             if (Platform.OS !== 'web') {
               const accessToken = await getAccessToken();
               if (accessToken) originalRequest.headers.set('Authorization', `Bearer ${accessToken}`);
             }
-            return client(originalRequest);
+            return api(originalRequest);
           }
         } catch (refreshError) {
           throw refreshError;
@@ -110,19 +111,21 @@ function attachSecurityInterceptors(client: AxiosInstance): void {
   );
 }
 
-async function refreshAccessToken(baseUrl: string): Promise<boolean> {
+attachSecurityInterceptors();
+
+async function refreshAccessToken(): Promise<boolean> {
   if (!refreshingPromise) {
-    refreshingPromise = performRefresh(baseUrl).finally(() => {
+    refreshingPromise = performRefresh().finally(() => {
       refreshingPromise = null;
     });
   }
   return refreshingPromise;
 }
 
-async function performRefresh(baseUrl: string): Promise<boolean> {
+async function performRefresh(): Promise<boolean> {
   try {
     const { refreshSession } = await import('@/auth/service');
-    await refreshSession(baseUrl);
+    await refreshSession();
     return true;
   } catch (error) {
     const { isTransientAuthFailure } = await import('@/auth/service');

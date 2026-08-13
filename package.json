@@ -10,9 +10,11 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate:crud": "node generator/nova-app-gen.mjs"
   },
   "dependencies": {
+    "@expo-google-fonts/poppins": "^0.4.1",
     "@hookform/resolvers": "^5.7.1",
     "@nozbe/watermelondb": "^0.28.0",
     "@react-native-community/datetimepicker": "8.6.0",

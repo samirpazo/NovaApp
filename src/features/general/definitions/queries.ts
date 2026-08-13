@@ -2,18 +2,34 @@ import { Q } from '@nozbe/watermelondb';
 
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import { database, GenDefinitionModel } from '@/database';
+import { createLocalCrudDataSource } from '@/components/crud';
 import type { GenDefinitionListItem } from '@/features/general/definitions/types';
 
 function toListItem(model: GenDefinitionModel): GenDefinitionListItem {
   return {
-    LocalId: model.id,
-    SyncStatus: model.syncStatus,
+    id: model.id,
+    syncStatus: model.syncStatus,
     DefID: model.DefID,
     DefCode: model.DefCode,
     DefDescription: model.DefDescription,
     DefStated: model.DefStated,
   };
 }
+
+export const genDefinitionDataSource = createLocalCrudDataSource({
+  collection: database.get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition),
+  map: toListItem,
+  activeColumn: 'SecStatus',
+  searchableColumns: ['DefCode', 'DefDescription'],
+  sortableColumns: {
+    DefID: 'DefID',
+    DefCode: 'DefCode',
+    DefDescription: 'DefDescription',
+    DefStated: 'DefStated',
+  },
+  observedColumns: ['DefID', 'DefCode', 'DefDescription', 'DefStated', 'SecStatus'],
+  defaultOrder: { column: 'DefDescription', direction: 'asc' },
+});
 
 export const genDefinitionQueries = {
   observeActive(
