@@ -1,7 +1,5 @@
-import { randomUUID } from 'expo-crypto';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Save, X } from 'lucide-react-native';
-import { Q } from '@nozbe/watermelondb';
 import * as React from 'react';
 import { Alert, Platform, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,11 +9,14 @@ import { NCrud, type NCrudColumn, type NCrudRow } from '@/components/crud';
 import { NSelect, NText } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
-import { SYNC_RESOURCES } from '@/contracts/sync';
-import { database, GenDefinitionDetailModel, GenDefinitionModel } from '@/database';
+import {
+  genDefinitionDetailQueries,
+  genDefinitionDetailService,
+  type GenDefinitionDetailListItem,
+  type GenDefinitionOption,
+} from '@/features/general/definition-details';
 
 interface DetailRow extends NCrudRow {
-  model: GenDefinitionDetailModel;
   DedID: number;
   DedValue: number;
   DedDescription: string;
@@ -52,13 +53,10 @@ const columns: NCrudColumn<DetailRow>[] = [
   { key: 'DedStated', title: 'Estado', width: 100, format: (row) => row.DedStated === 1 ? 'Activo' : 'Inactivo' },
 ];
 
-const nullable = (value: string) => value.trim() || null;
-
-function toRow(model: GenDefinitionDetailModel): DetailRow {
+function toRow(model: GenDefinitionDetailListItem): DetailRow {
   return {
-    id: model.id,
-    model,
-    syncStatus: model.syncStatus,
+    id: model.LocalId,
+    syncStatus: model.SyncStatus,
     DedID: model.DedID,
     DedValue: model.DedValue,
     DedDescription: model.DedDescription,
@@ -72,40 +70,29 @@ function toRow(model: GenDefinitionDetailModel): DetailRow {
 export default function DefinitionDetailsScreen() {
   const router = useRouter();
   const userId = useAuthStore((state) => state.Session?.User.UsrID ?? 0);
-  const [definitions, setDefinitions] = React.useState<GenDefinitionModel[]>([]);
-  const [details, setDetails] = React.useState<GenDefinitionDetailModel[]>([]);
+  const [definitions, setDefinitions] = React.useState<GenDefinitionOption[]>([]);
+  const [details, setDetails] = React.useState<GenDefinitionDetailListItem[]>([]);
   const [definitionId, setDefinitionId] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [formMode, setFormMode] = React.useState<'add' | 'edit' | null>(null);
-  const [editing, setEditing] = React.useState<GenDefinitionDetailModel | null>(null);
+  const [editing, setEditing] = React.useState<GenDefinitionDetailListItem | null>(null);
   const [draft, setDraft] = React.useState<DetailDraft>(emptyDraft);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const definitionSubscription = database
-      .get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition)
-      .query(Q.where('SecStatus', true))
-      .observe()
-      .subscribe((records) => {
-      const sorted = [...records].sort((a, b) => a.DefDescription.localeCompare(b.DefDescription));
-      setDefinitions(sorted);
-      setDefinitionId((current) => current ?? sorted[0]?.DefID ?? null);
-    });
-    const detailSubscription = database
-      .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
-      .query(Q.where('SecStatus', true))
-      .observe()
-      .subscribe({
-      next: (records) => {
-        setDetails([...records]);
+    const onError = (reason: unknown) => {
+      setError(reason instanceof Error ? reason.message : 'No se pudieron leer los detalles locales.');
+      setLoading(false);
+    };
+    const definitionSubscription = genDefinitionDetailQueries.observeDefinitions((records) => {
+      setDefinitions(records);
+      setDefinitionId((current) => current ?? records[0]?.DefID ?? null);
+    }, onError);
+    const detailSubscription = genDefinitionDetailQueries.observeActive((records) => {
+        setDetails(records);
         setLoading(false);
-      },
-      error: (reason) => {
-        setError(reason instanceof Error ? reason.message : 'No se pudieron leer los detalles locales.');
-        setLoading(false);
-      },
-    });
+    }, onError);
     return () => {
       definitionSubscription.unsubscribe();
       detailSubscription.unsubscribe();
@@ -140,7 +127,8 @@ export default function DefinitionDetailsScreen() {
   };
 
   const beginEdit = (row: DetailRow) => {
-    const model = row.model;
+    const model = details.find((detail) => detail.LocalId === row.id);
+    if (!model) return;
     setFormMode('edit');
     setEditing(model);
     setDraft({
@@ -159,55 +147,23 @@ export default function DefinitionDetailsScreen() {
       setError('Definición, valor y descripción son obligatorios.');
       return;
     }
-    const duplicate = currentDetails.some((detail) => detail.id !== editing?.id && detail.DedValue === value);
-    if (duplicate) {
-      setError(`El valor ${value} ya existe en esta definición.`);
-      return;
-    }
-
     setSaving(true);
     setError(null);
     try {
-      await database.write(async () => {
-        const apply = (record: GenDefinitionDetailModel) => {
-          record.DefID = selectedDefinition.DefID;
-          record.DedCode = selectedDefinition.DefCode;
-          record.DedValue = value;
-          record.DedDescription = description;
-          record.DedAbbreviation = nullable(draft.DedAbbreviation);
-          record.DedFormat = nullable(draft.DedFormat);
-          record.DedGroup = nullable(draft.DedGroup);
-          record.DedHelper = nullable(draft.DedHelper);
-          record.DedHelper2 = nullable(draft.DedHelper2);
-          record.DedIcon = nullable(draft.DedIcon);
-          record.DedColor = nullable(draft.DedColor);
-          record.DedStated = draft.active ? 1 : 0;
-          record.SecStatus = draft.active;
-        };
-        if (editing) {
-          await editing.update((record) => {
-            apply(record);
-            record.UpdateUserId = userId;
-            record.UpdateDate = new Date().toISOString();
-          });
-          return;
-        }
-        const temporaryId = Math.min(0, ...details.map((detail) => detail.DedID)) - 1;
-        const syncId = randomUUID();
-        await database.get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail).create((record) => {
-          record._raw.id = syncId;
-          record.SyncId = syncId;
-          record.SyncVersion = '';
-          record.CreateUserId = userId;
-          record.UpdateUserId = null;
-          record.DeleteUserId = null;
-          record.CreateDate = new Date().toISOString();
-          record.UpdateDate = null;
-          record.DeleteDate = null;
-          record.DedID = temporaryId;
-          record.DedImagePath = null;
-          apply(record);
-        });
+      await genDefinitionDetailService.save({
+        LocalId: editing?.LocalId,
+        Definition: selectedDefinition,
+        DedValue: value,
+        DedDescription: description,
+        DedAbbreviation: draft.DedAbbreviation,
+        DedFormat: draft.DedFormat,
+        DedGroup: draft.DedGroup,
+        DedHelper: draft.DedHelper,
+        DedHelper2: draft.DedHelper2,
+        DedIcon: draft.DedIcon,
+        DedColor: draft.DedColor,
+        DedStated: draft.active ? 1 : 0,
+        UserId: userId,
       });
       closeForm();
     } catch (reason) {
@@ -220,7 +176,7 @@ export default function DefinitionDetailsScreen() {
   const remove = async (row: DetailRow) => {
     const execute = async () => {
       try {
-        await database.write(() => row.model.markAsDeleted());
+        await genDefinitionDetailService.remove(row.id);
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : 'No se pudo eliminar el detalle local.');
       }

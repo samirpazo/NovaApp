@@ -90,14 +90,22 @@ Registrar el modelo en `src/database/models/index.ts`.
 editables serán convertidos automáticamente por `pushChangesFrom`; revisar si necesitan relaciones,
 orden especial o remapeo de FKs temporales en el backend.
 
-### 7. Crear repositorio o pantalla local
+### 7. Crear consultas y servicio local
+
+No consultar ni escribir WatermelonDB directamente desde una pantalla. Crear una carpeta de
+recurso bajo `src/features/{modulo}/{recurso}` con:
+
+- `queries.ts` para lecturas reactivas, filtros activos y proyección a DTO;
+- `service.ts` para validación, alta, edición y eliminación;
+- `types.ts` para entradas y salidas sin modelos WatermelonDB;
+- `index.ts` como API pública del recurso.
 
 Lectura reactiva:
 
 ```ts
 const subscription = database
   .get<MyEntityModel>(SYNC_RESOURCES.MyEntity)
-  .query()
+  .query(Q.where('SecStatus', true))
   .observe()
   .subscribe(setRecords);
 ```
@@ -142,6 +150,7 @@ await database.write(() => model.markAsDeleted());
 - Reutilizar componentes `NText`, `NDate`, `NSelect`.
 - Añadir ruta/módulo sin crear una pantalla de presentación intermedia.
 - Mantener formularios compactos y operativos.
+- La pantalla no debe importar `database`, modelos WatermelonDB ni `SYNC_RESOURCES`.
 
 ### 9. Matriz mínima de pruebas
 

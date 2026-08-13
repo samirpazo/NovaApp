@@ -1,7 +1,5 @@
-import { randomUUID } from 'expo-crypto';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ListTree, Save, X } from 'lucide-react-native';
-import { Q } from '@nozbe/watermelondb';
 import * as React from 'react';
 import { Alert, Platform, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,16 +9,17 @@ import { NCrud, type NCrudColumn, type NCrudRow } from '@/components/crud';
 import { NText } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
-import { SYNC_RESOURCES } from '@/contracts/sync';
-import { database, GenDefinitionModel } from '@/database';
+import {
+  genDefinitionQueries,
+  genDefinitionService,
+  type GenDefinitionListItem,
+} from '@/features/general/definitions';
 
 interface DefinitionRow extends NCrudRow {
-  model: GenDefinitionModel;
   DefID: number;
   DefCode: string;
   DefDescription: string;
   DefStated: number;
-  SecStatus: boolean;
 }
 
 interface DefinitionDraft {
@@ -38,44 +37,39 @@ const columns: NCrudColumn<DefinitionRow>[] = [
   { key: 'DefStated', title: 'Estado', width: 110, format: (row) => (row.DefStated === 1 ? 'Activo' : 'Inactivo') },
 ];
 
-function toRow(model: GenDefinitionModel): DefinitionRow {
+function toRow(model: GenDefinitionListItem): DefinitionRow {
   return {
-    id: model.id,
-    model,
-    syncStatus: model.syncStatus,
+    id: model.LocalId,
+    syncStatus: model.SyncStatus,
     DefID: model.DefID,
     DefCode: model.DefCode,
     DefDescription: model.DefDescription,
     DefStated: model.DefStated,
-    SecStatus: model.SecStatus,
   };
 }
 
 export default function DefinitionsScreen() {
   const router = useRouter();
   const userId = useAuthStore((state) => state.Session?.User.UsrID ?? 0);
-  const [models, setModels] = React.useState<GenDefinitionModel[]>([]);
+  const [models, setModels] = React.useState<GenDefinitionListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [formMode, setFormMode] = React.useState<'add' | 'edit' | null>(null);
-  const [editing, setEditing] = React.useState<GenDefinitionModel | null>(null);
+  const [editing, setEditing] = React.useState<DefinitionRow | null>(null);
   const [draft, setDraft] = React.useState<DefinitionDraft>(emptyDraft);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const query = database
-      .get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition)
-      .query(Q.where('SecStatus', true));
-    const subscription = query.observe().subscribe({
-      next: (records) => {
-        setModels([...records].sort((a, b) => a.DefDescription.localeCompare(b.DefDescription)));
+    const subscription = genDefinitionQueries.observeActive(
+      (records) => {
+        setModels(records);
         setLoading(false);
       },
-      error: (reason) => {
+      (reason) => {
         setError(reason instanceof Error ? reason.message : 'No se pudieron leer las definiciones locales.');
         setLoading(false);
       },
-    });
+    );
     return () => subscription.unsubscribe();
   }, []);
 
@@ -90,7 +84,7 @@ export default function DefinitionsScreen() {
 
   const beginEdit = (row: DefinitionRow) => {
     setFormMode('edit');
-    setEditing(row.model);
+    setEditing(row);
     setDraft({ DefCode: row.DefCode, DefDescription: row.DefDescription, active: row.DefStated === 1 });
     setError(null);
   };
@@ -103,47 +97,15 @@ export default function DefinitionsScreen() {
   };
 
   const save = async () => {
-    const code = draft.DefCode.trim().toUpperCase();
-    const description = draft.DefDescription.trim();
-    if (!code || !description) {
-      setError('Código y descripción son obligatorios.');
-      return;
-    }
-
     setSaving(true);
     setError(null);
     try {
-      await database.write(async () => {
-        if (editing) {
-          await editing.update((record) => {
-            record.DefCode = code;
-            record.DefDescription = description;
-            record.DefStated = draft.active ? 1 : 0;
-            record.SecStatus = draft.active;
-            record.UpdateUserId = userId;
-            record.UpdateDate = new Date().toISOString();
-          });
-          return;
-        }
-
-        const temporaryId = Math.min(0, ...models.map((record) => record.DefID)) - 1;
-        const syncId = randomUUID();
-        await database.get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition).create((record) => {
-          record._raw.id = syncId;
-          record.SyncId = syncId;
-          record.SyncVersion = '';
-          record.SecStatus = draft.active;
-          record.CreateUserId = userId;
-          record.UpdateUserId = null;
-          record.DeleteUserId = null;
-          record.CreateDate = new Date().toISOString();
-          record.UpdateDate = null;
-          record.DeleteDate = null;
-          record.DefID = temporaryId;
-          record.DefCode = code;
-          record.DefDescription = description;
-          record.DefStated = draft.active ? 1 : 0;
-        });
+      await genDefinitionService.save({
+        LocalId: editing?.id,
+        DefCode: draft.DefCode,
+        DefDescription: draft.DefDescription,
+        DefStated: draft.active ? 1 : 0,
+        UserId: userId,
       });
       cancelForm();
     } catch (reason) {
@@ -156,7 +118,7 @@ export default function DefinitionsScreen() {
   const remove = async (row: DefinitionRow) => {
     const execute = async () => {
       try {
-        await database.write(() => row.model.markAsDeleted());
+        await genDefinitionService.remove(row.id);
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : 'No se pudo eliminar el registro local.');
       }

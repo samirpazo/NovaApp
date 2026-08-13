@@ -1,6 +1,5 @@
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import { Q } from '@nozbe/watermelondb';
 import * as React from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,8 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NCrud, type NCrudColumn, type NCrudRow } from '@/components/crud';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
-import { SYNC_RESOURCES } from '@/contracts/sync';
-import { database, RstTableModel } from '@/database';
+import { rstTableQueries, type RstTableListItem } from '@/features/restaurant/tables';
 
 interface TableRow extends NCrudRow { TabID: number; TabTableNumber: number; TabCapacity: number; TabStatus: number; BrhID: number | null; TabShape: string; }
 const columns: NCrudColumn<TableRow>[] = [
@@ -17,19 +15,15 @@ const columns: NCrudColumn<TableRow>[] = [
   { key: 'TabCapacity', title: 'Capacidad', width: 100, align: 'center' }, { key: 'TabStatus', title: 'Estado', width: 100, align: 'center' },
   { key: 'BrhID', title: 'Sucursal', width: 100, align: 'center' }, { key: 'TabShape', title: 'Forma', width: 140 },
 ];
-const toRow = (model: RstTableModel): TableRow => ({ id: model.id, syncStatus: model.syncStatus, TabID: model.TabID, TabTableNumber: model.TabTableNumber, TabCapacity: model.TabCapacity, TabStatus: model.TabStatus, BrhID: model.BrhID, TabShape: model.TabShape });
+const toRow = (model: RstTableListItem): TableRow => ({ id: model.LocalId, syncStatus: model.SyncStatus, TabID: model.TabID, TabTableNumber: model.TabTableNumber, TabCapacity: model.TabCapacity, TabStatus: model.TabStatus, BrhID: model.BrhID, TabShape: model.TabShape });
 
 export default function TablesScreen() {
   const router = useRouter();
-  const [models, setModels] = React.useState<RstTableModel[]>([]);
+  const [models, setModels] = React.useState<RstTableListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   React.useEffect(() => {
-    const subscription = database
-      .get<RstTableModel>(SYNC_RESOURCES.RstTable)
-      .query(Q.where('SecStatus', true))
-      .observe()
-      .subscribe({ next: (records) => { setModels([...records].sort((a, b) => a.TabTableNumber - b.TabTableNumber)); setLoading(false); }, error: (reason) => { setError(reason instanceof Error ? reason.message : 'No se pudieron leer las mesas locales.'); setLoading(false); } });
+    const subscription = rstTableQueries.observeActive((records) => { setModels(records); setLoading(false); }, (reason) => { setError(reason instanceof Error ? reason.message : 'No se pudieron leer las mesas locales.'); setLoading(false); });
     return () => subscription.unsubscribe();
   }, []);
   const rows = React.useMemo(() => models.map(toRow), [models]);

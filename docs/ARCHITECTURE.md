@@ -37,6 +37,10 @@ src/
     database.web.ts     LokiJSAdapter + IndexedDB
     schema.ts           Tablas y columnas locales
     migrations.ts       Migraciones locales
+  features/             Casos de uso organizados por módulo y recurso
+    */*/queries.ts      Lecturas y observables WatermelonDB
+    */*/service.ts      Comandos, validaciones y reglas de negocio
+    */*/types.ts        DTOs de entrada y salida para la UI
   lib/                  API, storage, formato y seguridad
   sync/                 Configuración, motor, conflictos y estado
 ```
@@ -177,8 +181,18 @@ Los formularios actuales reutilizan:
 - `NSelect`: opciones tipadas y búsqueda.
 - `FormField`/`NField`: estructura de etiqueta, ayuda y error.
 
-La UI no llama a endpoints Save. Las pantallas observan consultas WatermelonDB y escriben dentro de
-`database.write`; la sincronización se ejecuta por separado.
+La UI no llama a endpoints Save ni accede directamente a WatermelonDB. Cada recurso expone:
+
+- `queries.ts`: consultas locales, filtros, ordenamiento, proyección a DTO y observación reactiva;
+- `service.ts`: altas, ediciones, eliminaciones y reglas de negocio dentro de `database.write`;
+- `types.ts`: contratos internos que impiden entregar modelos WatermelonDB a la pantalla.
+
+Las pantallas se limitan a estado visual, navegación, confirmaciones y consumo de estos métodos. La
+sincronización se ejecuta por separado. `GenDefinition` bajo `src/features/general/definitions` es
+la implementación de referencia para migrar los demás recursos.
+
+`SecStatus` pertenece a la eliminación lógica y se filtra en `queries.ts`. Estados funcionales como
+`DefStated` o `DedStated` son reglas distintas: cambiar uno de ellos no debe modificar `SecStatus`.
 
 ## Alcance por instalación y sucursal
 
