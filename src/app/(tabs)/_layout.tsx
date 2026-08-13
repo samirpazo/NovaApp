@@ -8,6 +8,7 @@ import {
   RefreshCw,
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
+import { useWindowDimensions } from 'react-native';
 
 const icon = (Icon: typeof Home) =>
   function TabIcon({ color, size }: { color: string; size: number }) {
@@ -16,12 +17,18 @@ const icon = (Icon: typeof Home) =>
 
 export default function TabLayout() {
   const { colorScheme } = useColorScheme();
+  const { width } = useWindowDimensions();
   const dark = colorScheme === 'dark';
+  const horizontalGutter = width < 768 ? 16 : 24;
 
   return (
     <Tabs
       screenOptions={{
-        header: () => <AppHeader />,
+        header: () => <AppHeader sceneGutter={horizontalGutter} />,
+        sceneStyle: {
+          backgroundColor: dark ? '#0a0a0a' : '#ffffff',
+          paddingHorizontal: horizontalGutter,
+        },
         tabBarActiveTintColor: dark ? '#f4f4f5' : '#18181b',
         tabBarInactiveTintColor: dark ? '#71717a' : '#71717a',
         tabBarStyle: {

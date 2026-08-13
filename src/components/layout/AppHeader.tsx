@@ -1,17 +1,21 @@
 import { useAuthStore } from '@/auth';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { database } from '@/database';
-import { getLastPull, useSyncState } from '@/sync';
+import { getLastPull, pullNova, useSyncState } from '@/sync';
 import { hasUnsyncedChanges } from '@nozbe/watermelondb/sync';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { RefreshCw, UserRound } from 'lucide-react-native';
 import * as React from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export function AppHeader() {
-  const router = useRouter();
+interface AppHeaderProps {
+  sceneGutter: number;
+}
+
+export function AppHeader({ sceneGutter }: AppHeaderProps) {
   const user = useAuthStore((state) => state.Session?.User);
   const sync = useSyncState();
   const [pending, setPending] = React.useState(false);
@@ -57,7 +61,10 @@ export function AppHeader() {
         : 'bg-success';
 
   return (
-    <SafeAreaView edges={['top']} className="border-b border-border bg-background">
+    <SafeAreaView
+      edges={['top']}
+      className="border-b border-border bg-background"
+      style={{ marginHorizontal: -sceneGutter }}>
       <View className="mx-auto h-[52px] w-full max-w-5xl flex-row items-center gap-2.5 px-3">
         <View className="h-8 w-8 items-center justify-center rounded-md bg-muted">
           <UserRound size={16} className="text-foreground" />
@@ -73,14 +80,17 @@ export function AppHeader() {
             </Text>
           </View>
         </View>
+        <ThemeToggle />
         <Button
           variant="ghost"
           size="icon"
-          onPress={() => router.push('/(tabs)/sync')}
-          accessibilityLabel="Ver sincronización">
+          className="h-8 w-8"
+          disabled={sync.Status === 'syncing'}
+          onPress={() => void pullNova().catch(() => undefined)}
+          accessibilityLabel={sync.Status === 'syncing' ? 'Sincronizando' : 'Sincronizar ahora'}>
           <RefreshCw
             size={17}
-            className="text-foreground"
+            className={sync.Status === 'syncing' ? 'animate-spin text-foreground' : 'text-foreground'}
             style={sync.Status === 'syncing' ? { opacity: 0.55 } : undefined}
           />
         </Button>

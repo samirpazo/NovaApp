@@ -63,7 +63,7 @@ export default function ConflictsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-4xl gap-3 px-4 pb-24 pt-4">
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-4xl gap-3 pb-24 pt-4">
         <View className="flex-row items-center gap-2">
           <Button variant="ghost" size="icon" className="h-8 w-8" onPress={() => router.replace('/(tabs)/conflicts')} accessibilityLabel="Volver a conflictos">
             <ArrowLeft size={18} className="text-foreground" />

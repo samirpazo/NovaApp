@@ -122,7 +122,7 @@ export default function DefinitionsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-7xl gap-3 px-3 pb-16 pt-3" keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-7xl gap-3 pb-16 pt-3" keyboardShouldPersistTaps="handled">
         <View className="flex-row items-center gap-2">
           <Button className="h-8 w-8" variant="ghost" size="icon" onPress={() => router.back()} accessibilityLabel="Volver">
             <ArrowLeft size={17} className="text-foreground" />

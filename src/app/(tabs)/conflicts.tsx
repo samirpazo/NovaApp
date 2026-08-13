@@ -17,7 +17,7 @@ export default function ConflictsTab() {
   );
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="mx-auto w-full max-w-3xl gap-3 px-4 pb-20 pt-4">
+    <ScrollView className="flex-1 bg-background" contentContainerClassName="mx-auto w-full max-w-3xl gap-3 pb-20 pt-4">
       <View className="gap-0.5">
         <Text className="text-lg font-poppins-semibold">Conflictos</Text>
         <Text variant="caption">Cambios que requieren una decisión</Text>

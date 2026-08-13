@@ -3,15 +3,14 @@ import { Text } from '@/components/ui/text';
 import { usePathname, useRouter } from 'expo-router';
 import * as React from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { useColorScheme } from 'nativewind';
 import { flushPendingAppearance, loadServerAppearance, useAppearanceStore } from '@/theme/appearance';
 
 export function AuthGate({ children }: React.PropsWithChildren) {
   const router = useRouter();
   const pathname = usePathname();
-  const { IsAuthenticated, IsReady, initialize } = useAuthStore();
-  const { setColorScheme } = useColorScheme();
+  const { IsAuthenticated, IsReady, initialize, Session } = useAuthStore();
   const commitAppearance = useAppearanceStore((state) => state.commit);
+  const appearanceUserRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     initialize();
@@ -24,7 +23,14 @@ export function AuthGate({ children }: React.PropsWithChildren) {
   }, [IsAuthenticated, IsReady, pathname, router]);
 
   React.useEffect(() => {
-    if (!IsAuthenticated) return;
+    const userId = Session?.User.UsrID;
+    if (!IsAuthenticated || !userId) {
+      appearanceUserRef.current = null;
+      return;
+    }
+    if (appearanceUserRef.current === userId) return;
+    appearanceUserRef.current = userId;
+
     const revision = useAppearanceStore.getState().revision;
     flushPendingAppearance().then(async (flushed) => {
       if (!flushed) return;
@@ -32,9 +38,8 @@ export function AuthGate({ children }: React.PropsWithChildren) {
       if (!preferences) return;
       if (useAppearanceStore.getState().revision !== revision) return;
       await commitAppearance(preferences);
-      setColorScheme(preferences.Theme === 'light' ? 'light' : 'dark');
     });
-  }, [IsAuthenticated, commitAppearance, setColorScheme]);
+  }, [IsAuthenticated, Session?.User.UsrID, commitAppearance]);
 
   if (!IsReady) {
     return (

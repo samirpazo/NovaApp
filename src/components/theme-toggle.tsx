@@ -12,28 +12,22 @@ export function ThemeToggle() {
   const previewChanges = useAppearanceStore((state) => state.previewChanges);
   const commit = useAppearanceStore((state) => state.commit);
   const [saving, setSaving] = React.useState(false);
-  const timeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  React.useEffect(() => () => {
-    if (timeout.current) clearTimeout(timeout.current);
-  }, []);
-
-  const toggle = () => {
+  const toggle = async () => {
     const next = isDark ? 'light' : 'dark';
     const nextPreferences = { ...preferences, Theme: next };
     previewChanges(nextPreferences);
-    void commit(nextPreferences);
-    if (timeout.current) clearTimeout(timeout.current);
     setSaving(true);
-    timeout.current = setTimeout(async () => {
+    try {
+      await commit(nextPreferences);
       await saveOrQueueAppearance(nextPreferences);
+    } finally {
       setSaving(false);
-      timeout.current = null;
-    }, 1500);
+    }
   };
 
   return (
-    <Button variant="ghost" size="icon" className="h-8 w-8" onPress={toggle} accessibilityLabel={isDark ? 'Usar tema claro' : 'Usar tema oscuro'}>
+    <Button variant="ghost" size="icon" className="h-8 w-8" disabled={saving} onPress={() => void toggle()} accessibilityLabel={isDark ? 'Usar tema claro' : 'Usar tema oscuro'}>
       {saving ? <LoaderCircle size={17} className="animate-spin text-foreground" /> : isDark ? <Sun size={17} className="text-foreground" /> : <Moon size={17} className="text-foreground" />}
     </Button>
   );

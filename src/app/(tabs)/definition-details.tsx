@@ -193,7 +193,7 @@ export default function DefinitionDetailsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-6xl gap-4 px-4 pb-24 pt-4" keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-6xl gap-4 pb-24 pt-4" keyboardShouldPersistTaps="handled">
         <View className="flex-row items-center gap-3">
           <Button variant="ghost" size="icon" onPress={() => router.replace('/definitions')} accessibilityLabel="Volver a definiciones"><ArrowLeft size={20} /></Button>
           <View className="min-w-0 flex-1"><Text variant="title">Valores de definición</Text><Text variant="caption">GenDefinitionDetail · datos locales</Text></View>

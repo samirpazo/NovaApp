@@ -103,7 +103,7 @@ export default function BranchesScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background"><ScrollView contentContainerClassName="mx-auto w-full max-w-6xl gap-4 px-4 pb-24 pt-4" keyboardShouldPersistTaps="handled">
+    <SafeAreaView className="flex-1 bg-background"><ScrollView contentContainerClassName="mx-auto w-full max-w-6xl gap-4 pb-24 pt-4" keyboardShouldPersistTaps="handled">
       <View className="flex-row items-center gap-3"><Button variant="ghost" size="icon" onPress={() => router.back()} accessibilityLabel="Volver"><ArrowLeft size={20} /></Button><View><Text variant="title">Sucursales</Text><Text variant="caption">RstBranch · datos locales</Text></View></View>
       {error ? <Text className="text-sm text-destructive" role="alert">{error}</Text> : null}
       <NCrud

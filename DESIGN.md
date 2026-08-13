@@ -85,6 +85,12 @@ se priorizan lectura rápida, decisiones explícitas y continuidad entre tamaño
 - Estados semánticos mediante icono, texto y color.
 - Componentes N-Series como vocabulario obligatorio.
 - Diseño responsive estructural, no tipografía fluida.
+- Gutter horizontal consistente de 16px en móvil y 24px desde tablet únicamente para el contenido.
+  Lo controla `sceneStyle` en `src/app/(tabs)/_layout.tsx`; las pantallas no declaran padding
+  horizontal exterior y el header conserva su espaciado independiente. El fondo de `sceneStyle`
+  debe coincidir con el tema para que el gutter no aparezca como franjas laterales. Como Expo aplica
+  ese gutter alrededor del header personalizado, `AppHeader` compensa el margen desde el layout para
+  conservar ancho completo; su contenido mantiene padding propio de 12px.
 
 ## Colors
 
@@ -169,6 +175,15 @@ en overlays temporales.
 
 El shell autenticado permanece visible en todas las pantallas. En móvil usa cinco destinos inferiores
 estables; las rutas secundarias conservan header y tabs. El destino activo combina icono y etiqueta.
+El header agrupa el cambio rápido de tema y la sincronización como botones de icono de 32px. El
+icono de sincronización ejecuta `pullNova()` directamente y nunca navega; la pestaña inferior abre la
+pantalla de detalle. Perfil mantiene la entrada a personalización detallada, pero no duplica el
+toggle de tema. El cambio de tema se aplica inmediatamente, se persiste localmente y se envía al
+servidor sin espera artificial; la apariencia remota se hidrata una sola vez por usuario para evitar
+reversiones y parpadeos.
+La pantalla Inicio es deliberadamente vacía: solo muestra el logo y “Bienvenido a Nova” centrados al
+20% de opacidad, siguiendo Nova Web. No añadir tarjetas, accesos rápidos ni métricas sin una decisión
+explícita de producto.
 
 ### NCrud
 

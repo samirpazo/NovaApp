@@ -75,7 +75,7 @@ export default function AppearanceScreen() {
     </View>
   );
 
-  return <SafeAreaView className="flex-1 bg-background"><ScrollView contentContainerClassName="mx-auto w-full max-w-5xl gap-4 px-4 pb-20 pt-3">
+  return <SafeAreaView className="flex-1 bg-background"><ScrollView contentContainerClassName="mx-auto w-full max-w-5xl gap-4 pb-20 pt-3">
     <View className="flex-row items-center gap-2"><Button className="h-8 w-8" variant="ghost" size="icon" onPress={cancel} accessibilityLabel="Volver a perfil"><ArrowLeft size={17} className="text-foreground" /></Button><View><Text className="font-poppins-semibold text-lg">Personalización</Text><Text className="text-xs text-muted-foreground">Apariencia de Nova en este dispositivo</Text></View></View>
     <View className="gap-4 md:flex-row">
       <View className="flex-1 gap-4 rounded-lg border border-border bg-card p-4"><View className="flex-row items-center gap-2"><SlidersHorizontal size={18} className="text-primary" /><Text className="font-poppins-semibold">Modo de entorno</Text></View><View className="flex-row gap-3">{(['light', 'dark'] as const).map((mode) => <Pressable key={mode} onPress={() => chooseTheme(mode)} className={`h-24 flex-1 justify-end rounded-md border p-3 ${theme === mode ? 'border-primary bg-primary-selection' : 'border-border bg-muted/30'}`}><Text className="font-poppins-bold text-[10px] uppercase tracking-[1.5px]">{mode === 'light' ? 'Claro' : 'Oscuro'}</Text></Pressable>)}</View></View>

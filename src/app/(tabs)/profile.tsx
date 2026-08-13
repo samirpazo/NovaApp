@@ -2,7 +2,6 @@ import { useAuthStore } from '@/auth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
-import { ThemeToggle } from '@/components/theme-toggle';
 import { useRouter } from 'expo-router';
 import { LogOut, Palette, UserRound } from 'lucide-react-native';
 import { ScrollView, View } from 'react-native';
@@ -13,7 +12,7 @@ export default function ProfileTab() {
   const user = Session?.User;
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="mx-auto w-full max-w-3xl gap-3 px-3 pb-20 pt-3">
+    <ScrollView className="flex-1 bg-background" contentContainerClassName="mx-auto w-full max-w-3xl gap-3 pb-20 pt-3">
       <View>
         <Text className="font-poppins-semibold text-lg">Perfil</Text>
         <Text variant="caption">Cuenta y preferencias</Text>
@@ -27,13 +26,6 @@ export default function ProfileTab() {
           <Text variant="caption" numberOfLines={1}>{user?.UsrEmail || user?.UsrName}</Text>
         </View>
       </Card>
-      <View className="flex-row items-center justify-between border-y border-border py-2">
-        <View>
-          <Text variant="small">Tema</Text>
-          <Text variant="caption">Alternar claro u oscuro</Text>
-        </View>
-        <ThemeToggle />
-      </View>
       <Button className="h-9" variant="outline" onPress={() => router.push('/appearance')}>
         <Palette size={15} />
         <Text>Personalizar apariencia</Text>

@@ -27,7 +27,7 @@ export default function TablesScreen() {
     return () => subscription.unsubscribe();
   }, []);
   const rows = React.useMemo(() => models.map(toRow), [models]);
-  return <SafeAreaView className="flex-1 bg-background"><ScrollView contentContainerClassName="mx-auto w-full max-w-6xl gap-4 px-4 pb-24 pt-4">
+  return <SafeAreaView className="flex-1 bg-background"><ScrollView contentContainerClassName="mx-auto w-full max-w-6xl gap-4 pb-24 pt-4">
     <View className="flex-row items-center gap-3"><Button variant="ghost" size="icon" onPress={() => router.back()} accessibilityLabel="Volver"><ArrowLeft size={20} /></Button><View><Text variant="title">Mesas</Text><Text variant="caption">RstTable · consulta local</Text></View></View>
     {error ? <Text className="text-sm text-destructive" role="alert">{error}</Text> : null}
     <NCrud title="RstTable" rows={rows} columns={columns} loading={loading} readOnly searchPlaceholder="Número, capacidad o forma" searchText={(row) => `${row.TabTableNumber} ${row.TabCapacity} ${row.TabShape}`} />

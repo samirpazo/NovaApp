@@ -64,7 +64,7 @@ export default function SyncScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-3xl gap-5 px-4 pb-28 pt-5" keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-3xl gap-5 pb-28 pt-5" keyboardShouldPersistTaps="handled">
         <View className="flex-row items-center gap-3">
           <Button variant="ghost" size="icon" onPress={() => router.replace('/(tabs)/sync')} accessibilityLabel="Volver a sincronización">
             <ArrowLeft size={20} />

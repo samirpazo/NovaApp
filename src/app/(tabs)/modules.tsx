@@ -214,7 +214,7 @@ export default function ModulesTab() {
 
   return (
     <View className="flex-1 bg-background">
-      <View className="mx-auto w-full max-w-3xl gap-3 px-3 pb-2 pt-3">
+      <View className="mx-auto w-full max-w-3xl gap-3 pb-2 pt-3">
         <View className="flex-row items-center justify-between">
           <Text className="font-poppins-semibold text-lg">Módulos</Text>
           <Button variant="ghost" size="icon" className="h-8 w-8" onPress={() => void load(true)} accessibilityLabel="Actualizar módulos">
@@ -232,7 +232,7 @@ export default function ModulesTab() {
         </View>
       </View>
 
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-3xl px-3 pb-20">
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-3xl pb-20">
         {error ? <Text className="px-2 py-3 text-xs text-destructive">{error}</Text> : null}
         {!loading && !error && !visibleOptions.length ? (
           <View className="items-center gap-2 border-y border-border py-8">

@@ -19,7 +19,7 @@ export default function SyncTab() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="mx-auto w-full max-w-3xl gap-3 px-3 pb-20 pt-3">
+    <ScrollView className="flex-1 bg-background" contentContainerClassName="mx-auto w-full max-w-3xl gap-3 pb-20 pt-3">
       <View>
         <Text className="font-poppins-semibold text-lg">Sincronización</Text>
         <Text variant="caption">Envía cambios y actualiza los datos locales</Text>
