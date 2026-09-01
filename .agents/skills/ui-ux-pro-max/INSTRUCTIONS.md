@@ -13,6 +13,7 @@ python3 src/ui-ux-pro-max/scripts/search.py "<query>" --domain <domain> [-n <max
 ```
 
 **Domain search:**
+
 - `product` - Product type recommendations (SaaS, e-commerce, portfolio)
 - `style` - UI styles (glassmorphism, minimalism, brutalism) + AI prompts and CSS keywords
 - `typography` - Font pairings with Google Fonts imports
@@ -22,9 +23,11 @@ python3 src/ui-ux-pro-max/scripts/search.py "<query>" --domain <domain> [-n <max
 - `ux` - Best practices and anti-patterns
 
 **Stack search:**
+
 ```bash
 python3 src/ui-ux-pro-max/scripts/search.py "<query>" --stack <stack>
 ```
+
 Available stacks: `html-tailwind` (default), `react`, `nextjs`, `astro`, `vue`, `nuxtjs`, `nuxt-ui`, `svelte`, `swiftui`, `react-native`, `flutter`, `shadcn`, `jetpack-compose`
 
 ## Architecture
@@ -76,6 +79,7 @@ When modifying files:
    - `platforms/*.json` - Platform-specific configs
 
 3. **CLI Assets** - Run sync before publishing:
+
    ```bash
    cp -r src/ui-ux-pro-max/data/* cli/assets/data/
    cp -r src/ui-ux-pro-max/scripts/* cli/assets/scripts/

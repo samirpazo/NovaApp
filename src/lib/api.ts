@@ -46,7 +46,8 @@ function attachSecurityInterceptors(): void {
     const method = config.method?.toLowerCase();
     if (Platform.OS !== 'web') {
       const accessToken = await getAccessToken();
-      if (accessToken) config.headers.set('Authorization', `Bearer ${accessToken}`);
+      if (accessToken)
+        config.headers.set('Authorization', `Bearer ${accessToken}`);
       else config.headers.delete('Authorization');
     }
     if (
@@ -66,9 +67,12 @@ function attachSecurityInterceptors(): void {
       if (!(error instanceof AxiosError) || !error.config) throw error;
       const originalRequest = error.config as NovaRequestConfig;
       const status = error.response?.status;
-      const isAuthEndpoint = (originalRequest.url ?? '').toLowerCase().includes('/token');
+      const isAuthEndpoint = (originalRequest.url ?? '')
+        .toLowerCase()
+        .includes('/token');
       const errData = error.response?.data as { Message?: string } | undefined;
-      const csrfMessage = typeof errData?.Message === 'string' ? errData.Message : '';
+      const csrfMessage =
+        typeof errData?.Message === 'string' ? errData.Message : '';
 
       // Double-submit cookie auto-recovery: when a mutation is rejected because the
       // in-memory CSRF request token is missing/stale, re-initialize it and retry once.
@@ -98,7 +102,11 @@ function attachSecurityInterceptors(): void {
           if (refreshed) {
             if (Platform.OS !== 'web') {
               const accessToken = await getAccessToken();
-              if (accessToken) originalRequest.headers.set('Authorization', `Bearer ${accessToken}`);
+              if (accessToken)
+                originalRequest.headers.set(
+                  'Authorization',
+                  `Bearer ${accessToken}`,
+                );
             }
             return api(originalRequest);
           }
@@ -141,11 +149,19 @@ async function performRefresh(): Promise<boolean> {
 export function getApiErrorMessage(error: unknown): string {
   if (error instanceof AxiosError) {
     const data = error.response?.data;
-    if (data && typeof data === 'object' && 'Message' in data && typeof data.Message === 'string') {
+    if (
+      data &&
+      typeof data === 'object' &&
+      'Message' in data &&
+      typeof data.Message === 'string'
+    ) {
       return data.Message;
     }
-    if (error.code === 'ECONNABORTED') return 'La conexión con Nova agotó el tiempo de espera.';
+    if (error.code === 'ECONNABORTED')
+      return 'La conexión con Nova agotó el tiempo de espera.';
     if (!error.response) return 'No se pudo conectar con el servidor de Nova.';
   }
-  return error instanceof Error ? error.message : 'No se pudo completar la sincronización.';
+  return error instanceof Error
+    ? error.message
+    : 'No se pudo completar la sincronización.';
 }

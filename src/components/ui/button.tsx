@@ -7,7 +7,9 @@ import { Platform, Pressable } from 'react-native';
 const buttonVariants = cva(
   cn(
     'group flex-row items-center justify-center gap-2 rounded-md',
-    Platform.select({ web: 'outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring' }),
+    Platform.select({
+      web: 'outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+    }),
   ),
   {
     variants: {
@@ -42,13 +44,18 @@ const buttonTextVariants = cva('text-sm font-semibold', {
   defaultVariants: { variant: 'default' },
 });
 
-type ButtonProps = React.ComponentProps<typeof Pressable> & VariantProps<typeof buttonVariants>;
+type ButtonProps = React.ComponentProps<typeof Pressable> &
+  VariantProps<typeof buttonVariants>;
 
 function Button({ className, variant, size, disabled, ...props }: ButtonProps) {
   return (
     <TextClassContext.Provider value={buttonTextVariants({ variant })}>
       <Pressable
-        className={cn(buttonVariants({ variant, size }), disabled && 'opacity-50', className)}
+        className={cn(
+          buttonVariants({ variant, size }),
+          disabled && 'opacity-50',
+          className,
+        )}
         disabled={disabled}
         role="button"
         {...props}

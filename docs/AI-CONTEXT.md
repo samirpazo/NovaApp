@@ -94,12 +94,12 @@ una variante mayor por una razón concreta, como el login, pero no debe cambiar 
 
 ## Estado de recursos
 
-| Recurso | Acceso | ID entero | Alcance |
-| --- | --- | --- | --- |
-| `GenDefinition` | Lectura/escritura | `DefID` | General |
-| `GenDefinitionDetail` | Lectura/escritura | `DedID` | General |
-| `RstBranch` | Lectura/escritura | `BrhID` | Restaurante |
-| `RstTable` | Solo lectura | `TabID` | Sucursal cuando haya `BranchId` |
+| Recurso               | Acceso            | ID entero | Alcance                         |
+| --------------------- | ----------------- | --------- | ------------------------------- |
+| `GenDefinition`       | Lectura/escritura | `DefID`   | General                         |
+| `GenDefinitionDetail` | Lectura/escritura | `DedID`   | General                         |
+| `RstBranch`           | Lectura/escritura | `BrhID`   | Restaurante                     |
+| `RstTable`            | Solo lectura      | `TabID`   | Sucursal cuando haya `BranchId` |
 
 `RstTable` no debe volverse editable en móvil: el diseñador de restaurante está reservado para
 Nova Web y requiere una pantalla grande.

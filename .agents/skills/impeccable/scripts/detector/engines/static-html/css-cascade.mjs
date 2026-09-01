@@ -2,7 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { profileStep, recordProfileEvent } from '../../profile/profiler.mjs';
-import { parseAnyColor, resolveLengthPx, resolveVarRefs } from '../../rules/checks.mjs';
+import {
+  parseAnyColor,
+  resolveLengthPx,
+  resolveVarRefs,
+} from '../../rules/checks.mjs';
 
 // ---------------------------------------------------------------------------
 // jsdom CSS-variable border override map
@@ -36,7 +40,8 @@ import { parseAnyColor, resolveLengthPx, resolveVarRefs } from '../../rules/chec
 //   * The fallback only fills sides that jsdom left empty, so any rule
 //     whose border parses normally still wins via the computed style.
 
-const BORDER_SHORTHAND_RE = /^(\d+(?:\.\d+)?)px\s+(solid|dashed|dotted|double|groove|ridge|inset|outset)\s+(.+)$/i;
+const BORDER_SHORTHAND_RE =
+  /^(\d+(?:\.\d+)?)px\s+(solid|dashed|dotted|double|groove|ridge|inset|outset)\s+(.+)$/i;
 
 // isNeutralColor only understands rgba()/oklch()/lch()/lab()/hsl()/hwb().
 // CSS variables typically hold hex or named colors, so normalize those to
@@ -44,9 +49,15 @@ const BORDER_SHORTHAND_RE = /^(\d+(?:\.\d+)?)px\s+(solid|dashed|dotted|double|gr
 // recognise is passed through unchanged — isNeutralColor then treats it as
 // non-neutral, which is the safer default (matches the oklch-era bugfix).
 const NAMED_COLORS = {
-  white: [255, 255, 255], black: [0, 0, 0], gray: [128, 128, 128],
-  grey: [128, 128, 128], silver: [192, 192, 192], red: [255, 0, 0],
-  green: [0, 128, 0], blue: [0, 0, 255], yellow: [255, 255, 0],
+  white: [255, 255, 255],
+  black: [0, 0, 0],
+  gray: [128, 128, 128],
+  grey: [128, 128, 128],
+  silver: [192, 192, 192],
+  red: [255, 0, 0],
+  green: [0, 128, 0],
+  blue: [0, 0, 255],
+  yellow: [255, 255, 0],
 };
 
 function normalizeColorForCheck(value) {
@@ -54,7 +65,11 @@ function normalizeColorForCheck(value) {
   const v = value.trim();
   const hex6 = v.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
   if (hex6) {
-    const [r, g, b] = [parseInt(hex6[1], 16), parseInt(hex6[2], 16), parseInt(hex6[3], 16)];
+    const [r, g, b] = [
+      parseInt(hex6[1], 16),
+      parseInt(hex6[2], 16),
+      parseInt(hex6[3], 16),
+    ];
     return `rgb(${r}, ${g}, ${b})`;
   }
   const hex3 = v.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i);
@@ -84,7 +99,7 @@ function buildBorderOverrideMap(document, window) {
         if (v) return resolveVar(v, depth + 1);
         if (fallback) return resolveVar(fallback.trim(), depth + 1);
         return '';
-      }
+      },
     );
   }
 
@@ -109,7 +124,11 @@ function buildBorderOverrideMap(document, window) {
 
   for (const sheet of document.styleSheets) {
     let rules;
-    try { rules = sheet.cssRules || []; } catch { continue; }
+    try {
+      rules = sheet.cssRules || [];
+    } catch {
+      continue;
+    }
     for (const rule of rules) {
       // CSSStyleRule only; skip @media / @keyframes / @supports wrappers.
       if (rule.type !== 1 || !rule.style || !rule.selectorText) continue;
@@ -150,14 +169,18 @@ function buildBorderOverrideMap(document, window) {
         // Width may or may not come from this rule — that's fine; the
         // adapter only substitutes the color when jsdom left it as a
         // literal var() string.
-        if (!perSide[side]) perSide[side] = { width: 0, color: normalizeColorForCheck(resolved) };
+        if (!perSide[side])
+          perSide[side] = { width: 0, color: normalizeColorForCheck(resolved) };
       }
 
       if (Object.keys(perSide).length === 0) continue;
 
       let matched;
-      try { matched = document.querySelectorAll(rule.selectorText); }
-      catch { continue; }
+      try {
+        matched = document.querySelectorAll(rule.selectorText);
+      } catch {
+        continue;
+      }
 
       for (const el of matched) {
         const existing = map.get(el);
@@ -223,8 +246,16 @@ function unwrapCssAtLayer(source) {
 // ---------------------------------------------------------------------------
 
 const STATIC_INHERITED_PROPS = new Set([
-  'color', 'fontFamily', 'fontSize', 'fontStyle', 'fontWeight',
-  'lineHeight', 'letterSpacing', 'textTransform', 'textAlign', 'hyphens',
+  'color',
+  'fontFamily',
+  'fontSize',
+  'fontStyle',
+  'fontWeight',
+  'lineHeight',
+  'letterSpacing',
+  'textTransform',
+  'textAlign',
+  'hyphens',
   'webkitHyphens',
 ]);
 
@@ -300,21 +331,21 @@ const STATIC_PROP_MAP = {
   'letter-spacing': 'letterSpacing',
   'text-transform': 'textTransform',
   'text-align': 'textAlign',
-  'hyphens': 'hyphens',
+  hyphens: 'hyphens',
   '-webkit-hyphens': 'webkitHyphens',
   'transition-property': 'transitionProperty',
   'transition-timing-function': 'transitionTimingFunction',
   'animation-name': 'animationName',
   'animation-timing-function': 'animationTimingFunction',
-  'width': 'width',
-  'height': 'height',
+  width: 'width',
+  height: 'height',
   'padding-top': 'paddingTop',
   'padding-right': 'paddingRight',
   'padding-bottom': 'paddingBottom',
   'padding-left': 'paddingLeft',
-  'position': 'position',
-  'display': 'display',
-  'overflow': 'overflow',
+  position: 'position',
+  display: 'display',
+  overflow: 'overflow',
   'overflow-x': 'overflowX',
   'overflow-y': 'overflowY',
 };
@@ -333,14 +364,19 @@ const STATIC_NAMED_COLORS = {
 
 function splitCssList(value) {
   const parts = [];
-  let depth = 0, quote = '', start = 0;
+  let depth = 0,
+    quote = '',
+    start = 0;
   for (let i = 0; i < value.length; i++) {
     const ch = value[i];
     if (quote) {
       if (ch === quote && value[i - 1] !== '\\') quote = '';
       continue;
     }
-    if (ch === '"' || ch === "'") { quote = ch; continue; }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      continue;
+    }
     if (ch === '(' || ch === '[') depth++;
     else if (ch === ')' || ch === ']') depth = Math.max(0, depth - 1);
     else if (ch === ',' && depth === 0) {
@@ -355,7 +391,9 @@ function splitCssList(value) {
 
 function splitCssTokens(value) {
   const tokens = [];
-  let depth = 0, quote = '', current = '';
+  let depth = 0,
+    quote = '',
+    current = '';
   for (let i = 0; i < value.length; i++) {
     const ch = value[i];
     if (quote) {
@@ -363,11 +401,26 @@ function splitCssTokens(value) {
       if (ch === quote && value[i - 1] !== '\\') quote = '';
       continue;
     }
-    if (ch === '"' || ch === "'") { quote = ch; current += ch; continue; }
-    if (ch === '(') { depth++; current += ch; continue; }
-    if (ch === ')') { depth = Math.max(0, depth - 1); current += ch; continue; }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      current += ch;
+      continue;
+    }
+    if (ch === '(') {
+      depth++;
+      current += ch;
+      continue;
+    }
+    if (ch === ')') {
+      depth = Math.max(0, depth - 1);
+      current += ch;
+      continue;
+    }
     if (/\s/.test(ch) && depth === 0) {
-      if (current) { tokens.push(current); current = ''; }
+      if (current) {
+        tokens.push(current);
+        current = '';
+      }
       continue;
     }
     current += ch;
@@ -385,14 +438,20 @@ function cssPropToCamel(prop) {
 
 function staticColorToCss(c) {
   if (!c) return '';
-  if (c.a != null && c.a < 1) return `rgba(${c.r}, ${c.g}, ${c.b}, ${Number(c.a.toFixed(3))})`;
+  if (c.a != null && c.a < 1)
+    return `rgba(${c.r}, ${c.g}, ${c.b}, ${Number(c.a.toFixed(3))})`;
   return `rgb(${c.r}, ${c.g}, ${c.b})`;
 }
 
 function parseStaticColor(value) {
   const parsed = parseAnyColor(value);
   if (parsed) return parsed;
-  const named = STATIC_NAMED_COLORS[String(value || '').trim().toLowerCase()];
+  const named =
+    STATIC_NAMED_COLORS[
+      String(value || '')
+        .trim()
+        .toLowerCase()
+    ];
   return named ? { ...named } : null;
 }
 
@@ -400,16 +459,30 @@ function extractStaticColor(value) {
   if (!value) return '';
   const raw = String(value).trim();
   if (/^var\(/i.test(raw)) return raw;
-  const colorLike = raw.match(/(?:rgba?\([^)]+\)|oklch\([^)]+\)|oklab\([^)]+\)|lch\([^)]+\)|lab\([^)]+\)|hsla?\([^)]+\)|hwb\([^)]+\)|#[0-9a-f]{3,8}\b|\b(?:black|white|gray|grey|silver|red|green|blue|transparent)\b)/i);
+  const colorLike = raw.match(
+    /(?:rgba?\([^)]+\)|oklch\([^)]+\)|oklab\([^)]+\)|lch\([^)]+\)|lab\([^)]+\)|hsla?\([^)]+\)|hwb\([^)]+\)|#[0-9a-f]{3,8}\b|\b(?:black|white|gray|grey|silver|red|green|blue|transparent)\b)/i,
+  );
   if (!colorLike) return '';
   return colorLike[0];
 }
 
-function normalizeStaticCssValue(prop, value, customProps, parentStyle, currentStyle = null) {
+function normalizeStaticCssValue(
+  prop,
+  value,
+  customProps,
+  parentStyle,
+  currentStyle = null,
+) {
   let resolved = resolveVarRefs(String(value || '').trim(), customProps);
-  if (resolved === 'inherit') return parentStyle?.[prop] || STATIC_DEFAULT_STYLE[prop] || '';
-  const isModernBorderColor = /^border[A-Z][a-z]+Color$/.test(prop) && /^(?:oklch|oklab|lch|lab|hsl|hwb)\(/i.test(resolved);
-  if (!isModernBorderColor && (/color$/i.test(prop) || prop === 'color' || prop === 'backgroundColor')) {
+  if (resolved === 'inherit')
+    return parentStyle?.[prop] || STATIC_DEFAULT_STYLE[prop] || '';
+  const isModernBorderColor =
+    /^border[A-Z][a-z]+Color$/.test(prop) &&
+    /^(?:oklch|oklab|lch|lab|hsl|hwb)\(/i.test(resolved);
+  if (
+    !isModernBorderColor &&
+    (/color$/i.test(prop) || prop === 'color' || prop === 'backgroundColor')
+  ) {
     const parsed = parseStaticColor(resolved);
     if (parsed) resolved = staticColorToCss(parsed);
   }
@@ -419,12 +492,14 @@ function normalizeStaticCssValue(prop, value, customProps, parentStyle, currentS
     if (px != null) resolved = `${px}px`;
   }
   if (prop === 'letterSpacing') {
-    const base = parseFloat(currentStyle?.fontSize || parentStyle?.fontSize) || 16;
+    const base =
+      parseFloat(currentStyle?.fontSize || parentStyle?.fontSize) || 16;
     const px = resolveLengthPx(resolved, base);
     if (px != null) resolved = `${px}px`;
   }
   if (prop === 'lineHeight' && resolved !== 'normal') {
-    const base = parseFloat(currentStyle?.fontSize || parentStyle?.fontSize) || 16;
+    const base =
+      parseFloat(currentStyle?.fontSize || parentStyle?.fontSize) || 16;
     const px = resolveLengthPx(resolved, base);
     if (px != null) resolved = `${px}px`;
   }
@@ -441,7 +516,8 @@ function expandStaticBoxValues(tokens) {
 
 function parseStaticBorder(value) {
   const tokens = splitCssTokens(value);
-  let width = '', color = '';
+  let width = '',
+    color = '';
   for (const token of tokens) {
     if (!width && /^-?[\d.]+(?:px|rem|em|%)$/.test(token)) width = token;
     if (!color) color = extractStaticColor(token);
@@ -451,7 +527,9 @@ function parseStaticBorder(value) {
 
 function parseStaticFont(value) {
   const out = [];
-  const slashParts = value.match(/(?:^|\s)([\d.]+(?:px|rem|em|%))(?:\/([^\s]+))?/);
+  const slashParts = value.match(
+    /(?:^|\s)([\d.]+(?:px|rem|em|%))(?:\/([^\s]+))?/,
+  );
   if (/\bitalic\b/i.test(value)) out.push(['fontStyle', 'italic']);
   const weight = value.match(/\b([1-9]00|bold|normal|lighter|bolder)\b/i);
   if (weight) out.push(['fontWeight', weight[1]]);
@@ -470,9 +548,18 @@ function parseStaticTransition(value) {
   const timings = [];
   for (const item of splitCssList(value)) {
     const tokens = splitCssTokens(item);
-    const timing = tokens.find(token => /^(?:ease|linear|step-|cubic-bezier\()/i.test(token));
+    const timing = tokens.find((token) =>
+      /^(?:ease|linear|step-|cubic-bezier\()/i.test(token),
+    );
     if (timing) timings.push(timing);
-    const prop = tokens.find(token => /^[a-z-]+$/i.test(token) && !/^(?:ease|linear|infinite|alternate|forwards|backwards|both|normal|none)$/.test(token) && !/s$/.test(token));
+    const prop = tokens.find(
+      (token) =>
+        /^[a-z-]+$/i.test(token) &&
+        !/^(?:ease|linear|infinite|alternate|forwards|backwards|both|normal|none)$/.test(
+          token,
+        ) &&
+        !/s$/.test(token),
+    );
     if (prop) props.push(prop);
   }
   return {
@@ -486,11 +573,16 @@ function parseStaticAnimation(value) {
   const timings = [];
   for (const item of splitCssList(value)) {
     const tokens = splitCssTokens(item);
-    const timing = tokens.find(token => /^(?:ease|linear|step-|cubic-bezier\()/i.test(token));
+    const timing = tokens.find((token) =>
+      /^(?:ease|linear|step-|cubic-bezier\()/i.test(token),
+    );
     if (timing) timings.push(timing);
-    const name = tokens.find(token =>
-      /^[a-z_-][\w-]*$/i.test(token) &&
-      !/^(?:ease|linear|infinite|alternate|forwards|backwards|both|normal|none|running|paused)$/.test(token)
+    const name = tokens.find(
+      (token) =>
+        /^[a-z_-][\w-]*$/i.test(token) &&
+        !/^(?:ease|linear|infinite|alternate|forwards|backwards|both|normal|none|running|paused)$/.test(
+          token,
+        ),
     );
     if (name) names.push(name);
   }
@@ -509,7 +601,9 @@ function expandStaticDeclaration(prop, value) {
     const out = [];
     const hasImage = /gradient|url\(/i.test(v);
     if (hasImage) out.push(['backgroundImage', v]);
-    const beforeImage = hasImage ? v.split(/(?:repeating-)?(?:linear|radial|conic)-gradient\(|url\(/i)[0] : v;
+    const beforeImage = hasImage
+      ? v.split(/(?:repeating-)?(?:linear|radial|conic)-gradient\(|url\(/i)[0]
+      : v;
     const color = extractStaticColor(hasImage ? beforeImage : v);
     if (color) out.push(['backgroundColor', color]);
     return out;
@@ -530,8 +624,10 @@ function expandStaticDeclaration(prop, value) {
     // the width and effectively hides the outline.
     const tokens = splitCssTokens(v);
     const parsed = parseStaticBorder(v);
-    const styleToken = tokens.find(t =>
-      /^(none|hidden|solid|dashed|dotted|double|groove|ridge|inset|outset)$/i.test(t)
+    const styleToken = tokens.find((t) =>
+      /^(none|hidden|solid|dashed|dotted|double|groove|ridge|inset|outset)$/i.test(
+        t,
+      ),
     );
     const out = [];
     if (parsed.width) out.push(['outlineWidth', parsed.width]);
@@ -595,7 +691,10 @@ function expandStaticDeclaration(prop, value) {
     ];
   }
   const mapped = cssPropToCamel(p);
-  if (STATIC_DEFAULT_STYLE[mapped] != null || STATIC_INHERITED_PROPS.has(mapped)) {
+  if (
+    STATIC_DEFAULT_STYLE[mapped] != null ||
+    STATIC_INHERITED_PROPS.has(mapped)
+  ) {
     return [[mapped, v]];
   }
   return [];
@@ -616,7 +715,9 @@ function compareStaticPriority(a, b) {
 function staticSpecificity(selector) {
   const noWhere = selector.replace(/:where\([^)]*\)/g, '');
   const ids = (noWhere.match(/#[\w-]+/g) || []).length;
-  const classes = (noWhere.match(/\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+(?:\([^)]*\))?/g) || []).length;
+  const classes = (
+    noWhere.match(/\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+(?:\([^)]*\))?/g) || []
+  ).length;
   const stripped = noWhere
     .replace(/#[\w-]+/g, ' ')
     .replace(/\.[\w-]+|\[[^\]]+\]|:{1,2}[\w-]+(?:\([^)]*\))?/g, ' ')
@@ -627,8 +728,14 @@ function staticSpecificity(selector) {
 
 function applyStaticDeclaration(specified, node, prop, value, meta) {
   let map = specified.get(node);
-  if (!map) { map = new Map(); specified.set(node, map); }
-  for (const [expandedProp, expandedValue] of expandStaticDeclaration(prop, value)) {
+  if (!map) {
+    map = new Map();
+    specified.set(node, map);
+  }
+  for (const [expandedProp, expandedValue] of expandStaticDeclaration(
+    prop,
+    value,
+  )) {
     const existing = map.get(expandedProp);
     const next = { ...meta, prop: expandedProp, value: expandedValue };
     if (compareStaticPriority(existing, next)) map.set(expandedProp, next);
@@ -653,18 +760,22 @@ function collectStaticCssRules(cssText, csstree) {
   const rules = [];
   let ast;
   try {
-    ast = csstree.parse(cssText, { positions: false, parseValue: true, parseCustomProperty: false });
+    ast = csstree.parse(cssText, {
+      positions: false,
+      parseValue: true,
+      parseCustomProperty: false,
+    });
   } catch {
     return rules;
   }
   let order = 0;
   const walkList = (list, atRuleStack = []) => {
-    list?.forEach?.(node => {
+    list?.forEach?.((node) => {
       if (node.type === 'Rule' && node.block) {
-        if (atRuleStack.some(name => /keyframes$/i.test(name))) return;
+        if (atRuleStack.some((name) => /keyframes$/i.test(name))) return;
         const selectorText = csstree.generate(node.prelude).trim();
         const declarations = [];
-        node.block.children?.forEach?.(child => {
+        node.block.children?.forEach?.((child) => {
           if (child.type !== 'Declaration') return;
           declarations.push({
             prop: child.property,
@@ -673,7 +784,13 @@ function collectStaticCssRules(cssText, csstree) {
           });
         });
         for (const selector of splitCssList(selectorText)) {
-          if (selector) rules.push({ selector, declarations, specificity: staticSpecificity(selector), order: order++ });
+          if (selector)
+            rules.push({
+              selector,
+              declarations,
+              specificity: staticSpecificity(selector),
+              order: order++,
+            });
         }
         return;
       }
@@ -708,11 +825,14 @@ class StaticElement {
     return cur ? this._doc.wrap(cur) : null;
   }
   get children() {
-    return (this.node.children || []).filter(child => child.type === 'tag').map(child => this._doc.wrap(child));
+    return (this.node.children || [])
+      .filter((child) => child.type === 'tag')
+      .map((child) => this._doc.wrap(child));
   }
   get childNodes() {
-    return (this.node.children || []).map(child => {
-      if (child.type === 'text') return { nodeType: 3, textContent: child.data || '' };
+    return (this.node.children || []).map((child) => {
+      if (child.type === 'text')
+        return { nodeType: 3, textContent: child.data || '' };
       if (child.type === 'tag') return this._doc.wrap(child);
       return { nodeType: 8, textContent: child.data || '' };
     });
@@ -739,7 +859,9 @@ class StaticElement {
   }
   querySelectorAll(selector) {
     try {
-      return this._doc.selectAll(selector, this.node.children || []).map(node => this._doc.wrap(node));
+      return this._doc
+        .selectAll(selector, this.node.children || [])
+        .map((node) => this._doc.wrap(node));
     } catch {
       return [];
     }
@@ -787,7 +909,9 @@ class StaticDocument {
   }
   querySelectorAll(selector) {
     try {
-      return this.selectAll(selector, this.root.children || []).map(node => this.wrap(node));
+      return this.selectAll(selector, this.root.children || []).map((node) =>
+        this.wrap(node),
+      );
     } catch {
       return [];
     }
@@ -839,96 +963,126 @@ function collectStaticCssText(root, fileDir, profile, filePath, modules) {
   for (const link of links) {
     const rel = link.attribs?.rel || '';
     const href = link.attribs?.href || '';
-    if (!/\bstylesheet\b/i.test(rel) || !href || /^(https?:)?\/\//i.test(href)) continue;
+    if (!/\bstylesheet\b/i.test(rel) || !href || /^(https?:)?\/\//i.test(href))
+      continue;
     const cssPath = path.resolve(fileDir, href);
     try {
-      const css = profileStep(profile, {
-        engine: 'static-html',
-        phase: 'preprocess',
-        ruleId: 'inline-linked-stylesheet',
-        target: filePath,
-        detail: href,
-      }, () => fs.readFileSync(cssPath, 'utf-8'));
+      const css = profileStep(
+        profile,
+        {
+          engine: 'static-html',
+          phase: 'preprocess',
+          ruleId: 'inline-linked-stylesheet',
+          target: filePath,
+          detail: href,
+        },
+        () => fs.readFileSync(cssPath, 'utf-8'),
+      );
       styleTexts.push(css);
-    } catch { /* skip unreadable */ }
+    } catch {
+      /* skip unreadable */
+    }
   }
   return styleTexts.join('\n');
 }
 
-function buildStaticStyleMap(root, staticDoc, cssText, modules, profile, filePath) {
+function buildStaticStyleMap(
+  root,
+  staticDoc,
+  cssText,
+  modules,
+  profile,
+  filePath,
+) {
   const specified = new Map();
   const allNodes = modules.selectAll('*', root.children || []);
-  const rules = profileStep(profile, {
-    engine: 'static-html',
-    phase: 'parse-css',
-    ruleId: 'css-rules',
-    target: filePath,
-  }, () => collectStaticCssRules(cssText, modules.csstree));
+  const rules = profileStep(
+    profile,
+    {
+      engine: 'static-html',
+      phase: 'parse-css',
+      ruleId: 'css-rules',
+      target: filePath,
+    },
+    () => collectStaticCssRules(cssText, modules.csstree),
+  );
 
-  profileStep(profile, {
-    engine: 'static-html',
-    phase: 'selector-match',
-    ruleId: 'css-selectors',
-    target: filePath,
-  }, () => {
-    for (const rule of rules) {
-      let matched;
-      try {
-        matched = modules.selectAll(rule.selector, root.children || []);
-      } catch {
-        recordProfileEvent(profile, {
-          engine: 'static-html',
-          phase: 'selector-match',
-          ruleId: 'unsupported-selector',
-          target: filePath,
-          ms: 0,
-          findings: 0,
-          detail: rule.selector,
-        });
-        continue;
-      }
-      for (const node of matched) {
-        for (const decl of rule.declarations) {
-          applyStaticDeclaration(specified, node, decl.prop, decl.value, {
-            important: decl.important,
-            specificity: rule.specificity,
-            order: rule.order,
-            inline: false,
+  profileStep(
+    profile,
+    {
+      engine: 'static-html',
+      phase: 'selector-match',
+      ruleId: 'css-selectors',
+      target: filePath,
+    },
+    () => {
+      for (const rule of rules) {
+        let matched;
+        try {
+          matched = modules.selectAll(rule.selector, root.children || []);
+        } catch {
+          recordProfileEvent(profile, {
+            engine: 'static-html',
+            phase: 'selector-match',
+            ruleId: 'unsupported-selector',
+            target: filePath,
+            ms: 0,
+            findings: 0,
+            detail: rule.selector,
           });
+          continue;
+        }
+        for (const node of matched) {
+          for (const decl of rule.declarations) {
+            applyStaticDeclaration(specified, node, decl.prop, decl.value, {
+              important: decl.important,
+              specificity: rule.specificity,
+              order: rule.order,
+              inline: false,
+            });
+          }
         }
       }
-    }
 
-    let inlineOrder = rules.length + 1;
-    for (const node of allNodes) {
-      const styleText = node.attribs?.style;
-      if (!styleText) continue;
-      for (const decl of parseStaticStyleAttribute(styleText, inlineOrder)) {
-        applyStaticDeclaration(specified, node, decl.prop, decl.value, {
-          important: decl.important,
-          specificity: [1, 0, 0],
-          order: decl.order,
-          inline: true,
-        });
+      let inlineOrder = rules.length + 1;
+      for (const node of allNodes) {
+        const styleText = node.attribs?.style;
+        if (!styleText) continue;
+        for (const decl of parseStaticStyleAttribute(styleText, inlineOrder)) {
+          applyStaticDeclaration(specified, node, decl.prop, decl.value, {
+            important: decl.important,
+            specificity: [1, 0, 0],
+            order: decl.order,
+            inline: true,
+          });
+        }
+        inlineOrder += 1000;
       }
-      inlineOrder += 1000;
-    }
-  });
+    },
+  );
 
   const computeNode = (node, parentStyle = null, parentCustom = new Map()) => {
     const specifiedMap = specified.get(node) || new Map();
     const customProps = new Map(parentCustom);
     for (const [prop, decl] of specifiedMap) {
-      if (prop.startsWith('--')) customProps.set(prop, resolveVarRefs(decl.value, customProps));
+      if (prop.startsWith('--'))
+        customProps.set(prop, resolveVarRefs(decl.value, customProps));
     }
     const values = {};
     for (const prop of Object.keys(STATIC_DEFAULT_STYLE)) {
-      if (STATIC_INHERITED_PROPS.has(prop) && parentStyle?.[prop] != null) values[prop] = parentStyle[prop];
+      if (STATIC_INHERITED_PROPS.has(prop) && parentStyle?.[prop] != null)
+        values[prop] = parentStyle[prop];
       else values[prop] = STATIC_DEFAULT_STYLE[prop];
     }
     for (const [prop, decl] of specifiedMap) {
       if (prop.startsWith('--')) continue;
-      values[prop] = normalizeStaticCssValue(prop, decl.value, customProps, parentStyle, values);
+      values[prop] = normalizeStaticCssValue(
+        prop,
+        decl.value,
+        customProps,
+        parentStyle,
+        values,
+      );
     }
     const style = makeStaticStyle(values);
     staticDoc.setStyle(node, style);
@@ -937,16 +1091,20 @@ function buildStaticStyleMap(root, staticDoc, cssText, modules, profile, filePat
     }
   };
 
-  profileStep(profile, {
-    engine: 'static-html',
-    phase: 'cascade',
-    ruleId: 'compute-styles',
-    target: filePath,
-  }, () => {
-    for (const child of root.children || []) {
-      if (child.type === 'tag') computeNode(child);
-    }
-  });
+  profileStep(
+    profile,
+    {
+      engine: 'static-html',
+      phase: 'cascade',
+      ruleId: 'compute-styles',
+      target: filePath,
+    },
+    () => {
+      for (const child of root.children || []) {
+        if (child.type === 'tag') computeNode(child);
+      }
+    },
+  );
 }
 
 export {

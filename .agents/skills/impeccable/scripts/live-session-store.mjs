@@ -1,10 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { getLegacyLiveSessionsDir, getLiveSessionsDir } from './impeccable-paths.mjs';
+import {
+  getLegacyLiveSessionsDir,
+  getLiveSessionsDir,
+} from './impeccable-paths.mjs';
 
 const COMPLETED_PHASES = new Set(['completed', 'discarded']);
 
-export function createLiveSessionStore({ cwd = process.cwd(), sessionId } = {}) {
+export function createLiveSessionStore({
+  cwd = process.cwd(),
+  sessionId,
+} = {}) {
   const rootDir = getLiveSessionsDir(cwd);
   const legacyRootDir = getLegacyLiveSessionsDir(cwd);
   fs.mkdirSync(rootDir, { recursive: true });
@@ -49,7 +55,11 @@ export function createLiveSessionStore({ cwd = process.cwd(), sessionId } = {}) 
       };
       fs.appendFileSync(journalPath, JSON.stringify(entry) + '\n');
       const next = applyEvent(prior.snapshot, entry, prior.diagnostics);
-      snapshotCache.set(normalized.id, { snapshot: next, diagnostics: next.diagnostics || [], nextSeq: seq + 1 });
+      snapshotCache.set(normalized.id, {
+        snapshot: next,
+        diagnostics: next.diagnostics || [],
+        nextSeq: seq + 1,
+      });
       writeSnapshot(snapshotPath, next);
       return next;
     },
@@ -60,7 +70,11 @@ export function createLiveSessionStore({ cwd = process.cwd(), sessionId } = {}) 
       const rebuilt = rebuildSnapshotFromJournal(journalPath, id);
       snapshotCache.set(id, rebuilt);
       writeSnapshot(snapshotPath, rebuilt.snapshot);
-      if (!opts.includeCompleted && COMPLETED_PHASES.has(rebuilt.snapshot.phase)) return null;
+      if (
+        !opts.includeCompleted &&
+        COMPLETED_PHASES.has(rebuilt.snapshot.phase)
+      )
+        return null;
       return rebuilt.snapshot;
     },
     listActiveSessions() {
@@ -80,10 +94,12 @@ export function createLiveSessionStore({ cwd = process.cwd(), sessionId } = {}) 
 }
 
 function normalizeEvent(event, fallbackId) {
-  if (!event || typeof event !== 'object') throw new Error('event object required');
+  if (!event || typeof event !== 'object')
+    throw new Error('event object required');
   const id = event.id || fallbackId;
   if (!id || typeof id !== 'string') throw new Error('event id required');
-  if (!event.type || typeof event.type !== 'string') throw new Error('event type required');
+  if (!event.type || typeof event.type !== 'string')
+    throw new Error('event type required');
   return { ...event, id };
 }
 
@@ -96,7 +112,8 @@ function getSnapshotPath(rootDir, id) {
 }
 
 function safeSessionId(id) {
-  if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error('invalid session id: ' + id);
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(id))
+    throw new Error('invalid session id: ' + id);
   return id;
 }
 
@@ -135,8 +152,10 @@ function rebuildSnapshotFromJournal(journalPath, id) {
     if (!line.trim()) continue;
     try {
       const entry = JSON.parse(line);
-      if (!entry || typeof entry !== 'object') throw new Error('entry is not object');
-      if (Number.isInteger(entry.seq)) nextSeq = Math.max(nextSeq, entry.seq + 1);
+      if (!entry || typeof entry !== 'object')
+        throw new Error('entry is not object');
+      if (Number.isInteger(entry.seq))
+        nextSeq = Math.max(nextSeq, entry.seq + 1);
       snapshot = applyEvent(snapshot, entry);
     } catch (err) {
       diagnostics.push({
@@ -172,20 +191,27 @@ function applyEvent(snapshot, entry, inheritedDiagnostics = []) {
       next.expectedVariants = event.count ?? next.expectedVariants;
       next.pendingEventSeq = entry.seq ?? next.pendingEventSeq;
       next.pendingEvent = toPendingEvent(event);
-      if (event.screenshotPath) upsertArtifact(next.annotationArtifacts, { type: 'screenshot', path: event.screenshotPath });
+      if (event.screenshotPath)
+        upsertArtifact(next.annotationArtifacts, {
+          type: 'screenshot',
+          path: event.screenshotPath,
+        });
       break;
     case 'variants_ready':
     case 'agent_done':
-      next.phase = event.carbonize === true ? 'carbonize_required' : 'variants_ready';
+      next.phase =
+        event.carbonize === true ? 'carbonize_required' : 'variants_ready';
       next.sourceFile = event.file ?? next.sourceFile;
-      next.arrivedVariants = event.arrivedVariants ?? (next.arrivedVariants ?? next.expectedVariants);
+      next.arrivedVariants =
+        event.arrivedVariants ?? next.arrivedVariants ?? next.expectedVariants;
       next.pendingEventSeq = null;
       next.pendingEvent = null;
       if (event.carbonize === true) {
         next.diagnostics.push({
           error: 'carbonize_cleanup_required',
           file: event.file || null,
-          message: 'Accepted variant still has carbonize markers that must be folded into source CSS.',
+          message:
+            'Accepted variant still has carbonize markers that must be folded into source CSS.',
         });
       }
       break;
@@ -198,7 +224,10 @@ function applyEvent(snapshot, entry, inheritedDiagnostics = []) {
         next.visibleVariant = event.visibleVariant ?? next.visibleVariant;
         if (event.paramValues) next.paramValues = { ...event.paramValues };
       } else {
-        next.diagnostics.push({ error: 'stale_checkpoint_ignored', revision: event.revision });
+        next.diagnostics.push({
+          error: 'stale_checkpoint_ignored',
+          revision: event.revision,
+        });
       }
       break;
     case 'accept':
@@ -245,7 +274,10 @@ function applyEvent(snapshot, entry, inheritedDiagnostics = []) {
       next.phase = 'agent_error';
       next.pendingEventSeq = null;
       next.pendingEvent = null;
-      next.diagnostics.push({ error: 'agent_error', message: event.message || 'unknown agent error' });
+      next.diagnostics.push({
+        error: 'agent_error',
+        message: event.message || 'unknown agent error',
+      });
       break;
     default:
       next.diagnostics.push({ error: 'unknown_event_type', type: event.type });
@@ -261,7 +293,12 @@ function toPendingEvent(event) {
 }
 
 function upsertArtifact(artifacts, artifact) {
-  if (!artifacts.some((existing) => existing.path === artifact.path && existing.type === artifact.type)) {
+  if (
+    !artifacts.some(
+      (existing) =>
+        existing.path === artifact.path && existing.type === artifact.type,
+    )
+  ) {
     artifacts.push(artifact);
   }
 }

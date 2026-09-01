@@ -9,4 +9,9 @@ export * from '@/database/models/GenDefinitionDetail';
 export * from '@/database/models/RstBranch';
 export * from '@/database/models/RstTable';
 
-export const databaseModels = [GenDefinitionModel, GenDefinitionDetailModel, RstBranchModel, RstTableModel];
+export const databaseModels = [
+  GenDefinitionModel,
+  GenDefinitionDetailModel,
+  RstBranchModel,
+  RstTableModel,
+];

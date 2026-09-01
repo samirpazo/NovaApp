@@ -33,7 +33,14 @@ interface BranchDraft {
   BrhCurrencyDefID: number | null;
 }
 
-const emptyDraft = (): BranchDraft => ({ BrhName: '', BrhAddress: '', BrhPhone: '', BrhEmail: '', BrhManagerName: '', BrhCurrencyDefID: null });
+const emptyDraft = (): BranchDraft => ({
+  BrhName: '',
+  BrhAddress: '',
+  BrhPhone: '',
+  BrhEmail: '',
+  BrhManagerName: '',
+  BrhCurrencyDefID: null,
+});
 const columns: NCrudColumn<BranchRow>[] = [
   { key: 'BrhID', title: 'ID', width: 70, align: 'right' },
   { key: 'BrhName', title: 'Nombre', width: 220 },
@@ -44,7 +51,16 @@ const columns: NCrudColumn<BranchRow>[] = [
 ];
 
 function toRow(model: RstBranchListItem): BranchRow {
-  return { id: model.LocalId, syncStatus: model.SyncStatus, BrhID: model.BrhID, BrhName: model.BrhName, BrhAddress: model.BrhAddress, BrhPhone: model.BrhPhone, BrhEmail: model.BrhEmail, BrhManagerName: model.BrhManagerName };
+  return {
+    id: model.LocalId,
+    syncStatus: model.SyncStatus,
+    BrhID: model.BrhID,
+    BrhName: model.BrhName,
+    BrhAddress: model.BrhAddress,
+    BrhPhone: model.BrhPhone,
+    BrhEmail: model.BrhEmail,
+    BrhManagerName: model.BrhManagerName,
+  };
 }
 
 export default function BranchesScreen() {
@@ -59,87 +75,235 @@ export default function BranchesScreen() {
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const onError = (reason: unknown) => { setError(reason instanceof Error ? reason.message : 'No se pudieron leer las sucursales locales.'); setLoading(false); };
-    const currenciesSubscription = rstBranchQueries.observeCurrencies(setCurrencies, onError);
-    const branchSubscription = rstBranchQueries.observeActive((records) => { setBranches(records); setLoading(false); }, onError);
-    return () => { currenciesSubscription.unsubscribe(); branchSubscription.unsubscribe(); };
+    const onError = (reason: unknown) => {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : 'No se pudieron leer las sucursales locales.',
+      );
+      setLoading(false);
+    };
+    const currenciesSubscription = rstBranchQueries.observeCurrencies(
+      setCurrencies,
+      onError,
+    );
+    const branchSubscription = rstBranchQueries.observeActive((records) => {
+      setBranches(records);
+      setLoading(false);
+    }, onError);
+    return () => {
+      currenciesSubscription.unsubscribe();
+      branchSubscription.unsubscribe();
+    };
   }, []);
 
   const rows = React.useMemo(() => branches.map(toRow), [branches]);
   const restaurantId = branches[0]?.BrhResID ?? null;
   const currencyItems = currencies;
-  const closeForm = () => { setFormMode(null); setEditing(null); setDraft(emptyDraft()); setError(null); };
-  const beginAdd = () => { if (!restaurantId) return; setFormMode('add'); setEditing(null); setDraft(emptyDraft()); setError(null); };
+  const closeForm = () => {
+    setFormMode(null);
+    setEditing(null);
+    setDraft(emptyDraft());
+    setError(null);
+  };
+  const beginAdd = () => {
+    if (!restaurantId) return;
+    setFormMode('add');
+    setEditing(null);
+    setDraft(emptyDraft());
+    setError(null);
+  };
   const beginEdit = (row: BranchRow) => {
     const model = branches.find((branch) => branch.LocalId === row.id);
     if (!model) return;
-    setFormMode('edit'); setEditing(model);
-    setDraft({ BrhName: model.BrhName, BrhAddress: model.BrhAddress ?? '', BrhPhone: model.BrhPhone ?? '', BrhEmail: model.BrhEmail ?? '', BrhManagerName: model.BrhManagerName ?? '', BrhCurrencyDefID: model.BrhCurrencyDefID });
+    setFormMode('edit');
+    setEditing(model);
+    setDraft({
+      BrhName: model.BrhName,
+      BrhAddress: model.BrhAddress ?? '',
+      BrhPhone: model.BrhPhone ?? '',
+      BrhEmail: model.BrhEmail ?? '',
+      BrhManagerName: model.BrhManagerName ?? '',
+      BrhCurrencyDefID: model.BrhCurrencyDefID,
+    });
     setError(null);
   };
 
   const save = async () => {
     const name = draft.BrhName.trim();
     const activeRestaurantId = editing?.BrhResID ?? restaurantId;
-    if (!name || !activeRestaurantId) { setError('Nombre y restaurante son obligatorios.'); return; }
-    setSaving(true); setError(null);
+    if (!name || !activeRestaurantId) {
+      setError('Nombre y restaurante son obligatorios.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
     try {
       await rstBranchService.save({
-        LocalId: editing?.LocalId, BrhResID: activeRestaurantId, BrhName: name,
-        BrhAddress: draft.BrhAddress, BrhPhone: draft.BrhPhone, BrhEmail: draft.BrhEmail,
-        BrhManagerName: draft.BrhManagerName, BrhCurrencyDefID: draft.BrhCurrencyDefID, UserId: userId,
+        LocalId: editing?.LocalId,
+        BrhResID: activeRestaurantId,
+        BrhName: name,
+        BrhAddress: draft.BrhAddress,
+        BrhPhone: draft.BrhPhone,
+        BrhEmail: draft.BrhEmail,
+        BrhManagerName: draft.BrhManagerName,
+        BrhCurrencyDefID: draft.BrhCurrencyDefID,
+        UserId: userId,
       });
       closeForm();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo guardar la sucursal local.'); }
-    finally { setSaving(false); }
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : 'No se pudo guardar la sucursal local.',
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const remove = async (row: BranchRow) => {
-    const execute = async () => { try { await rstBranchService.remove(row.id); } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo eliminar la sucursal local.'); } };
-    if (Platform.OS === 'web') { if (globalThis.confirm(`¿Eliminar la sucursal ${row.BrhName}?`)) await execute(); return; }
-    Alert.alert('Eliminar sucursal', `¿Eliminar la sucursal ${row.BrhName}?`, [{ text: 'Cancelar', style: 'cancel' }, { text: 'Eliminar', style: 'destructive', onPress: execute }]);
+    const execute = async () => {
+      try {
+        await rstBranchService.remove(row.id);
+      } catch (reason) {
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : 'No se pudo eliminar la sucursal local.',
+        );
+      }
+    };
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm(`¿Eliminar la sucursal ${row.BrhName}?`))
+        await execute();
+      return;
+    }
+    Alert.alert('Eliminar sucursal', `¿Eliminar la sucursal ${row.BrhName}?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: execute },
+    ]);
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background"><ScrollView contentContainerClassName="mx-auto w-full max-w-6xl gap-4 pb-24 pt-4" keyboardShouldPersistTaps="handled">
-      <View><Text variant="title">Sucursales</Text><Text variant="caption">RstBranch · datos locales</Text></View>
-      {error ? <Text className="text-sm text-destructive" role="alert">{error}</Text> : null}
-      <NCrud
-        title="RstBranch"
-        form={formMode ? (
-          <NFormPanel
-            title={editing ? 'Editar sucursal' : 'Nueva sucursal'}
-            description="El cambio quedará pendiente de sincronización"
-            onClose={closeForm}
-            footer={
-              <View className="flex-1 items-end">
-                <Button className="h-8 px-3" disabled={saving} onPress={save}>
-                  <Save size={14} className="text-primary-foreground" />
-                  <Text className="text-xs">{saving ? 'Guardando...' : 'Guardar localmente'}</Text>
-                </Button>
-              </View>
-            }>
-            <View className="gap-3 md:flex-row">
-              <NText label="Nombre" required value={draft.BrhName} onChange={(BrhName) => setDraft((state) => ({ ...state, BrhName }))} containerClassName="flex-1" />
-              <NText label="Teléfono" value={draft.BrhPhone} onChange={(BrhPhone) => setDraft((state) => ({ ...state, BrhPhone }))} containerClassName="flex-1" />
-            </View>
-            <NText label="Dirección" value={draft.BrhAddress} onChange={(BrhAddress) => setDraft((state) => ({ ...state, BrhAddress }))} />
-            <View className="gap-3 md:flex-row">
-              <NText label="Email" keyboardType="email-address" value={draft.BrhEmail} onChange={(BrhEmail) => setDraft((state) => ({ ...state, BrhEmail }))} containerClassName="flex-1" />
-              <NText label="Encargado" value={draft.BrhManagerName} onChange={(BrhManagerName) => setDraft((state) => ({ ...state, BrhManagerName }))} containerClassName="flex-1" />
-              <NSelect label="Moneda" items={currencyItems} itemText="text" itemValue="value" value={draft.BrhCurrencyDefID} onChange={(value) => setDraft((state) => ({ ...state, BrhCurrencyDefID: value == null ? null : Number(value) }))} clearable containerClassName="flex-1" />
-            </View>
-          </NFormPanel>
-        ) : undefined}
-        rows={rows}
-        columns={columns}
-        loading={loading}
-        searchPlaceholder="Nombre, dirección o encargado"
-        searchText={(row) => `${row.BrhName} ${row.BrhAddress ?? ''} ${row.BrhManagerName ?? ''}`}
-        onAdd={restaurantId ? beginAdd : undefined}
-        onEdit={beginEdit}
-        onDelete={remove}
-      />
-    </ScrollView></SafeAreaView>
+    <SafeAreaView className="flex-1 bg-background">
+      <ScrollView
+        contentContainerClassName="mx-auto w-full max-w-6xl gap-4 pb-24 pt-4"
+        keyboardShouldPersistTaps="handled"
+      >
+        <View>
+          <Text variant="title">Sucursales</Text>
+          <Text variant="caption">RstBranch · datos locales</Text>
+        </View>
+        {error ? (
+          <Text
+            className="text-sm text-destructive"
+            role="alert"
+          >
+            {error}
+          </Text>
+        ) : null}
+        <NCrud
+          title="RstBranch"
+          form={
+            formMode ? (
+              <NFormPanel
+                title={editing ? 'Editar sucursal' : 'Nueva sucursal'}
+                description="El cambio quedará pendiente de sincronización"
+                onClose={closeForm}
+                footer={
+                  <View className="flex-1 items-end">
+                    <Button
+                      className="h-8 px-3"
+                      disabled={saving}
+                      onPress={save}
+                    >
+                      <Save
+                        size={14}
+                        className="text-primary-foreground"
+                      />
+                      <Text className="text-xs">
+                        {saving ? 'Guardando...' : 'Guardar localmente'}
+                      </Text>
+                    </Button>
+                  </View>
+                }
+              >
+                <View className="gap-3 md:flex-row">
+                  <NText
+                    label="Nombre"
+                    required
+                    value={draft.BrhName}
+                    onChange={(BrhName) =>
+                      setDraft((state) => ({ ...state, BrhName }))
+                    }
+                    containerClassName="flex-1"
+                  />
+                  <NText
+                    label="Teléfono"
+                    value={draft.BrhPhone}
+                    onChange={(BrhPhone) =>
+                      setDraft((state) => ({ ...state, BrhPhone }))
+                    }
+                    containerClassName="flex-1"
+                  />
+                </View>
+                <NText
+                  label="Dirección"
+                  value={draft.BrhAddress}
+                  onChange={(BrhAddress) =>
+                    setDraft((state) => ({ ...state, BrhAddress }))
+                  }
+                />
+                <View className="gap-3 md:flex-row">
+                  <NText
+                    label="Email"
+                    keyboardType="email-address"
+                    value={draft.BrhEmail}
+                    onChange={(BrhEmail) =>
+                      setDraft((state) => ({ ...state, BrhEmail }))
+                    }
+                    containerClassName="flex-1"
+                  />
+                  <NText
+                    label="Encargado"
+                    value={draft.BrhManagerName}
+                    onChange={(BrhManagerName) =>
+                      setDraft((state) => ({ ...state, BrhManagerName }))
+                    }
+                    containerClassName="flex-1"
+                  />
+                  <NSelect
+                    label="Moneda"
+                    items={currencyItems}
+                    itemText="text"
+                    itemValue="value"
+                    value={draft.BrhCurrencyDefID}
+                    onChange={(value) =>
+                      setDraft((state) => ({
+                        ...state,
+                        BrhCurrencyDefID: value == null ? null : Number(value),
+                      }))
+                    }
+                    clearable
+                    containerClassName="flex-1"
+                  />
+                </View>
+              </NFormPanel>
+            ) : undefined
+          }
+          rows={rows}
+          columns={columns}
+          loading={loading}
+          searchPlaceholder="Nombre, dirección o encargado"
+          searchText={(row) =>
+            `${row.BrhName} ${row.BrhAddress ?? ''} ${row.BrhManagerName ?? ''}`
+          }
+          onAdd={restaurantId ? beginAdd : undefined}
+          onEdit={beginEdit}
+          onDelete={remove}
+        />
+      </ScrollView>
+    </SafeAreaView>
   );
 }

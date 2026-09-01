@@ -2,7 +2,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import type { SecOption } from '@/contracts/security/SecOption';
-import { getCachedMobileOptions, refreshMobileOptions } from '@/features/security/options';
+import {
+  getCachedMobileOptions,
+  refreshMobileOptions,
+} from '@/features/security/options';
 import { useAuthStore } from '@/auth/store';
 import { getApiErrorMessage } from '@/lib/api';
 import { getRouteByCode } from '@/lib/routeMapping';
@@ -61,8 +64,10 @@ function normalizeIconName(value: string): string {
 }
 
 function optionIcon(option: SecOption): LucideIcon {
-  return OPTION_ICONS[normalizeIconName(option.OptIcon)] ??
-    (option.TypeOption === 1 ? Folder : FileText);
+  return (
+    OPTION_ICONS[normalizeIconName(option.OptIcon)] ??
+    (option.TypeOption === 1 ? Folder : FileText)
+  );
 }
 
 function flattenTree(nodes: SecOption[]): SecOption[] {
@@ -92,7 +97,13 @@ interface OptionTreeRowProps {
   toggle: (id: number) => void;
 }
 
-function OptionTreeRow({ item, depth, forceOpen, openIds, toggle }: OptionTreeRowProps) {
+function OptionTreeRow({
+  item,
+  depth,
+  forceOpen,
+  openIds,
+  toggle,
+}: OptionTreeRowProps) {
   const router = useRouter();
   const hasChildren = item.Children.length > 0;
   const isOpen = forceOpen || openIds.has(item.OptID);
@@ -111,7 +122,10 @@ function OptionTreeRow({ item, depth, forceOpen, openIds, toggle }: OptionTreeRo
     <View>
       <View className="flex-row">
         {depth > 0 ? (
-          <View style={{ width: depth * 18 }} className="items-end">
+          <View
+            style={{ width: depth * 18 }}
+            className="items-end"
+          >
             <View className="h-full w-px bg-border" />
           </View>
         ) : null}
@@ -121,15 +135,24 @@ function OptionTreeRow({ item, depth, forceOpen, openIds, toggle }: OptionTreeRo
           className={cn(
             'min-h-9 flex-1 flex-row items-center gap-2 rounded-md px-2 active:bg-muted',
             !route && item.TypeOption === 2 && 'opacity-55',
-          )}>
+          )}
+        >
           <Icon
             size={depth > 0 ? 15 : 17}
             strokeWidth={2.25}
-            className={item.TypeOption === 2 ? 'text-muted-foreground' : 'text-foreground'}
+            className={
+              item.TypeOption === 2
+                ? 'text-muted-foreground'
+                : 'text-foreground'
+            }
           />
           <Text
-            className={cn('min-w-0 flex-1 text-[13px]', depth === 0 && 'font-poppins-semibold')}
-            numberOfLines={1}>
+            className={cn(
+              'min-w-0 flex-1 text-[13px]',
+              depth === 0 && 'font-poppins-semibold',
+            )}
+            numberOfLines={1}
+          >
             {item.OptName}
           </Text>
           {hasChildren ? (
@@ -139,7 +162,10 @@ function OptionTreeRow({ item, depth, forceOpen, openIds, toggle }: OptionTreeRo
               style={{ transform: [{ rotate: isOpen ? '90deg' : '0deg' }] }}
             />
           ) : route ? (
-            <ChevronRight size={14} className="text-muted-foreground" />
+            <ChevronRight
+              size={14}
+              className="text-muted-foreground"
+            />
           ) : null}
         </Pressable>
       </View>
@@ -171,33 +197,37 @@ export default function ModulesTab() {
   const applyOptions = React.useCallback((mobileOptions: SecOption[]) => {
     optionsRef.current = mobileOptions;
     setOptions(mobileOptions);
-    setOpenIds((current) => current.size
-      ? current
-      : new Set(collectMenuIds(mobileOptions)));
+    setOpenIds((current) =>
+      current.size ? current : new Set(collectMenuIds(mobileOptions)),
+    );
   }, []);
 
-  const load = React.useCallback(async (force = false) => {
-    if (!userId) return;
-    setError(null);
+  const load = React.useCallback(
+    async (force = false) => {
+      if (!userId) return;
+      setError(null);
 
-    let cached: SecOption[] = [];
-    if (!force) {
-      cached = await getCachedMobileOptions(userId);
-      if (cached.length) {
-        applyOptions(cached);
+      let cached: SecOption[] = [];
+      if (!force) {
+        cached = await getCachedMobileOptions(userId);
+        if (cached.length) {
+          applyOptions(cached);
+          setLoading(false);
+        }
+      }
+
+      if (force || !cached.length) setLoading(true);
+      try {
+        applyOptions(await refreshMobileOptions(userId));
+      } catch (cause) {
+        if (!cached.length && !optionsRef.current.length)
+          setError(getApiErrorMessage(cause));
+      } finally {
         setLoading(false);
       }
-    }
-
-    if (force || !cached.length) setLoading(true);
-    try {
-      applyOptions(await refreshMobileOptions(userId));
-    } catch (cause) {
-      if (!cached.length && !optionsRef.current.length) setError(getApiErrorMessage(cause));
-    } finally {
-      setLoading(false);
-    }
-  }, [applyOptions, userId]);
+    },
+    [applyOptions, userId],
+  );
 
   useFocusEffect(
     React.useCallback(() => {
@@ -206,18 +236,21 @@ export default function ModulesTab() {
   );
 
   const searchIndex = React.useMemo(
-    () => new Fuse(flattenTree(options), {
-      keys: ['OptName', 'OptCode'],
-      threshold: 0.2,
-      minMatchCharLength: 3,
-      ignoreLocation: true,
-    }),
+    () =>
+      new Fuse(flattenTree(options), {
+        keys: ['OptName', 'OptCode'],
+        threshold: 0.2,
+        minMatchCharLength: 3,
+        ignoreLocation: true,
+      }),
     [options],
   );
   const visibleOptions = React.useMemo(() => {
     const term = search.trim();
     if (!term) return options;
-    const matchedIds = new Set(searchIndex.search(term).map(({ item }) => item.OptID));
+    const matchedIds = new Set(
+      searchIndex.search(term).map(({ item }) => item.OptID),
+    );
     return filterTree(options, matchedIds);
   }, [options, search, searchIndex]);
   const toggle = React.useCallback((id: number) => {
@@ -234,12 +267,24 @@ export default function ModulesTab() {
       <View className="mx-auto w-full max-w-3xl gap-3 pb-2 pt-3">
         <View className="flex-row items-center justify-between">
           <Text className="font-poppins-semibold text-lg">Módulos</Text>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onPress={() => void load(true)} accessibilityLabel="Actualizar módulos">
-            <RefreshCw size={16} className="text-foreground" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onPress={() => void load(true)}
+            accessibilityLabel="Actualizar módulos"
+          >
+            <RefreshCw
+              size={16}
+              className="text-foreground"
+            />
           </Button>
         </View>
         <View className="relative justify-center">
-          <Search size={16} className="absolute left-3 z-10 text-muted-foreground" />
+          <Search
+            size={16}
+            className="absolute left-3 z-10 text-muted-foreground"
+          />
           <Input
             value={search}
             onChangeText={setSearch}
@@ -250,10 +295,15 @@ export default function ModulesTab() {
       </View>
 
       <ScrollView contentContainerClassName="mx-auto w-full max-w-3xl pb-20">
-        {error ? <Text className="px-2 py-3 text-xs text-destructive">{error}</Text> : null}
+        {error ? (
+          <Text className="px-2 py-3 text-xs text-destructive">{error}</Text>
+        ) : null}
         {!loading && !error && !visibleOptions.length ? (
           <View className="items-center gap-2 border-y border-border py-8">
-            <LayoutGrid size={20} className="text-muted-foreground" />
+            <LayoutGrid
+              size={20}
+              className="text-muted-foreground"
+            />
             <Text variant="small">Sin módulos habilitados</Text>
           </View>
         ) : null}

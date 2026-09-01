@@ -109,7 +109,7 @@ Una respuesta Pull de borrado sin `Data` es válida.
 - [ ] Adjuntar imagen y conservar `DedImageFilID` tras sincronizar.
 - [ ] Confirmar la pantalla de Sync: duración, páginas, enviados, recibidos y conflictos.
 - [ ] Revisar logs de `sync_completed`/`sync_failed` y comprobar que no contienen tokens, UUIDs,
-  usuarios, payloads ni mensajes remotos.
+      usuarios, payloads ni mensajes remotos.
 
 No hacer bloqueante `expo-doctor` hasta completar ambos dispositivos y registrar la fecha, versión
 de build y resultado en el PR o release correspondiente.

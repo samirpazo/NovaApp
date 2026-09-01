@@ -1,5 +1,10 @@
 import { localStorageKey, type DirtyRaw } from '@nozbe/watermelondb';
-import { synchronize, type SyncDatabaseChangeSet, type SyncPushArgs, type SyncTableChangeSet } from '@nozbe/watermelondb/sync';
+import {
+  synchronize,
+  type SyncDatabaseChangeSet,
+  type SyncPushArgs,
+  type SyncTableChangeSet,
+} from '@nozbe/watermelondb/sync';
 import { CryptoDigestAlgorithm, digestStringAsync } from 'expo-crypto';
 import { isAxiosError } from 'axios';
 
@@ -20,8 +25,17 @@ import {
 import { database, type EntityBaseModel } from '@/database';
 import { api, getApiErrorMessage } from '@/lib/api';
 import { flushPendingAppearance } from '@/theme/appearance';
-import { getSyncConnection, SyncConnectionSchema, type SyncConnection } from '@/sync/config';
-import { conflictForChange, getSyncConflicts, removeSyncConflict, saveSyncConflicts } from '@/sync/conflicts';
+import {
+  getSyncConnection,
+  SyncConnectionSchema,
+  type SyncConnection,
+} from '@/sync/config';
+import {
+  conflictForChange,
+  getSyncConflicts,
+  removeSyncConflict,
+  saveSyncConflicts,
+} from '@/sync/conflicts';
 import { type PullResult, useSyncState } from '@/sync/state';
 import { classifySyncFailure, reportSyncTelemetry } from '@/sync/telemetry';
 import { initialPullCursor } from '@/sync/pull-options';
@@ -32,7 +46,11 @@ const MAX_PULL_PAGES = 10_000;
 
 type MutableChangeSet = Record<SyncResource, SyncTableChangeSet>;
 
-const emptyTableChanges = (): SyncTableChangeSet => ({ created: [], updated: [], deleted: [] });
+const emptyTableChanges = (): SyncTableChangeSet => ({
+  created: [],
+  updated: [],
+  deleted: [],
+});
 
 function createChangeSet(): MutableChangeSet {
   return {
@@ -43,11 +61,16 @@ function createChangeSet(): MutableChangeSet {
   };
 }
 
-function toRemoteRaw<TResource extends SyncResource>(entity: SyncEntityMap[TResource]): DirtyRaw {
+function toRemoteRaw<TResource extends SyncResource>(
+  entity: SyncEntityMap[TResource],
+): DirtyRaw {
   return { id: entity.SyncId, ...entity };
 }
 
-function applyLatestChange(changes: MutableChangeSet, change: AnySyncPullChange): void {
+function applyLatestChange(
+  changes: MutableChangeSet,
+  change: AnySyncPullChange,
+): void {
   const table = changes[change.Resource];
   table.updated = table.updated.filter((record) => record.id !== change.SyncId);
   table.deleted = table.deleted.filter((id) => id !== change.SyncId);
@@ -71,7 +94,12 @@ function rawData(raw: DirtyRaw): Record<string, unknown> {
   return data;
 }
 
-function preservePendingSyncVersion(_table: string, local: DirtyRaw, _remote: DirtyRaw, resolved: DirtyRaw): DirtyRaw {
+function preservePendingSyncVersion(
+  _table: string,
+  local: DirtyRaw,
+  _remote: DirtyRaw,
+  resolved: DirtyRaw,
+): DirtyRaw {
   if (local._status !== 'synced') resolved.SyncVersion = local.SyncVersion;
   return resolved;
 }
@@ -79,22 +107,51 @@ function preservePendingSyncVersion(_table: string, local: DirtyRaw, _remote: Di
 function pushChangesFrom({ changes }: SyncPushArgs): SyncPushChange[] {
   const result: SyncPushChange[] = [];
   for (const resource of Object.values(SYNC_RESOURCES)) {
-    const table = (changes as Partial<Record<SyncResource, SyncTableChangeSet>>)[resource];
+    const table = (
+      changes as Partial<Record<SyncResource, SyncTableChangeSet>>
+    )[resource];
     if (!table) continue;
     if (resource === SYNC_RESOURCES.RstTable) {
-      if (table.created.length || table.updated.length || table.deleted.length) {
+      if (
+        table.created.length ||
+        table.updated.length ||
+        table.deleted.length
+      ) {
         throw new Error(`${resource} es un recurso local de solo lectura.`);
       }
       continue;
     }
     for (const raw of table.created) {
-      result.push(SyncPushChangeSchema.parse({ Resource: resource, SyncId: String(raw.SyncId), Operation: 'C', SyncVersion: String(raw.SyncVersion || ''), Data: rawData(raw) }));
+      result.push(
+        SyncPushChangeSchema.parse({
+          Resource: resource,
+          SyncId: String(raw.SyncId),
+          Operation: 'C',
+          SyncVersion: String(raw.SyncVersion || ''),
+          Data: rawData(raw),
+        }),
+      );
     }
     for (const raw of table.updated) {
-      result.push(SyncPushChangeSchema.parse({ Resource: resource, SyncId: String(raw.SyncId), Operation: 'U', SyncVersion: String(raw.SyncVersion || ''), Data: rawData(raw) }));
+      result.push(
+        SyncPushChangeSchema.parse({
+          Resource: resource,
+          SyncId: String(raw.SyncId),
+          Operation: 'U',
+          SyncVersion: String(raw.SyncVersion || ''),
+          Data: rawData(raw),
+        }),
+      );
     }
     for (const SyncId of table.deleted) {
-      result.push(SyncPushChangeSchema.parse({ Resource: resource, SyncId, Operation: 'D', Data: null }));
+      result.push(
+        SyncPushChangeSchema.parse({
+          Resource: resource,
+          SyncId,
+          Operation: 'D',
+          Data: null,
+        }),
+      );
     }
   }
   return result;
@@ -104,7 +161,10 @@ async function prepareScope(connection: SyncConnection): Promise<void> {
   const nextScope = scopeFor(connection);
   const activeScope = await database.localStorage.get(ACTIVE_SCOPE_KEY);
   if (activeScope && activeScope !== nextScope) {
-    await database.write(() => database.unsafeResetDatabase(), 'change sync scope');
+    await database.write(
+      () => database.unsafeResetDatabase(),
+      'change sync scope',
+    );
   }
   await database.localStorage.set(ACTIVE_SCOPE_KEY, nextScope);
 }
@@ -113,11 +173,23 @@ async function removeReconciledDuplicates(): Promise<void> {
   await database.write(async () => {
     const duplicates = [];
     for (const resource of Object.values(SYNC_RESOURCES)) {
-      const records = await database.get<EntityBaseModel>(resource).query().fetch();
-      const canonicalIds = new Set(records.filter((record) => record.id === record.SyncId).map((record) => record.SyncId));
+      const records = await database
+        .get<EntityBaseModel>(resource)
+        .query()
+        .fetch();
+      const canonicalIds = new Set(
+        records
+          .filter((record) => record.id === record.SyncId)
+          .map((record) => record.SyncId),
+      );
       duplicates.push(
         ...records
-          .filter((record) => record.syncStatus === 'synced' && record.id !== record.SyncId && canonicalIds.has(record.SyncId))
+          .filter(
+            (record) =>
+              record.syncStatus === 'synced' &&
+              record.id !== record.SyncId &&
+              canonicalIds.has(record.SyncId),
+          )
           .map((record) => record.prepareDestroyPermanently()),
       );
     }
@@ -150,7 +222,10 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
 
   try {
     const storedConnection = options.connection ?? (await getSyncConnection());
-    if (!storedConnection) throw new Error('Debe configurar el servidor y la sucursal antes de sincronizar.');
+    if (!storedConnection)
+      throw new Error(
+        'Debe configurar el servidor y la sucursal antes de sincronizar.',
+      );
     const connection = SyncConnectionSchema.parse(storedConnection);
     await ensureOnlineSession();
 
@@ -167,35 +242,48 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
     let bootstrapRequested = options.forceBootstrap ?? false;
 
     const pullChanges = async ({ lastPulledAt }: { lastPulledAt?: number }) => {
-        const changes = createChangeSet();
-        let cursor = initialPullCursor(lastPulledAt, bootstrapRequested);
-        bootstrapRequested = false;
-        let hasMore: boolean;
+      const changes = createChangeSet();
+      let cursor = initialPullCursor(lastPulledAt, bootstrapRequested);
+      bootstrapRequested = false;
+      let hasMore: boolean;
 
-        do {
-          if (++pages > MAX_PULL_PAGES) throw new Error('Nova devolvió demasiadas páginas de sincronización.');
-          const response = await api.get('/sync/pull', {
-            params: {
-              limit,
-              ...(connection.BranchId === undefined ? {} : { branchId: connection.BranchId }),
-              ...(cursor === undefined ? {} : { cursor }),
-            },
-            signal: options.signal,
-          });
-          const envelope = createResponseApiSchema(SyncPullResponseSchema).parse(response.data);
-          if (!envelope.Succeeded || !envelope.Data) {
-            throw new Error(envelope.Message || 'Nova no devolvió datos de sincronización.');
-          }
+      do {
+        if (++pages > MAX_PULL_PAGES)
+          throw new Error(
+            'Nova devolvió demasiadas páginas de sincronización.',
+          );
+        const response = await api.get('/sync/pull', {
+          params: {
+            limit,
+            ...(connection.BranchId === undefined
+              ? {}
+              : { branchId: connection.BranchId }),
+            ...(cursor === undefined ? {} : { cursor }),
+          },
+          signal: options.signal,
+        });
+        const envelope = createResponseApiSchema(SyncPullResponseSchema).parse(
+          response.data,
+        );
+        if (!envelope.Succeeded || !envelope.Data) {
+          throw new Error(
+            envelope.Message || 'Nova no devolvió datos de sincronización.',
+          );
+        }
 
-          for (const change of envelope.Data.Changes) applyLatestChange(changes, change);
-          downloaded += envelope.Data.Changes.length;
-          finalCursor = envelope.Data.Cursor;
-          cursor = envelope.Data.Cursor;
-          hasMore = envelope.Data.HasMore;
-        } while (hasMore);
+        for (const change of envelope.Data.Changes)
+          applyLatestChange(changes, change);
+        downloaded += envelope.Data.Changes.length;
+        finalCursor = envelope.Data.Cursor;
+        cursor = envelope.Data.Cursor;
+        hasMore = envelope.Data.HasMore;
+      } while (hasMore);
 
-        // WatermelonDB treats 0 as "never synchronized". Offset the backend cursor by one.
-        return { changes: changes as SyncDatabaseChangeSet, timestamp: finalCursor + 1 };
+      // WatermelonDB treats 0 as "never synchronized". Offset the backend cursor by one.
+      return {
+        changes: changes as SyncDatabaseChangeSet,
+        timestamp: finalCursor + 1,
+      };
     };
 
     const pushChanges = async (args: SyncPushArgs) => {
@@ -209,8 +297,14 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
         (rejectedIds[change.Resource] ??= []).push(change.SyncId);
         return [];
       });
-      if (!changes.length) return Object.keys(rejectedIds).length ? { experimentalRejectedIds: rejectedIds } : undefined;
-      if (changes.length > 500) throw new Error('Hay más de 500 cambios pendientes. Sincronice en lotes más pequeños.');
+      if (!changes.length)
+        return Object.keys(rejectedIds).length
+          ? { experimentalRejectedIds: rejectedIds }
+          : undefined;
+      if (changes.length > 500)
+        throw new Error(
+          'Hay más de 500 cambios pendientes. Sincronice en lotes más pequeños.',
+        );
       const serialized = JSON.stringify(changes);
       const idempotencyKey = `nova-sync-${await digestStringAsync(CryptoDigestAlgorithm.SHA256, serialized)}`;
       try {
@@ -224,38 +318,69 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
             signal: options.signal,
           },
         );
-        const envelope = createResponseApiSchema(SyncPushResponseSchema).parse(response.data);
-        if (!envelope.Succeeded || !envelope.Data) throw new Error(envelope.Message || 'Nova no confirmó el Push.');
-        const failed = envelope.Data.Results.find((result) => result.Status !== 'Applied');
-        if (failed) throw new Error(failed.Message || `No se pudo sincronizar ${failed.Resource}.`);
+        const envelope = createResponseApiSchema(SyncPushResponseSchema).parse(
+          response.data,
+        );
+        if (!envelope.Succeeded || !envelope.Data)
+          throw new Error(envelope.Message || 'Nova no confirmó el Push.');
+        const failed = envelope.Data.Results.find(
+          (result) => result.Status !== 'Applied',
+        );
+        if (failed)
+          throw new Error(
+            failed.Message || `No se pudo sincronizar ${failed.Resource}.`,
+          );
         for (const result of envelope.Data.Results) {
-          const conflict = conflictForChange(storedConflicts, { Resource: result.Resource, SyncId: result.SyncId } as SyncPushChange);
-          if (conflict?.KeepLocal) await removeSyncConflict(result.Resource, result.SyncId);
+          const conflict = conflictForChange(storedConflicts, {
+            Resource: result.Resource,
+            SyncId: result.SyncId,
+          } as SyncPushChange);
+          if (conflict?.KeepLocal)
+            await removeSyncConflict(result.Resource, result.SyncId);
         }
         uploaded += changes.length;
-        return Object.keys(rejectedIds).length ? { experimentalRejectedIds: rejectedIds } : undefined;
+        return Object.keys(rejectedIds).length
+          ? { experimentalRejectedIds: rejectedIds }
+          : undefined;
       } catch (error) {
         if (isAxiosError(error) && error.response?.status === 409) {
-          const envelope = createResponseApiSchema(SyncPushResponseSchema).safeParse(error.response.data);
+          const envelope = createResponseApiSchema(
+            SyncPushResponseSchema,
+          ).safeParse(error.response.data);
           if (envelope.success && envelope.data.Data) {
-            const detected = envelope.data.Data.Results.flatMap<SyncConflict>((result) => {
-              if (result.Status !== 'Conflict' || !result.Data || result.Resource === SYNC_RESOURCES.RstTable) return [];
-              const local = changes.find((change) => change.Resource === result.Resource && change.SyncId === result.SyncId);
-              const conflict = SyncConflictSchema.safeParse({
-                Resource: result.Resource,
-                SyncId: result.SyncId,
-                Operation: local?.Operation ?? 'U',
-                Message: result.Message || 'El registro cambió también en el servidor.',
-                LocalData: local?.Data ?? null,
-                ServerData: result.Data,
-                KeepLocal: false,
-                DetectedAt: new Date().toISOString(),
-              });
-              return conflict.success ? [conflict.data] : [];
-            });
+            const detected = envelope.data.Data.Results.flatMap<SyncConflict>(
+              (result) => {
+                if (
+                  result.Status !== 'Conflict' ||
+                  !result.Data ||
+                  result.Resource === SYNC_RESOURCES.RstTable
+                )
+                  return [];
+                const local = changes.find(
+                  (change) =>
+                    change.Resource === result.Resource &&
+                    change.SyncId === result.SyncId,
+                );
+                const conflict = SyncConflictSchema.safeParse({
+                  Resource: result.Resource,
+                  SyncId: result.SyncId,
+                  Operation: local?.Operation ?? 'U',
+                  Message:
+                    result.Message ||
+                    'El registro cambió también en el servidor.',
+                  LocalData: local?.Data ?? null,
+                  ServerData: result.Data,
+                  KeepLocal: false,
+                  DetectedAt: new Date().toISOString(),
+                });
+                return conflict.success ? [conflict.data] : [];
+              },
+            );
             if (detected.length) {
               await saveSyncConflicts(detected);
-              throw new Error(`Se detectaron ${detected.length} conflicto${detected.length === 1 ? '' : 's'} pendiente${detected.length === 1 ? '' : 's'} de resolución.`);
+              throw new Error(
+                `Se detectaron ${detected.length} conflicto${detected.length === 1 ? '' : 's'} pendiente${detected.length === 1 ? '' : 's'} de resolución.`,
+              );
             }
           }
         }
@@ -274,7 +399,12 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
     // The server owns numeric IDs and rowversions. A second Pull reconciles those
     // fields after WatermelonDB has marked the accepted local batch as synced.
     if (uploaded > 0) {
-      await synchronize({ database, sendCreatedAsUpdated: true, conflictResolver: preservePendingSyncVersion, pullChanges });
+      await synchronize({
+        database,
+        sendCreatedAsUpdated: true,
+        conflictResolver: preservePendingSyncVersion,
+        pullChanges,
+      });
     }
     await removeReconciledDuplicates();
 
@@ -288,12 +418,22 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
     };
     await database.localStorage.set(LAST_PULL_KEY, result);
     useSyncState.getState().completePull(result);
-    reportSyncTelemetry({ event: 'sync_completed', durationMs: result.DurationMs, downloaded, uploaded, pages });
+    reportSyncTelemetry({
+      event: 'sync_completed',
+      durationMs: result.DurationMs,
+      downloaded,
+      uploaded,
+      pages,
+    });
     return result;
   } catch (error) {
     const message = getApiErrorMessage(error);
     useSyncState.getState().failPull(message);
-    reportSyncTelemetry({ event: 'sync_failed', durationMs: Date.now() - startedAt, failureKind: classifySyncFailure(message) });
+    reportSyncTelemetry({
+      event: 'sync_failed',
+      durationMs: Date.now() - startedAt,
+      failureKind: classifySyncFailure(message),
+    });
     throw new Error(message, { cause: error });
   }
 }

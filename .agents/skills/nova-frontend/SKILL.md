@@ -19,7 +19,8 @@ const api = axios.create({
 `src/lib/security.ts::hashPassword` aplica SHA512 con client pepper antes de enviar — nunca viaja texto plano.
 
 ```typescript
-const PASSWORD_PEPPER = process.env.NEXT_PUBLIC_PASSWORD_PEPPER ?? "your-pepper-value-here";
+const PASSWORD_PEPPER =
+  process.env.NEXT_PUBLIC_PASSWORD_PEPPER ?? 'your-pepper-value-here';
 export const hashPassword = (password: string): string => {
   const hash = CryptoJS.SHA512(password + PASSWORD_PEPPER);
   return hash.toString(CryptoJS.enc.Hex);
@@ -29,7 +30,7 @@ export const hashPassword = (password: string): string => {
 Usar siempre en formularios de login/cambio de contraseña:
 
 ```typescript
-import { hashPassword } from "@/lib/security";
+import { hashPassword } from '@/lib/security';
 const hashedPassword = hashPassword(password);
 ```
 
@@ -114,9 +115,9 @@ await sessionHub.startConnection(); // usa withCredentials
 Importar desde `@/components/custom/`:
 
 ```tsx
-import { NText } from "@/components/custom/NText";
-import { NSelectDefinition } from "@/components/custom/NSelectDefinition";
-import { NDate } from "@/components/custom/NDate";
+import { NText } from '@/components/custom/NText';
+import { NSelectDefinition } from '@/components/custom/NSelectDefinition';
+import { NDate } from '@/components/custom/NDate';
 ```
 
 ### 2.2 Listado Completo de Componentes N-Series
@@ -187,65 +188,71 @@ import { NDate } from "@/components/custom/NDate";
 
 ### 2.2.1 Componentes Genéricos Adicionales
 
-| Componente                 | Ubicación                      | Propósito                                                           |
-| -------------------------- | ------------------------------ | ------------------------------------------------------------------- |
-| `FilePreviewDialog`        | `FilePreviewDialog.tsx`        | Dialog de previsualización de archivos (HTML, imágenes, etc.)       |
-| `NSelectUbigeo`            | `NSelectUbigeo.tsx`            | Selector unificado de ubigeo (reemplaza Department/Province/District en nuevos flujos) |
+| Componente          | Ubicación               | Propósito                                                                              |
+| ------------------- | ----------------------- | -------------------------------------------------------------------------------------- |
+| `FilePreviewDialog` | `FilePreviewDialog.tsx` | Dialog de previsualización de archivos (HTML, imágenes, etc.)                          |
+| `NSelectUbigeo`     | `NSelectUbigeo.tsx`     | Selector unificado de ubigeo (reemplaza Department/Province/District en nuevos flujos) |
 
 ### 2.2.2 Componentes por Módulo (operationsagr/)
 
 > Estos componentes viven en `operationsagr/` y son específicos del módulo MENU_OA.
 
-| Componente                     | Propósito                                              |
-| ------------------------------ | ------------------------------------------------------ |
-| `NSelectIntakeScheduleLoose`   | Select para programación de ingresos sueltos           |
-| `NSelectPlotFarm`              | Select para parcelas de fundo                          |
-| `NSelectProducer`              | Select para productores                                |
-| `NSelectVariety`               | Select para variedades agrícolas                       |
-| `NSelectSubZon`                | Select para sub-zonas                                  |
-| `NSelectZon`                   | Select para zonas                                      |
-| `NSelectTravelInProcess`       | Select para traslados en proceso                       |
+| Componente                   | Propósito                                    |
+| ---------------------------- | -------------------------------------------- |
+| `NSelectIntakeScheduleLoose` | Select para programación de ingresos sueltos |
+| `NSelectPlotFarm`            | Select para parcelas de fundo                |
+| `NSelectProducer`            | Select para productores                      |
+| `NSelectVariety`             | Select para variedades agrícolas             |
+| `NSelectSubZon`              | Select para sub-zonas                        |
+| `NSelectZon`                 | Select para zonas                            |
+| `NSelectTravelInProcess`     | Select para traslados en proceso             |
 
 ### 2.2.3 Componentes por Módulo (supplychain/)
 
 > Estos componentes viven en `supplychain/` y son específicos del módulo SUPPLYCHAIN.
 
-| Componente                 | Propósito                                              |
-| -------------------------- | ------------------------------------------------------ |
-| `NSelectCarrier`           | Select para transportistas                             |
-| `NSelectVehicle`           | Select para vehículos                                  |
+| Componente       | Propósito                  |
+| ---------------- | -------------------------- |
+| `NSelectCarrier` | Select para transportistas |
+| `NSelectVehicle` | Select para vehículos      |
 
 ### 2.2.4 Componentes por Módulo (restaurant/)
 
 > Estos componentes viven en `restaurant/` y son específicos del módulo RESTAURANT.
 
-| Componente                         | Propósito                                              |
-| ---------------------------------- | ------------------------------------------------------ |
-| `NSelectRestaurantBranch`          | Select para sucursales de restaurante                  |
-| `NSelectRestaurantBusinessHour`    | Select para horarios de negocio                        |
-| `NSelectRestaurantDailyProgram`    | Select para programas diarios                          |
-| `NSelectRestaurantDailyProgramDetail` | Select para detalle de programas diarios             |
-| `NSelectRestaurantKitchenStation`  | Select para estaciones de cocina                       |
-| `NSelectRestaurantOffer`           | Select para ofertas                                    |
-| `NSelectRestaurantOfferGroup`      | Select para grupos de ofertas                          |
-| `NSelectRestaurantProduct`         | Select para productos de restaurante                   |
-| `NSelectRestaurantProductCategory` | Select para categorías de productos                    |
-| `NSelectRestaurantSalesChannel`    | Select para canales de venta                           |
-| `NSelectRestaurantShift`           | Select para turnos                                     |
+| Componente                            | Propósito                                |
+| ------------------------------------- | ---------------------------------------- |
+| `NSelectRestaurantBranch`             | Select para sucursales de restaurante    |
+| `NSelectRestaurantBusinessHour`       | Select para horarios de negocio          |
+| `NSelectRestaurantDailyProgram`       | Select para programas diarios            |
+| `NSelectRestaurantDailyProgramDetail` | Select para detalle de programas diarios |
+| `NSelectRestaurantKitchenStation`     | Select para estaciones de cocina         |
+| `NSelectRestaurantOffer`              | Select para ofertas                      |
+| `NSelectRestaurantOfferGroup`         | Select para grupos de ofertas            |
+| `NSelectRestaurantProduct`            | Select para productos de restaurante     |
+| `NSelectRestaurantProductCategory`    | Select para categorías de productos      |
+| `NSelectRestaurantSalesChannel`       | Select para canales de venta             |
+| `NSelectRestaurantShift`              | Select para turnos                       |
 
 ### 2.3 NGrid — Layout (Obligatorio)
 
 > **PROHIBIDO** usar `grid`, `grid-cols-*`, `gap-*` de Tailwind en contenedores `div`. Usar siempre `NRow` + `NCol`.
 
 ```tsx
-import { NRow, NCol } from "@/components/custom/NGrid";
+import { NRow, NCol } from '@/components/custom/NGrid';
 
 <NRow>
   <NCol span={6}>
-    <NText label="RUC" value="20567890123" />
+    <NText
+      label="RUC"
+      value="20567890123"
+    />
   </NCol>
   <NCol span={6}>
-    <NText label="Razón Social" value="NOVA S.A.C." />
+    <NText
+      label="Razón Social"
+      value="NOVA S.A.C."
+    />
   </NCol>
 </NRow>;
 ```
@@ -330,7 +337,10 @@ Tres categorías skeleton con 2 items cada una mientras se resuelve `GetAuthoriz
 El SP `QrmQuery_Authorized` retorna `o.OptIcon` de `SecOption`. El frontend renderiza con `<DynamicIcon>`:
 
 ```tsx
-<DynamicIcon name={groupedQueries[category][0]?.OptIcon} className="size-5" />
+<DynamicIcon
+  name={groupedQueries[category][0]?.OptIcon}
+  className="size-5"
+/>
 ```
 
 ---
@@ -342,8 +352,8 @@ El SP `QrmQuery_Authorized` retorna `o.OptIcon` de `SecOption`. El frontend rend
 Seguir el patrón de `genericService` + métodos específicos:
 
 ```typescript
-import { api } from "@/lib/axios";
-import { genericService } from "@/services/common/scrudService";
+import { api } from '@/lib/axios';
+import { genericService } from '@/services/common/scrudService';
 
 const baseService = genericService<T>(controller);
 export const myService = {
@@ -360,7 +370,7 @@ export const myService = {
 > **OBLIGATORIO**: Todas las conversiones de moneda, decimal, fecha, hora y porcentaje DEBEN usar `formatters` de `@/lib/formatter.ts`. Prohibido usar `Intl.NumberFormat`, `Date` nativo, o funciones inline.
 
 ```typescript
-import { formatters } from "@/lib/formatter";
+import { formatters } from '@/lib/formatter';
 ```
 
 #### Métodos Disponibles
@@ -382,11 +392,11 @@ Los métodos `date`, `datetime` y `time` tienen el flag `fromUtc` activado por d
 
 ```typescript
 // API devuelve "2026-06-27T15:30:00" sin Z — fromUtc=true lo interpreta como UTC
-formatters.date("2026-06-27T15:30:00"); // 27/06/2026
-formatters.datetime("2026-06-27T15:30:00"); // 27/06/2026 15:30
+formatters.date('2026-06-27T15:30:00'); // 27/06/2026
+formatters.datetime('2026-06-27T15:30:00'); // 27/06/2026 15:30
 
 // Para fechas con offset explícito, fromUtc no interfiere
-formatters.date("2026-06-27T00:00:00-05:00", "dd/MM/yyyy", false); // 27/06/2026
+formatters.date('2026-06-27T00:00:00-05:00', 'dd/MM/yyyy', false); // 27/06/2026
 ```
 
 #### Currency con ISO o Símbolo Libre
@@ -394,9 +404,9 @@ formatters.date("2026-06-27T00:00:00-05:00", "dd/MM/yyyy", false); // 27/06/2026
 Soporta códigos ISO (`PEN`, `USD`, `EUR`) y también símbolos libres:
 
 ```typescript
-formatters.currency(1234.56, "PEN"); // S/ 1,234.56
-formatters.currency(1234.56, "USD"); // $ 1,234.56
-formatters.currency(1234.56, "Bs."); // Bs. 1,234.56  (símbolo libre)
+formatters.currency(1234.56, 'PEN'); // S/ 1,234.56
+formatters.currency(1234.56, 'USD'); // $ 1,234.56
+formatters.currency(1234.56, 'Bs.'); // Bs. 1,234.56  (símbolo libre)
 ```
 
 ---
@@ -465,14 +475,14 @@ Si `dotnet build` falla, el cambio NO está listo. Corregir errores de compilaci
 > **Prohibido** usar `new Date()`, `Date.now()`, o cualquier API del objeto `Date` nativo. Usar exclusivamente `DateTime` de luxon.
 
 ```typescript
-import { DateTime } from "luxon";
+import { DateTime } from 'luxon';
 
 const hoy = DateTime.now(); // ahora
-const desdeISO = DateTime.fromISO("2026-06-27T00:00:00"); // desde string
+const desdeISO = DateTime.fromISO('2026-06-27T00:00:00'); // desde string
 const personalizado = DateTime.local(2026, 6, 27); // desde componentes
 
-hoy.toFormat("dd/MM/yyyy"); // 27/06/2026
-hoy.toFormat("HH:mm"); // 15:30
+hoy.toFormat('dd/MM/yyyy'); // 27/06/2026
+hoy.toFormat('HH:mm'); // 15:30
 hoy.plus({ days: 1 }); // mañana
-hoy.diff(desdeISO, "days").days; // diferencia en días
+hoy.diff(desdeISO, 'days').days; // diferencia en días
 ```

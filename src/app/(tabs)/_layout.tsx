@@ -13,7 +13,13 @@ import { useWindowDimensions } from 'react-native';
 
 const icon = (Icon: typeof Home) =>
   function TabIcon({ color, size }: { color: string; size: number }) {
-    return <Icon color={color} size={size} strokeWidth={2} />;
+    return (
+      <Icon
+        color={color}
+        size={size}
+        strokeWidth={2}
+      />
+    );
   };
 
 const badge = (count: number) => (count > 99 ? '99+' : count || undefined);
@@ -29,7 +35,10 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         header: () => (
-          <AppHeader pendingChanges={pendingChanges} sceneGutter={horizontalGutter} />
+          <AppHeader
+            pendingChanges={pendingChanges}
+            sceneGutter={horizontalGutter}
+          />
         ),
         sceneStyle: {
           backgroundColor: dark ? '#0a0a0a' : '#ffffff',
@@ -49,9 +58,16 @@ export default function TabLayout() {
           fontSize: 10,
           letterSpacing: 0,
         },
-      }}>
-      <Tabs.Screen name="index" options={{ title: 'Inicio', tabBarIcon: icon(Home) }} />
-      <Tabs.Screen name="modules" options={{ title: 'Módulos', tabBarIcon: icon(LayoutGrid) }} />
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{ title: 'Inicio', tabBarIcon: icon(Home) }}
+      />
+      <Tabs.Screen
+        name="modules"
+        options={{ title: 'Módulos', tabBarIcon: icon(LayoutGrid) }}
+      />
       <Tabs.Screen
         name="sync"
         options={{
@@ -80,14 +96,38 @@ export default function TabLayout() {
           tabBarIcon: icon(GitCompareArrows),
         }}
       />
-      <Tabs.Screen name="profile" options={{ title: 'Perfil', tabBarIcon: icon(CircleUserRound) }} />
-      <Tabs.Screen name="appearance" options={{ href: null }} />
-      <Tabs.Screen name="branches" options={{ href: null }} />
-      <Tabs.Screen name="conflict-resolution" options={{ href: null }} />
-      <Tabs.Screen name="definition-details" options={{ href: null }} />
-      <Tabs.Screen name="definitions" options={{ href: null }} />
-      <Tabs.Screen name="sync-details" options={{ href: null }} />
-      <Tabs.Screen name="tables" options={{ href: null }} />
+      <Tabs.Screen
+        name="profile"
+        options={{ title: 'Perfil', tabBarIcon: icon(CircleUserRound) }}
+      />
+      <Tabs.Screen
+        name="appearance"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="branches"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="conflict-resolution"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="definition-details"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="definitions"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="sync-details"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="tables"
+        options={{ href: null }}
+      />
     </Tabs>
   );
 }

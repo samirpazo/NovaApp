@@ -7,7 +7,9 @@ export const ValidationErrorsSchema = z.union([
   z.record(z.string(), z.array(z.string())),
 ]);
 
-export function createResponseApiSchema<TSchema extends z.ZodType>(dataSchema: TSchema) {
+export function createResponseApiSchema<TSchema extends z.ZodType>(
+  dataSchema: TSchema,
+) {
   return z.object({
     Succeeded: z.boolean(),
     Message: z.string().nullable(),
@@ -33,7 +35,9 @@ export interface PagedResult<T> {
   HasPrevious: boolean;
 }
 
-export interface PaginationRequest<TFilter extends object = Record<string, unknown>> {
+export interface PaginationRequest<
+  TFilter extends object = Record<string, unknown>,
+> {
   Page: number;
   PageSize: number;
   Filter?: TFilter;

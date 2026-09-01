@@ -27,6 +27,8 @@ const detailWithoutImage = {
 
 describe('GenDefinitionDetail contract', () => {
   test('normalizes an omitted nullable image identifier from NovaApi to null', () => {
-    expect(GenDefinitionDetailSchema.parse(detailWithoutImage).DedImageFilID).toBeNull();
+    expect(
+      GenDefinitionDetailSchema.parse(detailWithoutImage).DedImageFilID,
+    ).toBeNull();
   });
 });

@@ -27,7 +27,13 @@ export const genDefinitionDataSource = createLocalCrudDataSource({
     DefDescription: 'DefDescription',
     DefStated: 'DefStated',
   },
-  observedColumns: ['DefID', 'DefCode', 'DefDescription', 'DefStated', 'SecStatus'],
+  observedColumns: [
+    'DefID',
+    'DefCode',
+    'DefDescription',
+    'DefStated',
+    'SecStatus',
+  ],
   defaultOrder: { column: 'DefDescription', direction: 'asc' },
 });
 

@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Paperclip, Save } from 'lucide-react-native';
 import * as React from 'react';
 import { Alert, Platform, ScrollView, View } from 'react-native';
@@ -44,8 +44,18 @@ interface DetailDraft {
 }
 
 const emptyDraft = (): DetailDraft => ({
-  DedValue: '', DedDescription: '', DedAbbreviation: '', DedFormat: '', DedGroup: '',
-  DedHelper: '', DedHelper2: '', DedIcon: '', DedColor: '', active: true, DedImageFilID: null, attachmentName: null,
+  DedValue: '',
+  DedDescription: '',
+  DedAbbreviation: '',
+  DedFormat: '',
+  DedGroup: '',
+  DedHelper: '',
+  DedHelper2: '',
+  DedIcon: '',
+  DedColor: '',
+  active: true,
+  DedImageFilID: null,
+  attachmentName: null,
 });
 
 const columns: NCrudColumn<DetailRow>[] = [
@@ -54,7 +64,12 @@ const columns: NCrudColumn<DetailRow>[] = [
   { key: 'DedAbbreviation', title: 'Abreviatura', width: 130 },
   { key: 'DedHelper', title: 'Aux. 1', width: 170 },
   { key: 'DedHelper2', title: 'Aux. 2', width: 170 },
-  { key: 'DedStated', title: 'Estado', width: 100, format: (row) => row.DedStated === 1 ? 'Activo' : 'Inactivo' },
+  {
+    key: 'DedStated',
+    title: 'Estado',
+    width: 100,
+    format: (row) => (row.DedStated === 1 ? 'Activo' : 'Inactivo'),
+  },
 ];
 
 function toRow(model: GenDefinitionDetailListItem): DetailRow {
@@ -73,44 +88,84 @@ function toRow(model: GenDefinitionDetailListItem): DetailRow {
 
 export default function DefinitionDetailsScreen() {
   const router = useRouter();
+  const { definitionId: routeDefinitionId } = useLocalSearchParams<{
+    definitionId?: string | string[];
+  }>();
+  const requestedDefinitionId = React.useMemo(() => {
+    const rawValue = Array.isArray(routeDefinitionId)
+      ? routeDefinitionId[0]
+      : routeDefinitionId;
+    const value = Number(rawValue);
+    return Number.isInteger(value) && value > 0 ? value : null;
+  }, [routeDefinitionId]);
   const userId = useAuthStore((state) => state.Session?.User.UsrID ?? 0);
-  const [definitions, setDefinitions] = React.useState<GenDefinitionOption[]>([]);
-  const [details, setDetails] = React.useState<GenDefinitionDetailListItem[]>([]);
-  const [definitionId, setDefinitionId] = React.useState<number | null>(null);
+  const [definitions, setDefinitions] = React.useState<GenDefinitionOption[]>(
+    [],
+  );
+  const [details, setDetails] = React.useState<GenDefinitionDetailListItem[]>(
+    [],
+  );
+  const [definitionId, setDefinitionId] = React.useState<number | null>(
+    requestedDefinitionId,
+  );
   const [loading, setLoading] = React.useState(true);
   const [formMode, setFormMode] = React.useState<'add' | 'edit' | null>(null);
-  const [editing, setEditing] = React.useState<GenDefinitionDetailListItem | null>(null);
+  const [editing, setEditing] =
+    React.useState<GenDefinitionDetailListItem | null>(null);
   const [draft, setDraft] = React.useState<DetailDraft>(emptyDraft);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const onError = (reason: unknown) => {
-      setError(reason instanceof Error ? reason.message : 'No se pudieron leer los detalles locales.');
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : 'No se pudieron leer los detalles locales.',
+      );
       setLoading(false);
     };
-    const definitionSubscription = genDefinitionDetailQueries.observeDefinitions((records) => {
-      setDefinitions(records);
-      setDefinitionId((current) => current ?? records[0]?.DefID ?? null);
-    }, onError);
-    const detailSubscription = genDefinitionDetailQueries.observeActive((records) => {
+    const definitionSubscription =
+      genDefinitionDetailQueries.observeDefinitions((records) => {
+        setDefinitions(records);
+        setDefinitionId((current) =>
+          current && records.some((record) => record.DefID === current)
+            ? current
+            : requestedDefinitionId &&
+                records.some((record) => record.DefID === requestedDefinitionId)
+              ? requestedDefinitionId
+              : (records[0]?.DefID ?? null),
+        );
+      }, onError);
+    const detailSubscription = genDefinitionDetailQueries.observeActive(
+      (records) => {
         setDetails(records);
         setLoading(false);
-    }, onError);
+      },
+      onError,
+    );
     return () => {
       definitionSubscription.unsubscribe();
       detailSubscription.unsubscribe();
     };
-  }, []);
+  }, [requestedDefinitionId]);
 
-  const selectedDefinition = definitions.find((definition) => definition.DefID === definitionId) ?? null;
+  const selectedDefinition =
+    definitions.find((definition) => definition.DefID === definitionId) ?? null;
   const currentDetails = React.useMemo(
-    () => details.filter((detail) => detail.DefID === definitionId).sort((a, b) => a.DedValue - b.DedValue),
+    () =>
+      details
+        .filter((detail) => detail.DefID === definitionId)
+        .sort((a, b) => a.DedValue - b.DedValue),
     [definitionId, details],
   );
   const rows = React.useMemo(() => currentDetails.map(toRow), [currentDetails]);
   const definitionItems = React.useMemo(
-    () => definitions.map((definition) => ({ value: definition.DefID, text: `${definition.DefCode} · ${definition.DefDescription}` })),
+    () =>
+      definitions.map((definition) => ({
+        value: definition.DefID,
+        text: `${definition.DefCode} · ${definition.DefDescription}`,
+      })),
     [definitions],
   );
 
@@ -123,7 +178,8 @@ export default function DefinitionDetailsScreen() {
 
   const beginAdd = () => {
     if (!selectedDefinition) return;
-    const nextValue = Math.max(0, ...currentDetails.map((detail) => detail.DedValue)) + 1;
+    const nextValue =
+      Math.max(0, ...currentDetails.map((detail) => detail.DedValue)) + 1;
     setFormMode('add');
     setEditing(null);
     setDraft({ ...emptyDraft(), DedValue: String(nextValue) });
@@ -136,11 +192,20 @@ export default function DefinitionDetailsScreen() {
     setFormMode('edit');
     setEditing(model);
     setDraft({
-      DedValue: String(model.DedValue), DedDescription: model.DedDescription,
-      DedAbbreviation: model.DedAbbreviation ?? '', DedFormat: model.DedFormat ?? '',
-      DedGroup: model.DedGroup ?? '', DedHelper: model.DedHelper ?? '', DedHelper2: model.DedHelper2 ?? '',
-      DedIcon: model.DedIcon ?? '', DedColor: model.DedColor ?? '', active: model.DedStated === 1,
-      DedImageFilID: model.DedImageFilID, attachmentName: model.DedImageFilID ? `Archivo #${model.DedImageFilID}` : null,
+      DedValue: String(model.DedValue),
+      DedDescription: model.DedDescription,
+      DedAbbreviation: model.DedAbbreviation ?? '',
+      DedFormat: model.DedFormat ?? '',
+      DedGroup: model.DedGroup ?? '',
+      DedHelper: model.DedHelper ?? '',
+      DedHelper2: model.DedHelper2 ?? '',
+      DedIcon: model.DedIcon ?? '',
+      DedColor: model.DedColor ?? '',
+      active: model.DedStated === 1,
+      DedImageFilID: model.DedImageFilID,
+      attachmentName: model.DedImageFilID
+        ? `Archivo #${model.DedImageFilID}`
+        : null,
     });
     setError(null);
   };
@@ -149,13 +214,33 @@ export default function DefinitionDetailsScreen() {
     setSaving(true);
     setError(null);
     try {
-      const result = await DocumentPicker.getDocumentAsync({ type: 'image/*', copyToCacheDirectory: true, multiple: false });
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'image/*',
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
       if (result.canceled) return;
       const asset = result.assets[0];
-      const file = await uploadManagedFile({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType, file: asset.file }, 'ROUTE_DEFINITION_IMGS');
-      setDraft((state) => ({ ...state, DedImageFilID: file.FileId, attachmentName: file.OriginalName }));
+      const file = await uploadManagedFile(
+        {
+          uri: asset.uri,
+          name: asset.name,
+          mimeType: asset.mimeType,
+          file: asset.file,
+        },
+        'ROUTE_DEFINITION_IMGS',
+      );
+      setDraft((state) => ({
+        ...state,
+        DedImageFilID: file.FileId,
+        attachmentName: file.OriginalName,
+      }));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No se pudo cargar el archivo.');
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : 'No se pudo cargar el archivo.',
+      );
     } finally {
       setSaving(false);
     }
@@ -164,7 +249,12 @@ export default function DefinitionDetailsScreen() {
   const save = async () => {
     const value = Number(draft.DedValue);
     const description = draft.DedDescription.trim();
-    if (!selectedDefinition || !Number.isInteger(value) || value < 0 || !description) {
+    if (
+      !selectedDefinition ||
+      !Number.isInteger(value) ||
+      value < 0 ||
+      !description
+    ) {
       setError('Definición, valor y descripción son obligatorios.');
       return;
     }
@@ -189,7 +279,11 @@ export default function DefinitionDetailsScreen() {
       });
       closeForm();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No se pudo guardar el detalle local.');
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : 'No se pudo guardar el detalle local.',
+      );
     } finally {
       setSaving(false);
     }
@@ -200,11 +294,16 @@ export default function DefinitionDetailsScreen() {
       try {
         await genDefinitionDetailService.remove(row.id);
       } catch (reason) {
-        setError(reason instanceof Error ? reason.message : 'No se pudo eliminar el detalle local.');
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : 'No se pudo eliminar el detalle local.',
+        );
       }
     };
     if (Platform.OS === 'web') {
-      if (globalThis.confirm(`¿Eliminar el valor ${row.DedDescription}?`)) await execute();
+      if (globalThis.confirm(`¿Eliminar el valor ${row.DedDescription}?`))
+        await execute();
       return;
     }
     Alert.alert('Eliminar valor', `¿Eliminar el valor ${row.DedDescription}?`, [
@@ -215,54 +314,191 @@ export default function DefinitionDetailsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-6xl gap-4 pb-24 pt-4" keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerClassName="mx-auto w-full max-w-6xl gap-4 pb-24 pt-4"
+        keyboardShouldPersistTaps="handled"
+      >
         <View className="flex-row items-center gap-3">
-          <Button variant="ghost" size="icon" onPress={() => router.replace('/definitions')} accessibilityLabel="Volver a definiciones"><ArrowLeft size={20} /></Button>
-          <View className="min-w-0 flex-1"><Text variant="title">Valores de definición</Text><Text variant="caption">GenDefinitionDetail · datos locales</Text></View>
+          <Button
+            variant="ghost"
+            size="icon"
+            onPress={() => router.replace('/definitions')}
+            accessibilityLabel="Volver a definiciones"
+          >
+            <ArrowLeft size={20} />
+          </Button>
+          <View className="min-w-0 flex-1">
+            <Text variant="title">Valores de definición</Text>
+            <Text variant="caption">GenDefinitionDetail · datos locales</Text>
+          </View>
         </View>
 
-        <NSelect label="Definición" items={definitionItems} itemText="text" itemValue="value" value={definitionId} onChange={(value) => { setDefinitionId(Number(value)); closeForm(); }} searchable required />
+        <NSelect
+          label="Definición"
+          items={definitionItems}
+          itemText="text"
+          itemValue="value"
+          value={definitionId}
+          onChange={(value) => {
+            setDefinitionId(Number(value));
+            closeForm();
+          }}
+          searchable
+          required
+        />
 
-        {error ? <Text className="text-sm text-destructive" role="alert">{error}</Text> : null}
+        {error ? (
+          <Text
+            className="text-sm text-destructive"
+            role="alert"
+          >
+            {error}
+          </Text>
+        ) : null}
         <NCrud
-          title={selectedDefinition ? `Valores: ${selectedDefinition.DefDescription}` : 'GenDefinitionDetail'}
-          form={formMode ? (
-            <NFormPanel
-            title={editing ? 'Editar valor' : 'Nuevo valor'}
-            description={selectedDefinition?.DefCode}
-            onClose={closeForm}
-            footer={
-              <>
-                <NSwitch value={draft.active} onValueChange={(active) => setDraft((state) => ({ ...state, active }))} label="Activo" />
-                <Button className="h-8 px-3" disabled={saving} onPress={save}><Save size={14} className="text-primary-foreground" /><Text className="text-xs">{saving ? 'Guardando...' : 'Guardar localmente'}</Text></Button>
-              </>
-            }>
-            <View className="gap-3 md:flex-row">
-              <NText label="Descripción" required value={draft.DedDescription} onChange={(DedDescription) => setDraft((state) => ({ ...state, DedDescription }))} containerClassName="flex-[2]" />
-              <NText label="Valor" required number value={draft.DedValue} editable={formMode === 'edit'} onChange={(DedValue) => setDraft((state) => ({ ...state, DedValue }))} containerClassName="flex-1" />
-              <NText label="Abreviatura" uppercase value={draft.DedAbbreviation} onChange={(DedAbbreviation) => setDraft((state) => ({ ...state, DedAbbreviation }))} containerClassName="flex-1" />
-            </View>
-            <View className="flex-row items-center gap-3">
-              <Button variant="outline" className="h-8 px-3" disabled={saving} onPress={selectAttachment}><Paperclip size={14} /><Text className="text-xs">Adjuntar imagen</Text></Button>
-              <Text className="text-xs text-muted-foreground">{draft.attachmentName ?? 'Sin archivo adjunto'}</Text>
-            </View>
-            <View className="gap-3 md:flex-row">
-              <NText label="Formato" value={draft.DedFormat} onChange={(DedFormat) => setDraft((state) => ({ ...state, DedFormat }))} containerClassName="flex-1" />
-              <NText label="Grupo" value={draft.DedGroup} onChange={(DedGroup) => setDraft((state) => ({ ...state, DedGroup }))} containerClassName="flex-1" />
-              <NText label="Icono" value={draft.DedIcon} onChange={(DedIcon) => setDraft((state) => ({ ...state, DedIcon }))} containerClassName="flex-1" />
-              <NText label="Color" value={draft.DedColor} onChange={(DedColor) => setDraft((state) => ({ ...state, DedColor }))} containerClassName="flex-1" />
-            </View>
-            <View className="gap-3 md:flex-row">
-              <NText label="Auxiliar 1" value={draft.DedHelper} onChange={(DedHelper) => setDraft((state) => ({ ...state, DedHelper }))} containerClassName="flex-1" />
-              <NText label="Auxiliar 2" value={draft.DedHelper2} onChange={(DedHelper2) => setDraft((state) => ({ ...state, DedHelper2 }))} containerClassName="flex-1" />
-            </View>
-            </NFormPanel>
-          ) : undefined}
+          title={
+            selectedDefinition
+              ? `Valores: ${selectedDefinition.DefDescription}`
+              : 'GenDefinitionDetail'
+          }
+          form={
+            formMode ? (
+              <NFormPanel
+                title={editing ? 'Editar valor' : 'Nuevo valor'}
+                description={selectedDefinition?.DefCode}
+                onClose={closeForm}
+                footer={
+                  <>
+                    <NSwitch
+                      value={draft.active}
+                      onValueChange={(active) =>
+                        setDraft((state) => ({ ...state, active }))
+                      }
+                      label="Activo"
+                    />
+                    <Button
+                      className="h-8 px-3"
+                      disabled={saving}
+                      onPress={save}
+                    >
+                      <Save
+                        size={14}
+                        className="text-primary-foreground"
+                      />
+                      <Text className="text-xs">
+                        {saving ? 'Guardando...' : 'Guardar localmente'}
+                      </Text>
+                    </Button>
+                  </>
+                }
+              >
+                <View className="gap-3 md:flex-row">
+                  <NText
+                    label="Descripción"
+                    required
+                    value={draft.DedDescription}
+                    onChange={(DedDescription) =>
+                      setDraft((state) => ({ ...state, DedDescription }))
+                    }
+                    containerClassName="flex-[2]"
+                  />
+                  <NText
+                    label="Valor"
+                    required
+                    number
+                    value={draft.DedValue}
+                    editable={formMode === 'edit'}
+                    onChange={(DedValue) =>
+                      setDraft((state) => ({ ...state, DedValue }))
+                    }
+                    containerClassName="flex-1"
+                  />
+                  <NText
+                    label="Abreviatura"
+                    uppercase
+                    value={draft.DedAbbreviation}
+                    onChange={(DedAbbreviation) =>
+                      setDraft((state) => ({ ...state, DedAbbreviation }))
+                    }
+                    containerClassName="flex-1"
+                  />
+                </View>
+                <View className="flex-row items-center gap-3">
+                  <Button
+                    variant="outline"
+                    className="h-8 px-3"
+                    disabled={saving}
+                    onPress={selectAttachment}
+                  >
+                    <Paperclip size={14} />
+                    <Text className="text-xs">Adjuntar imagen</Text>
+                  </Button>
+                  <Text className="text-xs text-muted-foreground">
+                    {draft.attachmentName ?? 'Sin archivo adjunto'}
+                  </Text>
+                </View>
+                <View className="gap-3 md:flex-row">
+                  <NText
+                    label="Formato"
+                    value={draft.DedFormat}
+                    onChange={(DedFormat) =>
+                      setDraft((state) => ({ ...state, DedFormat }))
+                    }
+                    containerClassName="flex-1"
+                  />
+                  <NText
+                    label="Grupo"
+                    value={draft.DedGroup}
+                    onChange={(DedGroup) =>
+                      setDraft((state) => ({ ...state, DedGroup }))
+                    }
+                    containerClassName="flex-1"
+                  />
+                  <NText
+                    label="Icono"
+                    value={draft.DedIcon}
+                    onChange={(DedIcon) =>
+                      setDraft((state) => ({ ...state, DedIcon }))
+                    }
+                    containerClassName="flex-1"
+                  />
+                  <NText
+                    label="Color"
+                    value={draft.DedColor}
+                    onChange={(DedColor) =>
+                      setDraft((state) => ({ ...state, DedColor }))
+                    }
+                    containerClassName="flex-1"
+                  />
+                </View>
+                <View className="gap-3 md:flex-row">
+                  <NText
+                    label="Auxiliar 1"
+                    value={draft.DedHelper}
+                    onChange={(DedHelper) =>
+                      setDraft((state) => ({ ...state, DedHelper }))
+                    }
+                    containerClassName="flex-1"
+                  />
+                  <NText
+                    label="Auxiliar 2"
+                    value={draft.DedHelper2}
+                    onChange={(DedHelper2) =>
+                      setDraft((state) => ({ ...state, DedHelper2 }))
+                    }
+                    containerClassName="flex-1"
+                  />
+                </View>
+              </NFormPanel>
+            ) : undefined
+          }
           rows={rows}
           columns={columns}
           loading={loading}
           searchPlaceholder="Descripción, abreviatura o auxiliar"
-          searchText={(row) => `${row.DedValue} ${row.DedDescription} ${row.DedAbbreviation ?? ''} ${row.DedHelper ?? ''} ${row.DedHelper2 ?? ''}`}
+          searchText={(row) =>
+            `${row.DedValue} ${row.DedDescription} ${row.DedAbbreviation ?? ''} ${row.DedHelper ?? ''} ${row.DedHelper2 ?? ''}`
+          }
           onAdd={selectedDefinition ? beginAdd : undefined}
           onEdit={beginEdit}
           onDelete={remove}

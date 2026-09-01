@@ -22,17 +22,32 @@ export interface PickedFile {
   file?: File;
 }
 
-export async function uploadManagedFile(file: PickedFile, genParameter: string): Promise<ManagedFile> {
+export async function uploadManagedFile(
+  file: PickedFile,
+  genParameter: string,
+): Promise<ManagedFile> {
   if (!genParameter.trim()) throw new Error('genParameter es obligatorio.');
 
   const form = new FormData();
   form.append('genParameter', genParameter.trim());
   if (Platform.OS === 'web' && file.file) form.append('file', file.file);
-  else form.append('file', { uri: file.uri, name: file.name, type: file.mimeType || 'application/octet-stream' } as never);
+  else
+    form.append('file', {
+      uri: file.uri,
+      name: file.name,
+      type: file.mimeType || 'application/octet-stream',
+    } as never);
 
-  const response = await api.post('/GenFiles/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-  const envelope = createResponseApiSchema(ManagedFileSchema).parse(response.data);
-  if (!envelope.Succeeded || !envelope.Data) throw new Error(envelope.Message || 'Nova no confirmó la carga del archivo.');
+  const response = await api.post('/GenFiles/upload', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  const envelope = createResponseApiSchema(ManagedFileSchema).parse(
+    response.data,
+  );
+  if (!envelope.Succeeded || !envelope.Data)
+    throw new Error(
+      envelope.Message || 'Nova no confirmó la carga del archivo.',
+    );
   return envelope.Data;
 }
 

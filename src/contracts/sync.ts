@@ -70,7 +70,9 @@ export const SyncPullChangeSchema = z.discriminatedUnion('Resource', [
   z.object({
     ...syncChangeBase,
     Resource: z.literal(SYNC_RESOURCES.GenDefinitionDetail),
-    Data: GenDefinitionDetailSchema.nullish().transform((value) => value ?? null),
+    Data: GenDefinitionDetailSchema.nullish().transform(
+      (value) => value ?? null,
+    ),
   }),
   z.object({
     ...syncChangeBase,
@@ -131,7 +133,10 @@ const pushChangeForResource = <T extends z.ZodType>(
 
 export const SyncPushChangeSchema = z.discriminatedUnion('Resource', [
   pushChangeForResource(SYNC_RESOURCES.GenDefinition, GenDefinitionSchema),
-  pushChangeForResource(SYNC_RESOURCES.GenDefinitionDetail, GenDefinitionDetailSchema),
+  pushChangeForResource(
+    SYNC_RESOURCES.GenDefinitionDetail,
+    GenDefinitionDetailSchema,
+  ),
   pushChangeForResource(SYNC_RESOURCES.RstBranch, RstBranchSchema),
 ]);
 
@@ -166,7 +171,9 @@ export const SyncPushResultSchema = z.discriminatedUnion('Resource', [
   }),
 ]);
 
-export const SyncPushResponseSchema = z.object({ Results: z.array(SyncPushResultSchema) });
+export const SyncPushResponseSchema = z.object({
+  Results: z.array(SyncPushResultSchema),
+});
 export type SyncPushChange = z.infer<typeof SyncPushChangeSchema>;
 export type SyncPushResponse = z.infer<typeof SyncPushResponseSchema>;
 
@@ -226,7 +233,9 @@ export const SyncConflictResolutionSchema = z.discriminatedUnion('Decision', [
   }),
 ]);
 
-export type SyncConflictResolution = z.infer<typeof SyncConflictResolutionSchema>;
+export type SyncConflictResolution = z.infer<
+  typeof SyncConflictResolutionSchema
+>;
 
 /** Contratos publicados para documentación y validadores de integraciones externas. */
 export const SyncJsonSchemas = {
@@ -235,7 +244,16 @@ export const SyncJsonSchemas = {
     target: 'draft-2020-12',
     unrepresentable: 'any',
   }),
-  pushChange: z.toJSONSchema(SyncPushChangeSchema, { target: 'draft-2020-12', unrepresentable: 'any' }),
-  pushResponse: z.toJSONSchema(SyncPushResponseSchema, { target: 'draft-2020-12', unrepresentable: 'any' }),
-  conflictResolution: z.toJSONSchema(SyncConflictResolutionSchema, { target: 'draft-2020-12', unrepresentable: 'any' }),
+  pushChange: z.toJSONSchema(SyncPushChangeSchema, {
+    target: 'draft-2020-12',
+    unrepresentable: 'any',
+  }),
+  pushResponse: z.toJSONSchema(SyncPushResponseSchema, {
+    target: 'draft-2020-12',
+    unrepresentable: 'any',
+  }),
+  conflictResolution: z.toJSONSchema(SyncConflictResolutionSchema, {
+    target: 'draft-2020-12',
+    unrepresentable: 'any',
+  }),
 };

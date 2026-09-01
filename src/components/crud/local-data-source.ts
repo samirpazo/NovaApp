@@ -13,7 +13,11 @@ interface LocalCrudOrder {
   direction: NCrudSortOrder;
 }
 
-interface LocalCrudDataSourceConfig<TModel extends Model, TRow, TFilter extends object> {
+interface LocalCrudDataSourceConfig<
+  TModel extends Model,
+  TRow,
+  TFilter extends object,
+> {
   collection: Collection<TModel>;
   map: (model: TModel) => TRow;
   searchableColumns?: string[];
@@ -27,11 +31,23 @@ interface LocalCrudDataSourceConfig<TModel extends Model, TRow, TFilter extends 
 function searchClauses(columns: string[], searchText: string): Clause[] {
   const value = Q.sanitizeLikeString(searchText.trim());
   if (!value || !columns.length) return [];
-  return [Q.or(...columns.map((column) => Q.where(column, Q.like(`%${value}%`))))];
+  return [
+    Q.or(...columns.map((column) => Q.where(column, Q.like(`%${value}%`)))),
+  ];
 }
 
-function resultFor<T>(Data: T[], TotalCount: number, Page: number, PageSize: number): NCrudResult<T> {
-  const TotalPages = PageSize === -1 ? (TotalCount > 0 ? 1 : 0) : Math.ceil(TotalCount / PageSize);
+function resultFor<T>(
+  Data: T[],
+  TotalCount: number,
+  Page: number,
+  PageSize: number,
+): NCrudResult<T> {
+  const TotalPages =
+    PageSize === -1
+      ? TotalCount > 0
+        ? 1
+        : 0
+      : Math.ceil(TotalCount / PageSize);
   return {
     Data,
     TotalCount,
@@ -47,7 +63,9 @@ export function createLocalCrudDataSource<
   TModel extends Model,
   TRow,
   TFilter extends object = Record<string, never>,
->(config: LocalCrudDataSourceConfig<TModel, TRow, TFilter>): NCrudDataSource<TRow, TFilter> {
+>(
+  config: LocalCrudDataSourceConfig<TModel, TRow, TFilter>,
+): NCrudDataSource<TRow, TFilter> {
   return {
     observe(request, onNext, onError) {
       let rowsSubscription: { unsubscribe(): void } | null = null;
@@ -68,29 +86,47 @@ export function createLocalCrudDataSource<
             if (disposed) return;
 
             const requestedPage = Math.max(1, request.Page);
-            const TotalPages = request.PageSize === -1
-              ? 1
-              : Math.max(1, Math.ceil(TotalCount / request.PageSize));
+            const TotalPages =
+              request.PageSize === -1
+                ? 1
+                : Math.max(1, Math.ceil(TotalCount / request.PageSize));
             const Page = Math.min(requestedPage, TotalPages);
             const selectedColumn = request.OrderBy
               ? config.sortableColumns[request.OrderBy]
               : undefined;
             const order = selectedColumn
-              ? { column: selectedColumn, direction: request.SortOrder ?? 'asc' }
+              ? {
+                  column: selectedColumn,
+                  direction: request.SortOrder ?? 'asc',
+                }
               : config.defaultOrder;
             const pageClauses: Clause[] = [
               ...baseClauses,
-              Q.sortBy(order.column, order.direction === 'desc' ? Q.desc : Q.asc),
+              Q.sortBy(
+                order.column,
+                order.direction === 'desc' ? Q.desc : Q.asc,
+              ),
               ...(request.PageSize === -1
                 ? []
-                : [Q.skip((Page - 1) * request.PageSize), Q.take(request.PageSize)]),
+                : [
+                    Q.skip((Page - 1) * request.PageSize),
+                    Q.take(request.PageSize),
+                  ]),
             ];
 
             rowsSubscription = config.collection
               .query(...pageClauses)
               .observeWithColumns(config.observedColumns)
               .subscribe({
-                next: (records) => onNext(resultFor(records.map(config.map), TotalCount, Page, request.PageSize)),
+                next: (records) =>
+                  onNext(
+                    resultFor(
+                      records.map(config.map),
+                      TotalCount,
+                      Page,
+                      request.PageSize,
+                    ),
+                  ),
                 error: onError,
               });
           },

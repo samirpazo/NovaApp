@@ -7,6 +7,7 @@ Source: https://raw.githubusercontent.com/mattpocock/skills/f304057d61d3df3c9fd9
 ---
 
 ---
+
 name: diagnose
 description: Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says "diagnose this" / "debug this", reports a bug, says something is broken/throwing/failing, or describes a performance regression.
 ---
@@ -57,4 +58,3 @@ The goal is not a clean repro but a **higher reproduction rate**. Loop the trigg
 Stop and say so explicitly. List what you tried. Ask the user for: (a) access to whatever environment reproduces it, (b) a captured artifact (HAR file, log dump, core dump, screen recording with timestamps), or (c) permission to add temporary production instrumentation. Do **not** proceed to hypothesise without a loop.
 
 Do not p
-

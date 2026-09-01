@@ -20,10 +20,18 @@ export default function AppTabs() {
       <TabSlot style={{ height: '100%' }} />
       <TabList asChild>
         <CustomTabList>
-          <TabTrigger name="home" href="/" asChild>
+          <TabTrigger
+            name="home"
+            href="/"
+            asChild
+          >
             <TabButton>Home</TabButton>
           </TabTrigger>
-          <TabTrigger name="explore" href="/sync-details" asChild>
+          <TabTrigger
+            name="explore"
+            href="/sync-details"
+            asChild
+          >
             <TabButton>Sincronización</TabButton>
           </TabTrigger>
         </CustomTabList>
@@ -32,13 +40,24 @@ export default function AppTabs() {
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+export function TabButton({
+  children,
+  isFocused,
+  ...props
+}: TabTriggerSlotProps) {
   return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
+    <Pressable
+      {...props}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
       <ThemedView
         type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
+        style={styles.tabButtonView}
+      >
+        <ThemedText
+          type="small"
+          themeColor={isFocused ? 'text' : 'textSecondary'}
+        >
           {children}
         </ThemedText>
       </ThemedView>
@@ -48,14 +67,22 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
 
 export function CustomTabList(props: TabListProps) {
   return (
-    <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
+    <View
+      {...props}
+      style={styles.tabListContainer}
+    >
+      <ThemedView
+        type="backgroundElement"
+        style={styles.innerContainer}
+      >
+        <ThemedText
+          type="smallBold"
+          style={styles.brandText}
+        >
           Nova
         </ThemedText>
 
         {props.children}
-
       </ThemedView>
     </View>
   );

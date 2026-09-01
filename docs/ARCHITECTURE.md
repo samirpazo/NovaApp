@@ -47,16 +47,16 @@ src/
 
 ## Enrutamiento
 
-| Ruta | Función |
-| --- | --- |
-| `/login` | Autenticación en línea |
-| `/` | Inicio y estado local resumido |
-| `/explore` | Diagnóstico y ejecución de sincronización |
-| `/conflicts` | Resolución de conflictos |
-| `/definitions` | CRUD local de `GenDefinition` |
-| `/definition-details` | CRUD local de `GenDefinitionDetail` |
-| `/branches` | CRUD local de `RstBranch` |
-| `/tables` | Consulta local de `RstTable` |
+| Ruta                  | Función                                   |
+| --------------------- | ----------------------------------------- |
+| `/login`              | Autenticación en línea                    |
+| `/`                   | Inicio y estado local resumido            |
+| `/explore`            | Diagnóstico y ejecución de sincronización |
+| `/conflicts`          | Resolución de conflictos                  |
+| `/definitions`        | CRUD local de `GenDefinition`             |
+| `/definition-details` | CRUD local de `GenDefinitionDetail`       |
+| `/branches`           | CRUD local de `RstBranch`                 |
+| `/tables`             | Consulta local de `RstTable`              |
 
 `AuthGate` protege todas las rutas. Una sesión almacenada permite abrir la app sin red. Para hacer
 Pull o Push se exige una sesión en línea válida y se intenta renovar cuando expiró.
@@ -104,7 +104,6 @@ conservan la sesión para continuar offline.
 
 Los endpoints `/Token*` quedan excluidos de ambos interceptores para evitar recursión.
 
-
 ## Base de datos local
 
 ### Adaptadores
@@ -119,17 +118,17 @@ estén presentes en otro navegador, ventana aislada o perfil automatizado.
 
 Todas las tablas comparten:
 
-| Campo | Uso |
-| --- | --- |
-| `SyncId` | UUID estable global |
-| `SyncVersion` | Versión Base64 del servidor |
-| `SecStatus` | Estado lógico |
-| `CreateUserId` | Usuario creador |
-| `UpdateUserId` | Último usuario modificador |
-| `DeleteUserId` | Usuario eliminador |
-| `CreateDate` | Fecha ISO de creación |
-| `UpdateDate` | Fecha ISO de modificación |
-| `DeleteDate` | Fecha ISO de eliminación |
+| Campo          | Uso                         |
+| -------------- | --------------------------- |
+| `SyncId`       | UUID estable global         |
+| `SyncVersion`  | Versión Base64 del servidor |
+| `SecStatus`    | Estado lógico               |
+| `CreateUserId` | Usuario creador             |
+| `UpdateUserId` | Último usuario modificador  |
+| `DeleteUserId` | Usuario eliminador          |
+| `CreateDate`   | Fecha ISO de creación       |
+| `UpdateDate`   | Fecha ISO de modificación   |
+| `DeleteDate`   | Fecha ISO de eliminación    |
 
 WatermelonDB agrega sus metadatos internos:
 

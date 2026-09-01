@@ -3,7 +3,11 @@ import { Text } from '@/components/ui/text';
 import { usePathname, useRouter } from 'expo-router';
 import * as React from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { flushPendingAppearance, loadServerAppearance, useAppearanceStore } from '@/theme/appearance';
+import {
+  flushPendingAppearance,
+  loadServerAppearance,
+  useAppearanceStore,
+} from '@/theme/appearance';
 
 export function AuthGate({ children }: React.PropsWithChildren) {
   const router = useRouter();
@@ -50,7 +54,10 @@ export function AuthGate({ children }: React.PropsWithChildren) {
     );
   }
 
-  if ((!IsAuthenticated && pathname !== '/login') || (IsAuthenticated && pathname === '/login')) {
+  if (
+    (!IsAuthenticated && pathname !== '/login') ||
+    (IsAuthenticated && pathname === '/login')
+  ) {
     return <View className="flex-1 bg-background" />;
   }
 

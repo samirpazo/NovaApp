@@ -31,9 +31,12 @@ const FALLBACK_DIRS = ['.agents/context', 'docs'];
 // silent on failure: a network problem, sandbox, or missing cache must never
 // block context output or print an error.
 
-const UPDATE_HOST = (process.env.IMPECCABLE_UPDATE_HOST || 'https://impeccable.style').replace(/\/$/, '');
+const UPDATE_HOST = (
+  process.env.IMPECCABLE_UPDATE_HOST || 'https://impeccable.style'
+).replace(/\/$/, '');
 const UPDATE_CACHE_PATH =
-  process.env.IMPECCABLE_UPDATE_CACHE || path.join(os.homedir(), '.impeccable', 'update-check.json');
+  process.env.IMPECCABLE_UPDATE_CACHE ||
+  path.join(os.homedir(), '.impeccable', 'update-check.json');
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // throttle the network poll to once a day
 const RENOTIFY_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // don't re-surface the same version for a week
 const FETCH_TIMEOUT_MS = 1200;
@@ -147,8 +150,12 @@ function writeUpdateCache(cache) {
 
 /** Compare dotted numeric versions. Returns >0 when a is newer than b. */
 function compareSemver(a, b) {
-  const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
-  const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
+  const pa = String(a)
+    .split('.')
+    .map((n) => parseInt(n, 10) || 0);
+  const pb = String(b)
+    .split('.')
+    .map((n) => parseInt(n, 10) || 0);
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
     const diff = (pa[i] || 0) - (pb[i] || 0);
     if (diff !== 0) return diff;
@@ -158,7 +165,9 @@ function compareSemver(a, b) {
 
 async function fetchLatestSkillVersion() {
   try {
-    const res = await fetch(`${UPDATE_HOST}/api/version`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    const res = await fetch(`${UPDATE_HOST}/api/version`, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     if (!res.ok) return null;
     const data = await res.json();
     return typeof data?.skills === 'string' ? data.skills : null;
@@ -205,7 +214,11 @@ async function computeUpdateDirective(now = Date.now()) {
     if (!latest || compareSemver(latest, localVersion) <= 0) return null;
 
     // Anti-nag: surface a given version at most once per RENOTIFY window.
-    if (cache.notifiedVersion === latest && cache.notifiedAt && now - cache.notifiedAt < RENOTIFY_INTERVAL_MS) {
+    if (
+      cache.notifiedVersion === latest &&
+      cache.notifiedAt &&
+      now - cache.notifiedAt < RENOTIFY_INTERVAL_MS
+    ) {
       return null;
     }
     cache.notifiedVersion = latest;
@@ -227,8 +240,8 @@ async function cli() {
     // — cheap models miss the empty case more often than the explicit one.
     const parts = [
       'NO_PRODUCT_MD: This project has no PRODUCT.md yet. ' +
-      'Stop the current task, load reference/init.md, and follow its ' +
-      'instructions to write PRODUCT.md before resuming.',
+        'Stop the current task, load reference/init.md, and follow its ' +
+        'instructions to write PRODUCT.md before resuming.',
     ];
     if (updateDirective) parts.push(updateDirective);
     process.stdout.write(parts.join('\n\n---\n\n') + '\n');
@@ -255,7 +268,9 @@ function invokedAsScript() {
   const arg = process.argv[1];
   if (!arg) return false;
   try {
-    return fs.realpathSync(arg) === fs.realpathSync(fileURLToPath(import.meta.url));
+    return (
+      fs.realpathSync(arg) === fs.realpathSync(fileURLToPath(import.meta.url))
+    );
   } catch {
     return false;
   }

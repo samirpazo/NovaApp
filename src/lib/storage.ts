@@ -8,7 +8,9 @@ const secureStoreOptions: SecureStore.SecureStoreOptions = {
 export const storage = {
   async getItem(key: string): Promise<string | null> {
     if (Platform.OS === 'web') {
-      return typeof localStorage === 'undefined' ? null : localStorage.getItem(key);
+      return typeof localStorage === 'undefined'
+        ? null
+        : localStorage.getItem(key);
     }
     return SecureStore.getItemAsync(key);
   },

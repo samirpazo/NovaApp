@@ -10,7 +10,8 @@ const adapter = new SQLiteAdapter({
   schema: databaseSchema,
   migrations: databaseMigrations,
   jsi: true,
-  onSetUpError: (error) => console.error('No se pudo inicializar WatermelonDB.', error),
+  onSetUpError: (error) =>
+    console.error('No se pudo inicializar WatermelonDB.', error),
 });
 
 export const database = new Database({ adapter, modelClasses: databaseModels });

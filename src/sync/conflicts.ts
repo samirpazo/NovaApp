@@ -14,7 +14,8 @@ import { database, type EntityBaseModel } from '@/database';
 
 const CONFLICTS_KEY = localStorageKey<SyncConflict[]>('nova.sync.conflicts');
 
-const conflictKey = (resource: SyncResource, syncId: string) => `${resource}:${syncId}`;
+const conflictKey = (resource: SyncResource, syncId: string) =>
+  `${resource}:${syncId}`;
 
 async function writeConflicts(conflicts: SyncConflict[]): Promise<void> {
   await database.localStorage.set(CONFLICTS_KEY, conflicts);
@@ -28,39 +29,75 @@ export async function getSyncConflicts(): Promise<SyncConflict[]> {
   return conflicts;
 }
 
-export async function saveSyncConflicts(conflicts: SyncConflict[]): Promise<void> {
+export async function saveSyncConflicts(
+  conflicts: SyncConflict[],
+): Promise<void> {
   const current = await getSyncConflicts();
-  const merged = new Map(current.map((conflict) => [conflictKey(conflict.Resource, conflict.SyncId), conflict]));
-  for (const conflict of conflicts) merged.set(conflictKey(conflict.Resource, conflict.SyncId), SyncConflictSchema.parse(conflict));
+  const merged = new Map(
+    current.map((conflict) => [
+      conflictKey(conflict.Resource, conflict.SyncId),
+      conflict,
+    ]),
+  );
+  for (const conflict of conflicts)
+    merged.set(
+      conflictKey(conflict.Resource, conflict.SyncId),
+      SyncConflictSchema.parse(conflict),
+    );
   await writeConflicts([...merged.values()]);
 }
 
-export async function removeSyncConflict(resource: SyncResource, syncId: string): Promise<void> {
-  await writeConflicts((await getSyncConflicts()).filter((item) => conflictKey(item.Resource, item.SyncId) !== conflictKey(resource, syncId)));
+export async function removeSyncConflict(
+  resource: SyncResource,
+  syncId: string,
+): Promise<void> {
+  await writeConflicts(
+    (await getSyncConflicts()).filter(
+      (item) =>
+        conflictKey(item.Resource, item.SyncId) !==
+        conflictKey(resource, syncId),
+    ),
+  );
 }
 
-export async function keepLocalConflict(resource: SyncResource, syncId: string): Promise<void> {
+export async function keepLocalConflict(
+  resource: SyncResource,
+  syncId: string,
+): Promise<void> {
   const conflicts = await getSyncConflicts();
-  await writeConflicts(conflicts.map((item) =>
-    conflictKey(item.Resource, item.SyncId) === conflictKey(resource, syncId) ? { ...item, KeepLocal: true } : item,
-  ));
+  await writeConflicts(
+    conflicts.map((item) =>
+      conflictKey(item.Resource, item.SyncId) === conflictKey(resource, syncId)
+        ? { ...item, KeepLocal: true }
+        : item,
+    ),
+  );
 }
 
-export async function applyServerConflict(conflict: SyncConflict): Promise<void> {
+export async function applyServerConflict(
+  conflict: SyncConflict,
+): Promise<void> {
   const change = SyncPullChangeSchema.parse({
     Resource: conflict.Resource,
     SyncId: conflict.SyncId,
     Operation: 'U',
     Data: conflict.ServerData,
   });
-  if (!change.Data) throw new Error('El servidor no devolvió una versión válida del registro.');
+  if (!change.Data)
+    throw new Error('El servidor no devolvió una versión válida del registro.');
 
   const remoteRaw: DirtyRaw = { id: change.SyncId, ...change.Data };
   await database.write(async () => {
-    const record = await database.get<EntityBaseModel>(change.Resource).find(change.SyncId);
+    const record = await database
+      .get<EntityBaseModel>(change.Resource)
+      .find(change.SyncId);
     const prepared = record.prepareUpdate((model) => {
       for (const [field, value] of Object.entries(remoteRaw)) {
-        if (field !== 'id') model._dangerouslySetRawWithoutMarkingColumnChange(field, value as never);
+        if (field !== 'id')
+          model._dangerouslySetRawWithoutMarkingColumnChange(
+            field,
+            value as never,
+          );
       }
       model._raw._status = 'synced';
       model._raw._changed = '';
@@ -75,7 +112,10 @@ export async function resolveSyncConflict(
   decision: SyncConflictResolution,
 ): Promise<void> {
   const parsedDecision = SyncConflictResolutionSchema.parse(decision);
-  if (parsedDecision.Resource !== conflict.Resource || parsedDecision.SyncId !== conflict.SyncId) {
+  if (
+    parsedDecision.Resource !== conflict.Resource ||
+    parsedDecision.SyncId !== conflict.SyncId
+  ) {
     throw new Error('La decisión no corresponde al conflicto seleccionado.');
   }
   if (parsedDecision.Decision === 'KeepLocal') {
@@ -85,8 +125,14 @@ export async function resolveSyncConflict(
   await applyServerConflict(conflict);
 }
 
-export function conflictForChange(conflicts: SyncConflict[], change: SyncPushChange): SyncConflict | undefined {
-  return conflicts.find((item) => item.Resource === change.Resource && item.SyncId === change.SyncId);
+export function conflictForChange(
+  conflicts: SyncConflict[],
+  change: SyncPushChange,
+): SyncConflict | undefined {
+  return conflicts.find(
+    (item) =>
+      item.Resource === change.Resource && item.SyncId === change.SyncId,
+  );
 }
 
 interface SyncConflictState {

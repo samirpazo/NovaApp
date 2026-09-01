@@ -10,7 +10,8 @@ const nullable = (value: string) => value.trim() || null;
 export const rstBranchService = {
   async save(input: SaveRstBranchInput): Promise<void> {
     const name = input.BrhName.trim();
-    if (!name || !input.BrhResID) throw new Error('Nombre y restaurante son obligatorios.');
+    if (!name || !input.BrhResID)
+      throw new Error('Nombre y restaurante son obligatorios.');
 
     const apply = (record: RstBranchModel) => {
       record.BrhResID = input.BrhResID;
@@ -24,31 +25,37 @@ export const rstBranchService = {
 
     if (input.LocalId) {
       const model = await rstBranchQueries.find(input.LocalId);
-      await database.write(() => model.update((record) => {
-        apply(record);
-        record.UpdateUserId = input.UserId;
-        record.UpdateDate = new Date().toISOString();
-      }));
+      await database.write(() =>
+        model.update((record) => {
+          apply(record);
+          record.UpdateUserId = input.UserId;
+          record.UpdateDate = new Date().toISOString();
+        }),
+      );
       return;
     }
 
     const temporaryId = await rstBranchQueries.nextTemporaryId();
     const syncId = randomUUID();
     const now = new Date().toISOString();
-    await database.write(() => database.get<RstBranchModel>(SYNC_RESOURCES.RstBranch).create((record) => {
-      record._raw.id = syncId;
-      record.SyncId = syncId;
-      record.SyncVersion = '';
-      record.SecStatus = true;
-      record.CreateUserId = input.UserId;
-      record.UpdateUserId = input.UserId;
-      record.DeleteUserId = null;
-      record.CreateDate = now;
-      record.UpdateDate = now;
-      record.DeleteDate = null;
-      record.BrhID = temporaryId;
-      apply(record);
-    }));
+    await database.write(() =>
+      database
+        .get<RstBranchModel>(SYNC_RESOURCES.RstBranch)
+        .create((record) => {
+          record._raw.id = syncId;
+          record.SyncId = syncId;
+          record.SyncVersion = '';
+          record.SecStatus = true;
+          record.CreateUserId = input.UserId;
+          record.UpdateUserId = input.UserId;
+          record.DeleteUserId = null;
+          record.CreateDate = now;
+          record.UpdateDate = now;
+          record.DeleteDate = null;
+          record.BrhID = temporaryId;
+          apply(record);
+        }),
+    );
   },
 
   async remove(LocalId: string): Promise<void> {

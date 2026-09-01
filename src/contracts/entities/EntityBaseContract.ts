@@ -1,4 +1,8 @@
-import { GuidSchema, nullableIntegerSchema, nullableStringSchema } from '@/contracts/common';
+import {
+  GuidSchema,
+  nullableIntegerSchema,
+  nullableStringSchema,
+} from '@/contracts/common';
 import { z } from 'zod';
 
 export const EntityBaseContractSchema = z.object({

@@ -11,20 +11,43 @@ export interface NFormPanelProps extends PropsWithChildren {
   footer?: ReactNode;
 }
 
-export function NFormPanel({ title, description, onClose, footer, children }: NFormPanelProps) {
+export function NFormPanel({
+  title,
+  description,
+  onClose,
+  footer,
+  children,
+}: NFormPanelProps) {
   return (
     <View className="gap-3 rounded-lg border border-border bg-card p-3">
       <View className="flex-row items-start justify-between gap-3">
         <View className="min-w-0 flex-1">
           <Text className="font-poppins-semibold text-sm">{title}</Text>
-          {description ? <Text className="text-[10px] text-muted-foreground">{description}</Text> : null}
+          {description ? (
+            <Text className="text-[10px] text-muted-foreground">
+              {description}
+            </Text>
+          ) : null}
         </View>
-        <Button className="h-7 w-7" variant="ghost" size="icon" onPress={onClose} accessibilityLabel="Cerrar formulario">
-          <X size={14} className="text-muted-foreground" />
+        <Button
+          className="h-7 w-7"
+          variant="ghost"
+          size="icon"
+          onPress={onClose}
+          accessibilityLabel="Cerrar formulario"
+        >
+          <X
+            size={14}
+            className="text-muted-foreground"
+          />
         </Button>
       </View>
       {children}
-      {footer ? <View className="flex-row items-center justify-between border-t border-border pt-3">{footer}</View> : null}
+      {footer ? (
+        <View className="flex-row items-center justify-between border-t border-border pt-3">
+          {footer}
+        </View>
+      ) : null}
     </View>
   );
 }

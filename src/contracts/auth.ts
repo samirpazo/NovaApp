@@ -3,7 +3,10 @@ import { z } from 'zod';
 
 const expirationSchema = z
   .string()
-  .refine((value) => !Number.isNaN(Date.parse(value)), 'La fecha de expiración de la sesión no es válida.');
+  .refine(
+    (value) => !Number.isNaN(Date.parse(value)),
+    'La fecha de expiración de la sesión no es válida.',
+  );
 
 export const AuthUserSchema = z.object({
   UsrID: z.number().int().positive(),

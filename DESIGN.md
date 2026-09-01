@@ -2,66 +2,66 @@
 name: Nova App
 description: Consola operativa offline-first, densa y coherente con Nova Web.
 colors:
-  nova-blue: "#002aff"
-  canvas-light: "#ffffff"
-  surface-light: "#f7f7f7"
-  ink-light: "#252525"
-  canvas-dark: "#0a0a0a"
-  surface-dark: "#171717"
-  ink-dark: "#fbfbfb"
-  success: "#10b981"
-  warning: "#f59e0b"
-  destructive: "#dc2626"
-  border-light: "#ebebeb"
-  border-dark: "#2b2b2b"
+  nova-blue: '#002aff'
+  canvas-light: '#ffffff'
+  surface-light: '#f7f7f7'
+  ink-light: '#252525'
+  canvas-dark: '#0a0a0a'
+  surface-dark: '#171717'
+  ink-dark: '#fbfbfb'
+  success: '#10b981'
+  warning: '#f59e0b'
+  destructive: '#dc2626'
+  border-light: '#ebebeb'
+  border-dark: '#2b2b2b'
 typography:
   title:
-    fontFamily: "Poppins, system-ui, sans-serif"
-    fontSize: "18px"
+    fontFamily: 'Poppins, system-ui, sans-serif'
+    fontSize: '18px'
     fontWeight: 600
     lineHeight: 1.25
-    letterSpacing: "0"
+    letterSpacing: '0'
   body:
-    fontFamily: "Poppins, system-ui, sans-serif"
-    fontSize: "12px"
+    fontFamily: 'Poppins, system-ui, sans-serif'
+    fontSize: '12px'
     fontWeight: 400
     lineHeight: 1.5
-    letterSpacing: "0"
+    letterSpacing: '0'
   label:
-    fontFamily: "Poppins, system-ui, sans-serif"
-    fontSize: "11px"
+    fontFamily: 'Poppins, system-ui, sans-serif'
+    fontSize: '11px'
     fontWeight: 600
     lineHeight: 1.25
-    letterSpacing: "0"
+    letterSpacing: '0'
 rounded:
-  sm: "6px"
-  md: "8px"
-  lg: "10px"
+  sm: '6px'
+  md: '8px'
+  lg: '10px'
 spacing:
-  xs: "4px"
-  sm: "8px"
-  md: "12px"
-  lg: "16px"
+  xs: '4px'
+  sm: '8px'
+  md: '12px'
+  lg: '16px'
 components:
   button-primary:
-    backgroundColor: "{colors.nova-blue}"
-    textColor: "#ffffff"
-    typography: "{typography.label}"
-    rounded: "{rounded.sm}"
-    height: "32px"
-    padding: "8px 12px"
+    backgroundColor: '{colors.nova-blue}'
+    textColor: '#ffffff'
+    typography: '{typography.label}'
+    rounded: '{rounded.sm}'
+    height: '32px'
+    padding: '8px 12px'
   input-default:
-    backgroundColor: "{colors.canvas-light}"
-    textColor: "{colors.ink-light}"
-    typography: "{typography.body}"
-    rounded: "{rounded.sm}"
-    height: "32px"
-    padding: "6px 10px"
+    backgroundColor: '{colors.canvas-light}'
+    textColor: '{colors.ink-light}'
+    typography: '{typography.body}'
+    rounded: '{rounded.sm}'
+    height: '32px'
+    padding: '6px 10px'
   panel-default:
-    backgroundColor: "{colors.surface-light}"
-    textColor: "{colors.ink-light}"
-    rounded: "{rounded.md}"
-    padding: "12px"
+    backgroundColor: '{colors.surface-light}'
+    textColor: '{colors.ink-light}'
+    rounded: '{rounded.md}'
+    padding: '12px'
 ---
 
 # Design System: Nova App
@@ -217,6 +217,7 @@ altura fija. El acceso a resolución usa una fila principal de 56px con título 
 - **Don't** depender exclusivamente del color para distinguir estados o decisiones.
 - **Don't** apilar formulario y listado cuando `NCrud` debe reemplazar uno por el otro.
 - **Don't** usar radios superiores a 10px en paneles funcionales.
+
 # Indicadores de sincronización
 
 - La pestaña `Sincronizar` usa un badge ámbar para el total de altas, ediciones y eliminaciones

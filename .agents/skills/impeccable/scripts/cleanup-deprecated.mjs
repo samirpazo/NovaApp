@@ -18,19 +18,28 @@
  *   4. Removes the corresponding entries from skills-lock.json.
  */
 
-import { existsSync, readFileSync, writeFileSync, rmSync, readdirSync, statSync, lstatSync, unlinkSync } from 'node:fs';
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+  readdirSync,
+  statSync,
+  lstatSync,
+  unlinkSync,
+} from 'node:fs';
 import { join, resolve } from 'node:path';
 
 // Skills that were renamed, merged, or folded in v2.0, v2.1, and v3.0.
 const DEPRECATED_NAMES = [
   // v2.0 renames
-  'frontend-design',    // renamed to impeccable
-  'teach-impeccable',   // folded into /impeccable init
+  'frontend-design', // renamed to impeccable
+  'teach-impeccable', // folded into /impeccable init
   // v2.1 merges
-  'arrange',            // renamed to layout
-  'normalize',          // merged into polish
-  'onboard',            // merged into harden
-  'extract',            // merged into /impeccable extract
+  'arrange', // renamed to layout
+  'normalize', // merged into polish
+  'onboard', // merged into harden
+  'extract', // merged into /impeccable extract
   // v3.0 consolidation: all standalone skills -> /impeccable sub-commands
   'adapt',
   'animate',
@@ -53,8 +62,17 @@ const DEPRECATED_NAMES = [
 
 // All known harness directories that may contain a skills/ subfolder.
 const HARNESS_DIRS = [
-  '.claude', '.cursor', '.gemini', '.codex', '.agents',
-  '.trae', '.trae-cn', '.pi', '.opencode', '.kiro', '.rovodev',
+  '.claude',
+  '.cursor',
+  '.gemini',
+  '.codex',
+  '.agents',
+  '.trae',
+  '.trae-cn',
+  '.pi',
+  '.opencode',
+  '.kiro',
+  '.rovodev',
 ];
 
 // Per-skill fingerprints for SKILL.md bodies that never mentioned
@@ -129,7 +147,9 @@ export function isImpeccableSkill(skillDir, { skillName, lock } = {}) {
   // 3. Per-skill fingerprint for old skills that never mentioned the pack.
   //    Strip the i- prefix so both `harden` and `i-harden` resolve to the
   //    same fingerprint entry.
-  const unprefixed = skillName?.startsWith('i-') ? skillName.slice(2) : skillName;
+  const unprefixed = skillName?.startsWith('i-')
+    ? skillName.slice(2)
+    : skillName;
   const fingerprint = unprefixed && SKILL_FINGERPRINTS[unprefixed];
   if (fingerprint && content.includes(fingerprint)) return true;
   return false;
@@ -267,9 +287,15 @@ export function cleanup(projectRoot) {
 }
 
 // CLI entry point
-if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname)) {
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname)
+) {
   const result = cleanup();
-  if (result.deletedPaths.length === 0 && result.removedLockEntries.length === 0) {
+  if (
+    result.deletedPaths.length === 0 &&
+    result.removedLockEntries.length === 0
+  ) {
     console.log('No deprecated Impeccable skills found. Nothing to clean up.');
   } else {
     if (result.deletedPaths.length > 0) {
@@ -277,7 +303,9 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.
       for (const p of result.deletedPaths) console.log(`  - ${p}`);
     }
     if (result.removedLockEntries.length > 0) {
-      console.log(`Cleaned ${result.removedLockEntries.length} entry/entries from skills-lock.json:`);
+      console.log(
+        `Cleaned ${result.removedLockEntries.length} entry/entries from skills-lock.json:`,
+      );
       for (const name of result.removedLockEntries) console.log(`  - ${name}`);
     }
   }

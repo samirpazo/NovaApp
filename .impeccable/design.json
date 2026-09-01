@@ -4,21 +4,94 @@
   "title": "Design System: Nova App",
   "extensions": {
     "colorMeta": {
-      "nova-blue": { "role": "primary", "displayName": "Azul Nova", "canonical": "#002aff", "tonalRamp": ["#000b4d", "#00127a", "#0019a8", "#0020d6", "#002aff", "#526dff", "#a3b0ff", "#eef0ff"] },
-      "success": { "role": "success", "displayName": "Éxito", "canonical": "#10b981", "tonalRamp": ["#052e24", "#064e3b", "#047857", "#059669", "#10b981", "#6ee7b7", "#a7f3d0", "#ecfdf5"] },
-      "warning": { "role": "warning", "displayName": "Advertencia", "canonical": "#f59e0b", "tonalRamp": ["#451a03", "#78350f", "#92400e", "#d97706", "#f59e0b", "#fcd34d", "#fde68a", "#fffbeb"] },
-      "destructive": { "role": "error", "displayName": "Error", "canonical": "#dc2626", "tonalRamp": ["#450a0a", "#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#f87171", "#fecaca", "#fef2f2"] }
+      "nova-blue": {
+        "role": "primary",
+        "displayName": "Azul Nova",
+        "canonical": "#002aff",
+        "tonalRamp": [
+          "#000b4d",
+          "#00127a",
+          "#0019a8",
+          "#0020d6",
+          "#002aff",
+          "#526dff",
+          "#a3b0ff",
+          "#eef0ff"
+        ]
+      },
+      "success": {
+        "role": "success",
+        "displayName": "Éxito",
+        "canonical": "#10b981",
+        "tonalRamp": [
+          "#052e24",
+          "#064e3b",
+          "#047857",
+          "#059669",
+          "#10b981",
+          "#6ee7b7",
+          "#a7f3d0",
+          "#ecfdf5"
+        ]
+      },
+      "warning": {
+        "role": "warning",
+        "displayName": "Advertencia",
+        "canonical": "#f59e0b",
+        "tonalRamp": [
+          "#451a03",
+          "#78350f",
+          "#92400e",
+          "#d97706",
+          "#f59e0b",
+          "#fcd34d",
+          "#fde68a",
+          "#fffbeb"
+        ]
+      },
+      "destructive": {
+        "role": "error",
+        "displayName": "Error",
+        "canonical": "#dc2626",
+        "tonalRamp": [
+          "#450a0a",
+          "#7f1d1d",
+          "#991b1b",
+          "#b91c1c",
+          "#dc2626",
+          "#f87171",
+          "#fecaca",
+          "#fef2f2"
+        ]
+      }
     },
     "typographyMeta": {
-      "title": { "displayName": "Título funcional", "purpose": "Encabezado compacto de pantalla." },
-      "body": { "displayName": "Contenido", "purpose": "Datos y mensajes operativos." },
-      "label": { "displayName": "Etiqueta", "purpose": "Campos, metadatos y acciones densas." }
+      "title": {
+        "displayName": "Título funcional",
+        "purpose": "Encabezado compacto de pantalla."
+      },
+      "body": {
+        "displayName": "Contenido",
+        "purpose": "Datos y mensajes operativos."
+      },
+      "label": {
+        "displayName": "Etiqueta",
+        "purpose": "Campos, metadatos y acciones densas."
+      }
     },
     "shadows": [
-      { "name": "overlay-only", "value": "0 4px 8px rgba(0,0,0,0.18)", "purpose": "Solo menús y overlays temporales." }
+      {
+        "name": "overlay-only",
+        "value": "0 4px 8px rgba(0,0,0,0.18)",
+        "purpose": "Solo menús y overlays temporales."
+      }
     ],
     "motion": [
-      { "name": "state-change", "value": "180ms ease-out", "purpose": "Cambios breves de estado; sin animación decorativa." }
+      {
+        "name": "state-change",
+        "value": "180ms ease-out",
+        "purpose": "Cambios breves de estado; sin animación decorativa."
+      }
     ],
     "breakpoints": [
       { "name": "compact", "value": "768px" },
@@ -29,13 +102,39 @@
   "narrative": {
     "northStar": "Consola operativa Nova",
     "overview": "Una herramienta de trabajo precisa, densa y consistente con Nova Web, adaptada a tacto, conectividad variable y decisiones offline explícitas.",
-    "keyCharacteristics": ["Densidad controlada", "Neutros con un solo acento", "Estados con icono, texto y color", "Componentes N-Series", "Responsive estructural"],
-    "rules": [
-      { "name": "One Accent", "body": "El acento identifica acción primaria, foco o selección y no domina las superficies.", "section": "colors" },
-      { "name": "Fixed Scale", "body": "Los títulos funcionales usan escala fija y compacta.", "section": "typography" },
-      { "name": "Structural Depth", "body": "Los paneles usan borde o fondo tonal; la sombra se reserva para overlays.", "section": "elevation" }
+    "keyCharacteristics": [
+      "Densidad controlada",
+      "Neutros con un solo acento",
+      "Estados con icono, texto y color",
+      "Componentes N-Series",
+      "Responsive estructural"
     ],
-    "dos": ["Usar componentes N-Series.", "Combinar icono, texto y color en estados.", "Adaptar estructuralmente según el espacio."],
-    "donts": ["No usar títulos gigantes ni espacios vacíos sin función.", "No usar gradientes ni glassmorphism.", "No depender solo del color para comunicar estados."]
+    "rules": [
+      {
+        "name": "One Accent",
+        "body": "El acento identifica acción primaria, foco o selección y no domina las superficies.",
+        "section": "colors"
+      },
+      {
+        "name": "Fixed Scale",
+        "body": "Los títulos funcionales usan escala fija y compacta.",
+        "section": "typography"
+      },
+      {
+        "name": "Structural Depth",
+        "body": "Los paneles usan borde o fondo tonal; la sombra se reserva para overlays.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Usar componentes N-Series.",
+      "Combinar icono, texto y color en estados.",
+      "Adaptar estructuralmente según el espacio."
+    ],
+    "donts": [
+      "No usar títulos gigantes ni espacios vacíos sin función.",
+      "No usar gradientes ni glassmorphism.",
+      "No depender solo del color para comunicar estados."
+    ]
   }
 }

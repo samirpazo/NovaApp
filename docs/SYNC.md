@@ -28,10 +28,10 @@ NovaApi es responsable de:
 
 Cada registro tiene dos identidades con objetivos distintos:
 
-| Identidad | Ejemplo | Propietario | Estabilidad |
-| --- | --- | --- | --- |
-| `SyncId` UUID | `683861b3-...` | Cliente que crea | Permanente |
-| ID entero | `DefID=-1`, luego `DefID=91` | Servidor | Temporal negativo, definitivo positivo |
+| Identidad     | Ejemplo                      | Propietario      | Estabilidad                            |
+| ------------- | ---------------------------- | ---------------- | -------------------------------------- |
+| `SyncId` UUID | `683861b3-...`               | Cliente que crea | Permanente                             |
+| ID entero     | `DefID=-1`, luego `DefID=91` | Servidor         | Temporal negativo, definitivo positivo |
 
 Al crear localmente:
 
@@ -284,7 +284,9 @@ resto del lote.
 La decisión de resolución se valida como un comando discriminado antes de modificar el estado:
 
 ```ts
-{ Decision: "KeepLocal" | "UseServer", Resource, SyncId }
+{
+  Decision: ('KeepLocal' | 'UseServer', Resource, SyncId);
+}
 ```
 
 `KeepLocal` conserva el cambio local para el siguiente Push con `Force`; `UseServer` aplica la

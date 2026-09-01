@@ -57,18 +57,28 @@ export function AppHeader({ pendingChanges, sceneGutter }: AppHeaderProps) {
     <SafeAreaView
       edges={['top']}
       className="border-b border-border bg-background"
-      style={{ marginHorizontal: -sceneGutter }}>
+      style={{ marginHorizontal: -sceneGutter }}
+    >
       <View className="mx-auto h-[52px] w-full max-w-5xl flex-row items-center gap-2.5 px-3">
         <View className="h-8 w-8 items-center justify-center rounded-md bg-muted">
-          <UserRound size={16} className="text-foreground" />
+          <UserRound
+            size={16}
+            className="text-foreground"
+          />
         </View>
         <View className="min-w-0 flex-1">
-          <Text variant="small" numberOfLines={1}>
+          <Text
+            variant="small"
+            numberOfLines={1}
+          >
             {user?.FullName || user?.UsrName || 'Nova'}
           </Text>
           <View className="flex-row items-center gap-1.5">
             <View className={`h-2 w-2 rounded-full ${dotClass}`} />
-            <Text variant="caption" numberOfLines={1}>
+            <Text
+              variant="caption"
+              numberOfLines={1}
+            >
               {label}
             </Text>
           </View>
@@ -81,10 +91,17 @@ export function AppHeader({ pendingChanges, sceneGutter }: AppHeaderProps) {
             className="h-8 w-8"
             disabled={sync.Status === 'syncing'}
             onPress={() => void pullNova().catch(() => undefined)}
-            accessibilityLabel={sync.Status === 'syncing' ? 'Sincronizando' : 'Sincronizar ahora'}>
+            accessibilityLabel={
+              sync.Status === 'syncing' ? 'Sincronizando' : 'Sincronizar ahora'
+            }
+          >
             <RefreshCw
               size={17}
-              className={sync.Status === 'syncing' ? 'animate-spin text-foreground' : 'text-foreground'}
+              className={
+                sync.Status === 'syncing'
+                  ? 'animate-spin text-foreground'
+                  : 'text-foreground'
+              }
               style={sync.Status === 'syncing' ? { opacity: 0.55 } : undefined}
             />
           </Button>

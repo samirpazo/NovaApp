@@ -1,4 +1,8 @@
-import { AuthResponseSchema, AuthSessionSchema, type AuthSession } from '@/contracts/auth';
+import {
+  AuthResponseSchema,
+  AuthSessionSchema,
+  type AuthSession,
+} from '@/contracts/auth';
 import { api, getApiErrorMessage, setCsrfToken } from '@/lib/api';
 import { hashPassword } from '@/lib/security';
 import { storage } from '@/lib/storage';
@@ -24,21 +28,36 @@ function cookieValue(response: AxiosResponse, name: string): string | null {
 
 async function persistTokens(response: AxiosResponse): Promise<void> {
   if (Platform.OS === 'web') return;
-  const accessToken = cookieValue(response, 'nova_app_access_token') ?? cookieValue(response, 'nova_access_token');
-  const refreshToken = cookieValue(response, 'nova_app_refresh_token') ?? cookieValue(response, 'nova_refresh_token');
-  if (!accessToken || !refreshToken) throw new Error('Nova no devolvió los tokens de la sesión móvil.');
-  await Promise.all([saveAccessToken(accessToken), saveRefreshToken(refreshToken)]);
+  const accessToken =
+    cookieValue(response, 'nova_app_access_token') ??
+    cookieValue(response, 'nova_access_token');
+  const refreshToken =
+    cookieValue(response, 'nova_app_refresh_token') ??
+    cookieValue(response, 'nova_refresh_token');
+  if (!accessToken || !refreshToken)
+    throw new Error('Nova no devolvió los tokens de la sesión móvil.');
+  await Promise.all([
+    saveAccessToken(accessToken),
+    saveRefreshToken(refreshToken),
+  ]);
 }
 
 async function persistSession(session: AuthSession): Promise<void> {
   await storage.setItem(SESSION_KEY, JSON.stringify(session));
 }
 
-export async function login(user: string, password: string): Promise<AuthSession> {
+export async function login(
+  user: string,
+  password: string,
+): Promise<AuthSession> {
   try {
-    const response = await api.post('/Token', { User: user.trim(), Password: await hashPassword(password) });
+    const response = await api.post('/Token', {
+      User: user.trim(),
+      Password: await hashPassword(password),
+    });
     const envelope = AuthResponseSchema.parse(response.data);
-    if (!envelope.Succeeded || !envelope.Data) throw new Error(envelope.Message || 'Credenciales inválidas.');
+    if (!envelope.Succeeded || !envelope.Data)
+      throw new Error(envelope.Message || 'Credenciales inválidas.');
     await persistTokens(response);
     await persistSession(envelope.Data);
     await initCsrf();
@@ -50,9 +69,13 @@ export async function login(user: string, password: string): Promise<AuthSession
 
 export async function refreshSession(): Promise<AuthSession> {
   const refreshToken = await getRefreshToken();
-  const response = await api.post('/Token/Refresh', Platform.OS === 'web' ? {} : { RefreshToken: refreshToken });
+  const response = await api.post(
+    '/Token/Refresh',
+    Platform.OS === 'web' ? {} : { RefreshToken: refreshToken },
+  );
   const envelope = AuthResponseSchema.parse(response.data);
-  if (!envelope.Succeeded || !envelope.Data) throw new Error(envelope.Message || 'No se pudo renovar la sesión.');
+  if (!envelope.Succeeded || !envelope.Data)
+    throw new Error(envelope.Message || 'No se pudo renovar la sesión.');
   await persistTokens(response);
   await persistSession(envelope.Data);
   await initCsrf();
@@ -63,7 +86,8 @@ export async function initCsrf(): Promise<boolean> {
   if (Platform.OS !== 'web') return true;
   try {
     const response = await api.get('/Token/CsrfToken');
-    const token = typeof response.data?.Data === 'string' ? response.data.Data : null;
+    const token =
+      typeof response.data?.Data === 'string' ? response.data.Data : null;
     if (!token) return false;
     setCsrfToken(token);
     return true;
@@ -75,7 +99,11 @@ export async function initCsrf(): Promise<boolean> {
 
 export async function clearLocalSession(): Promise<void> {
   setCsrfToken(null);
-  await Promise.all([storage.removeItem(SESSION_KEY), clearAccessToken(), clearRefreshToken()]);
+  await Promise.all([
+    storage.removeItem(SESSION_KEY),
+    clearAccessToken(),
+    clearRefreshToken(),
+  ]);
 }
 
 export function isTransientAuthFailure(error: unknown): boolean {
@@ -106,8 +134,14 @@ export async function getStoredSession(): Promise<AuthSession | null> {
   }
 }
 
-export function isSessionExpired(session: AuthSession, marginSeconds = 30): boolean {
-  return new Date(session.AccessTokenExpiration).getTime() - marginSeconds * 1000 <= Date.now();
+export function isSessionExpired(
+  session: AuthSession,
+  marginSeconds = 30,
+): boolean {
+  return (
+    new Date(session.AccessTokenExpiration).getTime() - marginSeconds * 1000 <=
+    Date.now()
+  );
 }
 
 export async function ensureOnlineSession(): Promise<string | null> {

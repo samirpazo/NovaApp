@@ -16,11 +16,17 @@ const toListItem = (model: RstTableModel): RstTableListItem => ({
 });
 
 export const rstTableQueries = {
-  observeActive(onNext: (records: RstTableListItem[]) => void, onError: (error: unknown) => void) {
+  observeActive(
+    onNext: (records: RstTableListItem[]) => void,
+    onError: (error: unknown) => void,
+  ) {
     return database
       .get<RstTableModel>(SYNC_RESOURCES.RstTable)
       .query(Q.where('SecStatus', true), Q.sortBy('TabTableNumber', Q.asc))
       .observe()
-      .subscribe({ next: (records) => onNext(records.map(toListItem)), error: onError });
+      .subscribe({
+        next: (records) => onNext(records.map(toListItem)),
+        error: onError,
+      });
   },
 };

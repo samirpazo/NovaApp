@@ -2,7 +2,10 @@ import { Q } from '@nozbe/watermelondb';
 
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import { database, GenDefinitionDetailModel, RstBranchModel } from '@/database';
-import type { CurrencyOption, RstBranchListItem } from '@/features/restaurant/branches/types';
+import type {
+  CurrencyOption,
+  RstBranchListItem,
+} from '@/features/restaurant/branches/types';
 
 const toListItem = (model: RstBranchModel): RstBranchListItem => ({
   LocalId: model.id,
@@ -18,15 +21,24 @@ const toListItem = (model: RstBranchModel): RstBranchListItem => ({
 });
 
 export const rstBranchQueries = {
-  observeActive(onNext: (records: RstBranchListItem[]) => void, onError: (error: unknown) => void) {
+  observeActive(
+    onNext: (records: RstBranchListItem[]) => void,
+    onError: (error: unknown) => void,
+  ) {
     return database
       .get<RstBranchModel>(SYNC_RESOURCES.RstBranch)
       .query(Q.where('SecStatus', true), Q.sortBy('BrhName', Q.asc))
       .observe()
-      .subscribe({ next: (records) => onNext(records.map(toListItem)), error: onError });
+      .subscribe({
+        next: (records) => onNext(records.map(toListItem)),
+        error: onError,
+      });
   },
 
-  observeCurrencies(onNext: (records: CurrencyOption[]) => void, onError: (error: unknown) => void) {
+  observeCurrencies(
+    onNext: (records: CurrencyOption[]) => void,
+    onError: (error: unknown) => void,
+  ) {
     return database
       .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
       .query(
@@ -36,7 +48,13 @@ export const rstBranchQueries = {
       )
       .observe()
       .subscribe({
-        next: (details) => onNext(details.map((detail) => ({ value: detail.DedValue, text: detail.DedDescription }))),
+        next: (details) =>
+          onNext(
+            details.map((detail) => ({
+              value: detail.DedValue,
+              text: detail.DedDescription,
+            })),
+          ),
         error: onError,
       });
   },

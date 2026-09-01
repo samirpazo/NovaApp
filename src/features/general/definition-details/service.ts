@@ -10,11 +10,23 @@ const nullable = (value: string) => value.trim() || null;
 export const genDefinitionDetailService = {
   async save(input: SaveGenDefinitionDetailInput): Promise<void> {
     const description = input.DedDescription.trim();
-    if (!Number.isInteger(input.DedValue) || input.DedValue < 0 || !description) {
+    if (
+      !Number.isInteger(input.DedValue) ||
+      input.DedValue < 0 ||
+      !description
+    ) {
       throw new Error('Definición, valor y descripción son obligatorios.');
     }
-    if (await genDefinitionDetailQueries.existsValue(input.Definition.DefID, input.DedValue, input.LocalId)) {
-      throw new Error(`El valor ${input.DedValue} ya existe en esta definición.`);
+    if (
+      await genDefinitionDetailQueries.existsValue(
+        input.Definition.DefID,
+        input.DedValue,
+        input.LocalId,
+      )
+    ) {
+      throw new Error(
+        `El valor ${input.DedValue} ya existe en esta definición.`,
+      );
     }
 
     const apply = (record: GenDefinitionDetailModel) => {
@@ -35,33 +47,37 @@ export const genDefinitionDetailService = {
 
     if (input.LocalId) {
       const model = await genDefinitionDetailQueries.find(input.LocalId);
-      await database.write(() => model.update((record) => {
-        apply(record);
-        record.UpdateUserId = input.UserId;
-        record.UpdateDate = new Date().toISOString();
-      }));
+      await database.write(() =>
+        model.update((record) => {
+          apply(record);
+          record.UpdateUserId = input.UserId;
+          record.UpdateDate = new Date().toISOString();
+        }),
+      );
       return;
     }
 
     const temporaryId = await genDefinitionDetailQueries.nextTemporaryId();
     const syncId = randomUUID();
     const now = new Date().toISOString();
-    await database.write(() => database
-      .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
-      .create((record) => {
-        record._raw.id = syncId;
-        record.SyncId = syncId;
-        record.SyncVersion = '';
-        record.SecStatus = true;
-        record.CreateUserId = input.UserId;
-        record.UpdateUserId = input.UserId;
-        record.DeleteUserId = null;
-        record.CreateDate = now;
-        record.UpdateDate = now;
-        record.DeleteDate = null;
-        record.DedID = temporaryId;
-        apply(record);
-      }));
+    await database.write(() =>
+      database
+        .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
+        .create((record) => {
+          record._raw.id = syncId;
+          record.SyncId = syncId;
+          record.SyncVersion = '';
+          record.SecStatus = true;
+          record.CreateUserId = input.UserId;
+          record.UpdateUserId = input.UserId;
+          record.DeleteUserId = null;
+          record.CreateDate = now;
+          record.UpdateDate = now;
+          record.DeleteDate = null;
+          record.DedID = temporaryId;
+          apply(record);
+        }),
+    );
   },
 
   async remove(LocalId: string): Promise<void> {

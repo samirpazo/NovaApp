@@ -12,7 +12,9 @@ export default function HomeTab() {
           contentFit="contain"
           style={{ width: 96, height: 96 }}
         />
-        <Text className="mt-3 text-lg font-poppins-semibold">Bienvenido a Nova</Text>
+        <Text className="mt-3 text-lg font-poppins-semibold">
+          Bienvenido a Nova
+        </Text>
       </View>
     </View>
   );

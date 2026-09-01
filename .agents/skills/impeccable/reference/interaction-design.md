@@ -4,16 +4,16 @@
 
 Every interactive element needs these states designed:
 
-| State | When | Visual Treatment |
-|-------|------|------------------|
-| **Default** | At rest | Base styling |
-| **Hover** | Pointer over (not touch) | Subtle lift, color shift |
-| **Focus** | Keyboard/programmatic focus | Visible ring (see below) |
-| **Active** | Being pressed | Pressed in, darker |
-| **Disabled** | Not interactive | Reduced opacity, no pointer |
-| **Loading** | Processing | Spinner, skeleton |
-| **Error** | Invalid state | Red border, icon, message |
-| **Success** | Completed | Green check, confirmation |
+| State        | When                        | Visual Treatment            |
+| ------------ | --------------------------- | --------------------------- |
+| **Default**  | At rest                     | Base styling                |
+| **Hover**    | Pointer over (not touch)    | Subtle lift, color shift    |
+| **Focus**    | Keyboard/programmatic focus | Visible ring (see below)    |
+| **Active**   | Being pressed               | Pressed in, darker          |
+| **Disabled** | Not interactive             | Reduced opacity, no pointer |
+| **Loading**  | Processing                  | Spinner, skeleton           |
+| **Error**    | Invalid state               | Red border, icon, message   |
+| **Success**  | Completed                   | Green check, confirmation   |
 
 **The common miss**: Designing hover without focus, or vice versa. They're different. Keyboard users never see hover states.
 
@@ -35,6 +35,7 @@ button:focus-visible {
 ```
 
 **Focus ring design**:
+
 - High contrast (3:1 minimum against adjacent colors)
 - 2-3px thick
 - Offset from element (not inside it)
@@ -67,7 +68,7 @@ Or use the native `<dialog>` element:
 
 ```javascript
 const dialog = document.querySelector('dialog');
-dialog.showModal();  // Opens with focus trap, closes on Escape
+dialog.showModal(); // Opens with focus trap, closes on Escape
 ```
 
 ## The Popover API
@@ -76,7 +77,10 @@ For tooltips, dropdowns, and non-modal overlays, use native popovers:
 
 ```html
 <button popovertarget="menu">Open menu</button>
-<div id="menu" popover>
+<div
+  id="menu"
+  popover
+>
   <button>Option 1</button>
   <button>Option 2</button>
 </div>
@@ -118,8 +122,17 @@ Because the dropdown uses `position: fixed`, it escapes any `overflow` clipping 
 Combining the Popover API with anchor positioning gives you stacking, light-dismiss, accessibility, and correct positioning in one pattern:
 
 ```html
-<button popovertarget="menu" class="trigger">Open</button>
-<div id="menu" popover class="dropdown">
+<button
+  popovertarget="menu"
+  class="trigger"
+>
+  Open
+</button>
+<div
+  id="menu"
+  popover
+  class="dropdown"
+>
   <button>Option 1</button>
   <button>Option 2</button>
 </div>
@@ -162,9 +175,24 @@ For component groups (tabs, menu items, radio groups), one item is tabbable; arr
 
 ```html
 <div role="tablist">
-  <button role="tab" tabindex="0">Tab 1</button>
-  <button role="tab" tabindex="-1">Tab 2</button>
-  <button role="tab" tabindex="-1">Tab 3</button>
+  <button
+    role="tab"
+    tabindex="0"
+  >
+    Tab 1
+  </button>
+  <button
+    role="tab"
+    tabindex="-1"
+  >
+    Tab 2
+  </button>
+  <button
+    role="tab"
+    tabindex="-1"
+  >
+    Tab 3
+  </button>
 </div>
 ```
 

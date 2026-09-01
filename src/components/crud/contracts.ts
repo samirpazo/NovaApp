@@ -30,7 +30,10 @@ export interface NCrudSubscription {
   unsubscribe(): void;
 }
 
-export interface NCrudDataSource<T, TFilter extends object = Record<string, never>> {
+export interface NCrudDataSource<
+  T,
+  TFilter extends object = Record<string, never>,
+> {
   observe(
     request: NCrudRequest<TFilter>,
     onNext: (result: NCrudResult<T>) => void,

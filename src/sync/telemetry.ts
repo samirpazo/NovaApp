@@ -1,4 +1,5 @@
-export type SyncFailureKind = 'conflict' | 'network' | 'validation' | 'cancelled' | 'unknown';
+export type SyncFailureKind =
+  'conflict' | 'network' | 'validation' | 'cancelled' | 'unknown';
 
 export interface SyncTelemetryEvent {
   event: 'sync_completed' | 'sync_failed';
@@ -13,8 +14,19 @@ export function classifySyncFailure(message: string): SyncFailureKind {
   const value = message.toLowerCase();
   if (value.includes('conflict')) return 'conflict';
   if (value.includes('cancel')) return 'cancelled';
-  if (value.includes('conexión') || value.includes('conectar') || value.includes('network') || value.includes('timeout')) return 'network';
-  if (value.includes('válid') || value.includes('invalid') || value.includes('zod')) return 'validation';
+  if (
+    value.includes('conexión') ||
+    value.includes('conectar') ||
+    value.includes('network') ||
+    value.includes('timeout')
+  )
+    return 'network';
+  if (
+    value.includes('válid') ||
+    value.includes('invalid') ||
+    value.includes('zod')
+  )
+    return 'validation';
   return 'unknown';
 }
 

@@ -19,7 +19,10 @@ import { fileURLToPath } from 'node:url';
 import { resolveLiveConfigPath } from './impeccable-paths.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CONFIG_PATH = resolveLiveConfigPath({ cwd: process.cwd(), scriptsDir: __dirname });
+const CONFIG_PATH = resolveLiveConfigPath({
+  cwd: process.cwd(),
+  scriptsDir: __dirname,
+});
 const MARKER_OPEN_TEXT = 'impeccable-live-start';
 const MARKER_CLOSE_TEXT = 'impeccable-live-end';
 
@@ -28,10 +31,7 @@ const MARKER_CLOSE_TEXT = 'impeccable-live-end';
  * matching them would silently inject tracking scripts into third-party
  * code. The user cannot turn these off via config — they are the floor.
  */
-const HARD_EXCLUDES = [
-  '**/node_modules/**',
-  '**/.git/**',
-];
+const HARD_EXCLUDES = ['**/node_modules/**', '**/.git/**'];
 
 export async function injectCli() {
   const args = process.argv.slice(2);
@@ -54,20 +54,40 @@ Output (JSON):
 
   if (args.includes('--check')) {
     if (!fs.existsSync(CONFIG_PATH)) {
-      console.log(JSON.stringify({ ok: false, error: 'config_missing', path: CONFIG_PATH }));
+      console.log(
+        JSON.stringify({
+          ok: false,
+          error: 'config_missing',
+          path: CONFIG_PATH,
+        }),
+      );
       process.exit(0);
     }
     let cfg;
     try {
       cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
     } catch (err) {
-      console.log(JSON.stringify({ ok: false, error: 'config_invalid', message: err.message, path: CONFIG_PATH }));
+      console.log(
+        JSON.stringify({
+          ok: false,
+          error: 'config_invalid',
+          message: err.message,
+          path: CONFIG_PATH,
+        }),
+      );
       return;
     }
     try {
       validateConfig(cfg);
     } catch (err) {
-      console.log(JSON.stringify({ ok: false, error: 'config_invalid', message: err.message, path: CONFIG_PATH }));
+      console.log(
+        JSON.stringify({
+          ok: false,
+          error: 'config_invalid',
+          message: err.message,
+          path: CONFIG_PATH,
+        }),
+      );
       return;
     }
     console.log(JSON.stringify({ ok: true, config: cfg, path: CONFIG_PATH }));
@@ -76,7 +96,9 @@ Output (JSON):
 
   // Load config
   if (!fs.existsSync(CONFIG_PATH)) {
-    console.error(JSON.stringify({ ok: false, error: 'config_missing', path: CONFIG_PATH }));
+    console.error(
+      JSON.stringify({ ok: false, error: 'config_missing', path: CONFIG_PATH }),
+    );
     process.exit(1);
   }
   const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
@@ -87,11 +109,13 @@ Output (JSON):
   if (args.includes('--remove')) {
     const results = resolvedFiles.map((relFile) => {
       const absFile = path.resolve(process.cwd(), relFile);
-      if (!fs.existsSync(absFile)) return { file: relFile, error: 'file_not_found' };
+      if (!fs.existsSync(absFile))
+        return { file: relFile, error: 'file_not_found' };
       const content = fs.readFileSync(absFile, 'utf-8');
       const detagged = removeTag(content, config.commentSyntax);
       const updated = revertCspMeta(detagged);
-      if (updated === content) return { file: relFile, removed: false, note: 'no tag present' };
+      if (updated === content)
+        return { file: relFile, removed: false, note: 'no tag present' };
       fs.writeFileSync(absFile, updated, 'utf-8');
       return {
         file: relFile,
@@ -113,12 +137,17 @@ Output (JSON):
 
   const results = resolvedFiles.map((relFile) => {
     const absFile = path.resolve(process.cwd(), relFile);
-    if (!fs.existsSync(absFile)) return { file: relFile, error: 'file_not_found' };
+    if (!fs.existsSync(absFile))
+      return { file: relFile, error: 'file_not_found' };
     const content = fs.readFileSync(absFile, 'utf-8');
     const withoutOld = revertCspMeta(removeTag(content, config.commentSyntax));
     const withTag = insertTag(withoutOld, config, port, relFile);
     if (withTag === withoutOld) {
-      return { file: relFile, error: 'insertion_point_not_found', anchor: config.insertBefore || config.insertAfter };
+      return {
+        file: relFile,
+        error: 'insertion_point_not_found',
+        anchor: config.insertBefore || config.insertAfter,
+      };
     }
     const updated = patchCspMeta(withTag, port);
     fs.writeFileSync(absFile, updated, 'utf-8');
@@ -227,7 +256,8 @@ function globToRegex(pattern) {
 // ---------------------------------------------------------------------------
 
 function validateConfig(cfg) {
-  if (!cfg || typeof cfg !== 'object') throw new Error('config.json must be an object');
+  if (!cfg || typeof cfg !== 'object')
+    throw new Error('config.json must be an object');
   if (!Array.isArray(cfg.files) || cfg.files.length === 0) {
     throw new Error('config.files (non-empty string array) required');
   }
@@ -242,19 +272,28 @@ function validateConfig(cfg) {
       throw new Error('config.exclude must contain only non-empty strings');
     }
   }
-  if (typeof cfg.insertBefore !== 'string' && typeof cfg.insertAfter !== 'string') {
-    throw new Error('config.insertBefore or config.insertAfter (string) required');
+  if (
+    typeof cfg.insertBefore !== 'string' &&
+    typeof cfg.insertAfter !== 'string'
+  ) {
+    throw new Error(
+      'config.insertBefore or config.insertAfter (string) required',
+    );
   }
   if (cfg.commentSyntax !== 'html' && cfg.commentSyntax !== 'jsx') {
     throw new Error("config.commentSyntax must be 'html' or 'jsx'");
   }
   if (cfg.cspChecked !== undefined && typeof cfg.cspChecked !== 'boolean') {
-    throw new Error("config.cspChecked, if present, must be a boolean");
+    throw new Error('config.cspChecked, if present, must be a boolean');
   }
 }
 
-function commentOpen(syntax) { return syntax === 'jsx' ? '{/*' : '<!--'; }
-function commentClose(syntax) { return syntax === 'jsx' ? '*/}' : '-->'; }
+function commentOpen(syntax) {
+  return syntax === 'jsx' ? '{/*' : '<!--';
+}
+function commentClose(syntax) {
+  return syntax === 'jsx' ? '*/}' : '-->';
+}
 
 function buildTagBlock(syntax, port, filePath) {
   const open = commentOpen(syntax);
@@ -264,9 +303,23 @@ function buildTagBlock(syntax, port, filePath) {
   const isAstro = typeof filePath === 'string' && filePath.endsWith('.astro');
   const scriptAttrs = isAstro ? 'is:inline ' : '';
   return (
-    open + ' ' + MARKER_OPEN_TEXT + ' ' + close + '\n' +
-    '<script ' + scriptAttrs + 'src="http://localhost:' + port + '/live.js"></script>\n' +
-    open + ' ' + MARKER_CLOSE_TEXT + ' ' + close + '\n'
+    open +
+    ' ' +
+    MARKER_OPEN_TEXT +
+    ' ' +
+    close +
+    '\n' +
+    '<script ' +
+    scriptAttrs +
+    'src="http://localhost:' +
+    port +
+    '/live.js"></script>\n' +
+    open +
+    ' ' +
+    MARKER_CLOSE_TEXT +
+    ' ' +
+    close +
+    '\n'
   );
 }
 
@@ -286,7 +339,10 @@ function insertTag(content, config, port, filePath) {
   if (idx === -1) return content;
   const after = idx + config.insertAfter.length;
   // Preserve a single trailing newline if the anchor didn't end with one
-  const prefix = content[after] === '\n' ? content.slice(0, after + 1) : content.slice(0, after) + '\n';
+  const prefix =
+    content[after] === '\n'
+      ? content.slice(0, after + 1)
+      : content.slice(0, after) + '\n';
   return prefix + block + content.slice(prefix.length);
 }
 
@@ -350,7 +406,12 @@ function findCspMetaTags(content) {
   let m;
   while ((m = tagRe.exec(content)) !== null) {
     const attrs = m[1];
-    if (!/(http-equiv|httpEquiv)\s*=\s*(['"])Content-Security-Policy\2/i.test(attrs)) continue;
+    if (
+      !/(http-equiv|httpEquiv)\s*=\s*(['"])Content-Security-Policy\2/i.test(
+        attrs,
+      )
+    )
+      continue;
     out.push({ start: m.index, end: m.index + m[0].length, full: m[0], attrs });
   }
   return out;
@@ -368,7 +429,10 @@ function appendOriginToDirective(csp, directive, origin) {
   if (m) {
     const tokens = m[4].trim().split(/\s+/);
     if (tokens.includes(origin)) return csp;
-    return csp.replace(re, `${m[1]}${m[2]}${m[3]} ${[...tokens, origin].join(' ')}`);
+    return csp.replace(
+      re,
+      `${m[1]}${m[2]}${m[3]} ${[...tokens, origin].join(' ')}`,
+    );
   }
   // Directive missing — add it. Use 'self' + origin so we don't inadvertently
   // narrow the policy compared to the default-src fallback (most users with
@@ -411,7 +475,11 @@ export function patchCspMeta(content, port) {
     // `<meta … />` round-trips byte-for-byte.
     const trailingWs = (attrs.match(/[ \t]*$/) || [''])[0];
     const attrsBody = attrs.slice(0, attrs.length - trailingWs.length);
-    const newAttrs = attrsBody.replace(contentAttr.full, newContentAttr) + ' ' + marker + trailingWs;
+    const newAttrs =
+      attrsBody.replace(contentAttr.full, newContentAttr) +
+      ' ' +
+      marker +
+      trailingWs;
     const newTag = tag.full.replace(attrs, newAttrs);
 
     result = result.slice(0, tag.start) + newTag + result.slice(tag.end);
@@ -432,8 +500,11 @@ export function revertCspMeta(content) {
     if (!contentAttr) continue;
 
     let originalValue;
-    try { originalValue = Buffer.from(origAttr.value, 'base64').toString('utf-8'); }
-    catch { continue; }
+    try {
+      originalValue = Buffer.from(origAttr.value, 'base64').toString('utf-8');
+    } catch {
+      continue;
+    }
 
     const newContentAttr = `content=${contentAttr.quote}${originalValue}${contentAttr.quote}`;
     let newAttrs = tag.attrs.replace(contentAttr.full, newContentAttr);
@@ -451,7 +522,10 @@ export function revertCspMeta(content) {
 // ---------------------------------------------------------------------------
 
 const _running = process.argv[1];
-if (_running?.endsWith('live-inject.mjs') || _running?.endsWith('live-inject.mjs/')) {
+if (
+  _running?.endsWith('live-inject.mjs') ||
+  _running?.endsWith('live-inject.mjs/')
+) {
   injectCli();
 }
 

@@ -1,19 +1,27 @@
 import { Q } from '@nozbe/watermelondb';
 
 import { SYNC_RESOURCES } from '@/contracts/sync';
-import { database, GenDefinitionDetailModel, GenDefinitionModel } from '@/database';
+import {
+  database,
+  GenDefinitionDetailModel,
+  GenDefinitionModel,
+} from '@/database';
 import type {
   GenDefinitionDetailListItem,
   GenDefinitionOption,
 } from '@/features/general/definition-details/types';
 
-const toDefinitionOption = (model: GenDefinitionModel): GenDefinitionOption => ({
+const toDefinitionOption = (
+  model: GenDefinitionModel,
+): GenDefinitionOption => ({
   DefID: model.DefID,
   DefCode: model.DefCode,
   DefDescription: model.DefDescription,
 });
 
-const toListItem = (model: GenDefinitionDetailModel): GenDefinitionDetailListItem => ({
+const toListItem = (
+  model: GenDefinitionDetailModel,
+): GenDefinitionDetailListItem => ({
   LocalId: model.id,
   SyncStatus: model.syncStatus,
   DedID: model.DedID,
@@ -33,30 +41,52 @@ const toListItem = (model: GenDefinitionDetailModel): GenDefinitionDetailListIte
 });
 
 export const genDefinitionDetailQueries = {
-  observeDefinitions(onNext: (records: GenDefinitionOption[]) => void, onError: (error: unknown) => void) {
+  observeDefinitions(
+    onNext: (records: GenDefinitionOption[]) => void,
+    onError: (error: unknown) => void,
+  ) {
     return database
       .get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition)
       .query(Q.where('SecStatus', true), Q.sortBy('DefDescription', Q.asc))
       .observe()
-      .subscribe({ next: (records) => onNext(records.map(toDefinitionOption)), error: onError });
+      .subscribe({
+        next: (records) => onNext(records.map(toDefinitionOption)),
+        error: onError,
+      });
   },
 
-  observeActive(onNext: (records: GenDefinitionDetailListItem[]) => void, onError: (error: unknown) => void) {
+  observeActive(
+    onNext: (records: GenDefinitionDetailListItem[]) => void,
+    onError: (error: unknown) => void,
+  ) {
     return database
       .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
       .query(Q.where('SecStatus', true), Q.sortBy('DedValue', Q.asc))
       .observe()
-      .subscribe({ next: (records) => onNext(records.map(toListItem)), error: onError });
+      .subscribe({
+        next: (records) => onNext(records.map(toListItem)),
+        error: onError,
+      });
   },
 
   find(LocalId: string) {
-    return database.get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail).find(LocalId);
+    return database
+      .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
+      .find(LocalId);
   },
 
-  async existsValue(DefID: number, DedValue: number, excludeLocalId?: string): Promise<boolean> {
+  async existsValue(
+    DefID: number,
+    DedValue: number,
+    excludeLocalId?: string,
+  ): Promise<boolean> {
     const records = await database
       .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
-      .query(Q.where('SecStatus', true), Q.where('DefID', DefID), Q.where('DedValue', DedValue))
+      .query(
+        Q.where('SecStatus', true),
+        Q.where('DefID', DefID),
+        Q.where('DedValue', DedValue),
+      )
       .fetch();
     return records.some((record) => record.id !== excludeLocalId);
   },

@@ -30,7 +30,9 @@ export async function getSyncConnection(): Promise<SyncConnection | null> {
   }
 }
 
-export async function saveSyncConnection(connection: SyncConnection): Promise<void> {
+export async function saveSyncConnection(
+  connection: SyncConnection,
+): Promise<void> {
   const validConnection = SyncConnectionSchema.parse({
     ...connection,
     BaseUrl: connection.BaseUrl.replace(/\/+$/, ''),
@@ -44,7 +46,8 @@ export async function getAccessToken(): Promise<string | null> {
 }
 
 export async function saveAccessToken(accessToken: string): Promise<void> {
-  if (Platform.OS === 'web') throw new Error('Los tokens web deben permanecer en cookies HttpOnly.');
+  if (Platform.OS === 'web')
+    throw new Error('Los tokens web deben permanecer en cookies HttpOnly.');
   const token = accessToken.trim();
   if (!token) throw new Error('El token de acceso no puede estar vacío.');
   await storage.setItem(ACCESS_TOKEN_KEY, token);
@@ -60,7 +63,8 @@ export async function getRefreshToken(): Promise<string | null> {
 }
 
 export async function saveRefreshToken(refreshToken: string): Promise<void> {
-  if (Platform.OS === 'web') throw new Error('Los tokens web deben permanecer en cookies HttpOnly.');
+  if (Platform.OS === 'web')
+    throw new Error('Los tokens web deben permanecer en cookies HttpOnly.');
   await storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 }
 

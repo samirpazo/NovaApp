@@ -13,17 +13,20 @@ export function getDesignSidecarPath(cwd = process.cwd()) {
   return path.join(getImpeccableDir(cwd), 'design.json');
 }
 
-export function getDesignSidecarCandidates(cwd = process.cwd(), contextDir = cwd) {
-  const candidates = [
-    getDesignSidecarPath(cwd),
-    path.join(cwd, 'DESIGN.json'),
-  ];
+export function getDesignSidecarCandidates(
+  cwd = process.cwd(),
+  contextDir = cwd,
+) {
+  const candidates = [getDesignSidecarPath(cwd), path.join(cwd, 'DESIGN.json')];
   const contextLegacy = path.join(contextDir, 'DESIGN.json');
   if (!candidates.includes(contextLegacy)) candidates.push(contextLegacy);
   return candidates;
 }
 
-export function resolveDesignSidecarPath(cwd = process.cwd(), contextDir = cwd) {
+export function resolveDesignSidecarPath(
+  cwd = process.cwd(),
+  contextDir = cwd,
+) {
   return firstExisting(getDesignSidecarCandidates(cwd, contextDir));
 }
 
@@ -39,10 +42,16 @@ export function getLegacyLiveConfigPath(scriptsDir) {
   return path.join(scriptsDir, 'config.json');
 }
 
-export function resolveLiveConfigPath({ cwd = process.cwd(), scriptsDir, env = process.env } = {}) {
+export function resolveLiveConfigPath({
+  cwd = process.cwd(),
+  scriptsDir,
+  env = process.env,
+} = {}) {
   if (env.IMPECCABLE_LIVE_CONFIG && env.IMPECCABLE_LIVE_CONFIG.trim()) {
     const configured = env.IMPECCABLE_LIVE_CONFIG.trim();
-    return path.isAbsolute(configured) ? configured : path.resolve(cwd, configured);
+    return path.isAbsolute(configured)
+      ? configured
+      : path.resolve(cwd, configured);
   }
   const primary = getLiveConfigPath(cwd);
   if (fs.existsSync(primary)) return primary;
@@ -62,11 +71,20 @@ export function getLegacyLiveServerPath(cwd = process.cwd()) {
 }
 
 export function readLiveServerInfo(cwd = process.cwd()) {
-  for (const filePath of [getLiveServerPath(cwd), getLegacyLiveServerPath(cwd)]) {
+  for (const filePath of [
+    getLiveServerPath(cwd),
+    getLegacyLiveServerPath(cwd),
+  ]) {
     try {
       const info = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      if (info && typeof info.pid === 'number' && !isLiveServerPidReachable(info.pid)) {
-        try { fs.unlinkSync(filePath); } catch {}
+      if (
+        info &&
+        typeof info.pid === 'number' &&
+        !isLiveServerPidReachable(info.pid)
+      ) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch {}
         continue;
       }
       return { info, path: filePath };
@@ -96,8 +114,13 @@ export function writeLiveServerInfo(cwd = process.cwd(), info) {
 }
 
 export function removeLiveServerInfo(cwd = process.cwd()) {
-  for (const filePath of [getLiveServerPath(cwd), getLegacyLiveServerPath(cwd)]) {
-    try { fs.unlinkSync(filePath); } catch {}
+  for (const filePath of [
+    getLiveServerPath(cwd),
+    getLegacyLiveServerPath(cwd),
+  ]) {
+    try {
+      fs.unlinkSync(filePath);
+    } catch {}
   }
 }
 

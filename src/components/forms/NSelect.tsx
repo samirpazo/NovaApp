@@ -59,24 +59,49 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
   containerClassName,
 }: NSelectProps<TItem>) {
   const controlled = value !== undefined;
-  const [internalValue, setInternalValue] = React.useState<unknown>(defaultValue ?? (multiple ? [] : null));
+  const [internalValue, setInternalValue] = React.useState<unknown>(
+    defaultValue ?? (multiple ? [] : null),
+  );
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const activeValue = controlled ? value : internalValue;
 
-  const valueOf = React.useCallback((item: TItem) => getProperty(item, String(itemValue)), [itemValue]);
-  const textOf = React.useCallback((item: TItem) => String(getProperty(item, String(itemText)) ?? ''), [itemText]);
+  const valueOf = React.useCallback(
+    (item: TItem) => getProperty(item, String(itemValue)),
+    [itemValue],
+  );
+  const textOf = React.useCallback(
+    (item: TItem) => String(getProperty(item, String(itemText)) ?? ''),
+    [itemText],
+  );
   const selectedValues = React.useMemo(() => {
-    const selected = multiple ? (Array.isArray(activeValue) ? activeValue : []) : activeValue == null ? [] : [activeValue];
-    return selected.map((entry) => (returnObject && typeof entry === 'object' && entry !== null ? getProperty(entry as TItem, String(itemValue)) : entry));
+    const selected = multiple
+      ? Array.isArray(activeValue)
+        ? activeValue
+        : []
+      : activeValue == null
+        ? []
+        : [activeValue];
+    return selected.map((entry) =>
+      returnObject && typeof entry === 'object' && entry !== null
+        ? getProperty(entry as TItem, String(itemValue))
+        : entry,
+    );
   }, [activeValue, itemValue, multiple, returnObject]);
   const selectedItems = React.useMemo(
-    () => items.filter((item) => selectedValues.some((selected) => String(selected) === String(valueOf(item)))),
+    () =>
+      items.filter((item) =>
+        selectedValues.some(
+          (selected) => String(selected) === String(valueOf(item)),
+        ),
+      ),
     [items, selectedValues, valueOf],
   );
   const filteredItems = React.useMemo(() => {
     const term = search.trim().toLocaleLowerCase();
-    return term ? items.filter((item) => textOf(item).toLocaleLowerCase().includes(term)) : items;
+    return term
+      ? items.filter((item) => textOf(item).toLocaleLowerCase().includes(term))
+      : items;
   }, [items, search, textOf]);
 
   const emit = (next: unknown) => {
@@ -91,21 +116,54 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
       return;
     }
     const current = Array.isArray(activeValue) ? activeValue : [];
-    const exists = selectedValues.some((selected) => String(selected) === String(valueOf(item)));
-    emit(exists ? current.filter((entry) => String(returnObject && typeof entry === 'object' && entry !== null ? getProperty(entry as TItem, String(itemValue)) : entry) !== String(valueOf(item))) : [...current, result]);
+    const exists = selectedValues.some(
+      (selected) => String(selected) === String(valueOf(item)),
+    );
+    emit(
+      exists
+        ? current.filter(
+            (entry) =>
+              String(
+                returnObject && typeof entry === 'object' && entry !== null
+                  ? getProperty(entry as TItem, String(itemValue))
+                  : entry,
+              ) !== String(valueOf(item)),
+          )
+        : [...current, result],
+    );
   };
-  const displayText = selectedItems.length ? selectedItems.map(textOf).join(', ') : placeholder;
+  const displayText = selectedItems.length
+    ? selectedItems.map(textOf).join(', ')
+    : placeholder;
 
   return (
-    <NField label={label} required={required} errorMessage={errorMessage} hint={hint} disabled={disabled} className={containerClassName}>
+    <NField
+      label={label}
+      required={required}
+      errorMessage={errorMessage}
+      hint={hint}
+      disabled={disabled}
+      className={containerClassName}
+    >
       <Pressable
         accessibilityLabel={label}
         accessibilityRole="button"
         accessibilityState={{ disabled, expanded: open }}
         disabled={disabled || loading}
         onPress={() => setOpen(true)}
-        className={cn('h-8 flex-row items-center rounded-md border border-input bg-background px-2.5', errorMessage && 'border-destructive', (disabled || loading) && 'opacity-50')}>
-        <Text numberOfLines={1} className={cn('flex-1 text-xs', !selectedItems.length && 'text-muted-foreground')}>
+        className={cn(
+          'h-8 flex-row items-center rounded-md border border-input bg-background px-2.5',
+          errorMessage && 'border-destructive',
+          (disabled || loading) && 'opacity-50',
+        )}
+      >
+        <Text
+          numberOfLines={1}
+          className={cn(
+            'flex-1 text-xs',
+            !selectedItems.length && 'text-muted-foreground',
+          )}
+        >
           {loading ? 'Cargando...' : displayText}
         </Text>
         {clearable && selectedItems.length ? (
@@ -115,26 +173,54 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
             onPress={(event) => {
               event.stopPropagation();
               emit(multiple ? [] : null);
-            }}>
-            <X size={14} className="text-muted-foreground" />
+            }}
+          >
+            <X
+              size={14}
+              className="text-muted-foreground"
+            />
           </Pressable>
         ) : (
-          <ChevronDown size={15} className="text-muted-foreground" />
+          <ChevronDown
+            size={15}
+            className="text-muted-foreground"
+          />
         )}
       </Pressable>
 
-      <Modal visible={open} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setOpen(false)}>
+      <Modal
+        visible={open}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setOpen(false)}
+      >
         <SafeAreaView className="flex-1 bg-background">
           <View className="flex-row items-center border-b border-border px-4 py-3">
-            <Text className="flex-1 text-base font-semibold">{label ?? 'Seleccionar'}</Text>
-            <Button variant="ghost" size="icon" onPress={() => setOpen(false)} accessibilityLabel="Cerrar">
+            <Text className="flex-1 text-base font-semibold">
+              {label ?? 'Seleccionar'}
+            </Text>
+            <Button
+              variant="ghost"
+              size="icon"
+              onPress={() => setOpen(false)}
+              accessibilityLabel="Cerrar"
+            >
               <X size={20} />
             </Button>
           </View>
           {searchable ? (
             <View className="relative mx-4 my-3 justify-center">
-              <Search size={18} className="absolute left-3 z-10 text-muted-foreground" />
-              <Input value={search} onChangeText={setSearch} placeholder={searchPlaceholder} className="pl-10" autoFocus />
+              <Search
+                size={18}
+                className="absolute left-3 z-10 text-muted-foreground"
+              />
+              <Input
+                value={search}
+                onChangeText={setSearch}
+                placeholder={searchPlaceholder}
+                className="pl-10"
+                autoFocus
+              />
             </View>
           ) : null}
           <FlatList
@@ -142,13 +228,27 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
             keyExtractor={(item, index) => `${String(valueOf(item))}-${index}`}
             keyboardShouldPersistTaps="handled"
             contentContainerClassName="px-4 py-2"
-            ListEmptyComponent={<Text className="py-10 text-center text-muted-foreground">{noResultsText}</Text>}
+            ListEmptyComponent={
+              <Text className="py-10 text-center text-muted-foreground">
+                {noResultsText}
+              </Text>
+            }
             renderItem={({ item }) => {
-              const selected = selectedValues.some((entry) => String(entry) === String(valueOf(item)));
+              const selected = selectedValues.some(
+                (entry) => String(entry) === String(valueOf(item)),
+              );
               return (
-                <Pressable onPress={() => select(item)} className="min-h-12 flex-row items-center border-b border-border py-3">
+                <Pressable
+                  onPress={() => select(item)}
+                  className="min-h-12 flex-row items-center border-b border-border py-3"
+                >
                   <Text className="flex-1 text-sm">{textOf(item)}</Text>
-                  {selected ? <Check size={19} className="text-primary" /> : null}
+                  {selected ? (
+                    <Check
+                      size={19}
+                      className="text-primary"
+                    />
+                  ) : null}
                 </Pressable>
               );
             }}

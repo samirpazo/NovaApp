@@ -6,7 +6,11 @@ import {
   Poppins_700Bold,
   useFonts,
 } from '@expo-google-fonts/poppins';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from '@react-navigation/native';
 import { PortalHost } from '@rn-primitives/portal';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -15,10 +19,18 @@ import * as React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Platform } from 'react-native';
 import { AuthGate } from '@/auth';
-import { hexToHslChannels, resolveThemeMode, useAppearanceStore } from '@/theme/appearance';
+import {
+  hexToHslChannels,
+  resolveThemeMode,
+  useAppearanceStore,
+} from '@/theme/appearance';
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({ Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold });
+  const [fontsLoaded] = useFonts({
+    Poppins_400Regular,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  });
   const { colorScheme, setColorScheme } = useColorScheme();
   const appearance = useAppearanceStore((state) => state.preview);
   const appearanceReady = useAppearanceStore((state) => state.ready);
@@ -62,7 +74,8 @@ export default function RootLayout() {
           '--ring': hexToHslChannels(appearance.PrimaryColor || '#002aff'),
           '--primary-selection': `${hexToHslChannels(appearance.PrimaryColor || '#002aff')} / 15%`,
         }),
-      ]}>
+      ]}
+    >
       <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <AuthGate>

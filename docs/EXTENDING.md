@@ -130,11 +130,13 @@ await database.write(async () => {
 Edición correcta:
 
 ```ts
-await database.write(() => model.update((record) => {
-  record.MyName = value;
-  record.UpdateUserId = userId;
-  record.UpdateDate = new Date().toISOString();
-}));
+await database.write(() =>
+  model.update((record) => {
+    record.MyName = value;
+    record.UpdateUserId = userId;
+    record.UpdateDate = new Date().toISOString();
+  }),
+);
 ```
 
 Eliminación correcta:
@@ -177,20 +179,20 @@ de usarlo. Consultar `generator/README.md`.
 
 ### 9. Matriz mínima de pruebas
 
-| Caso | Resultado esperado |
-| --- | --- |
-| Pull inicial | Registros presentes localmente |
-| Crear sin red | UUID válido, ID negativo, estado `created` |
-| Reiniciar app | Registro local persiste |
-| Push alta | ID positivo y estado `synced` |
-| Editar sin red | Estado `updated` |
-| Push edición | Servidor actualizado y nueva versión local |
-| Eliminar sin red | Registro queda como tombstone |
-| Push eliminación | Servidor inactivo y tombstone retirado |
-| Edición concurrente | Conflicto visible |
-| Usar servidor | Local coincide con servidor |
-| Conservar local | Servidor termina con versión local |
-| Repetir Push | No duplica datos |
+| Caso                | Resultado esperado                         |
+| ------------------- | ------------------------------------------ |
+| Pull inicial        | Registros presentes localmente             |
+| Crear sin red       | UUID válido, ID negativo, estado `created` |
+| Reiniciar app       | Registro local persiste                    |
+| Push alta           | ID positivo y estado `synced`              |
+| Editar sin red      | Estado `updated`                           |
+| Push edición        | Servidor actualizado y nueva versión local |
+| Eliminar sin red    | Registro queda como tombstone              |
+| Push eliminación    | Servidor inactivo y tombstone retirado     |
+| Edición concurrente | Conflicto visible                          |
+| Usar servidor       | Local coincide con servidor                |
+| Conservar local     | Servidor termina con versión local         |
+| Repetir Push        | No duplica datos                           |
 
 ## Agregar relaciones offline
 

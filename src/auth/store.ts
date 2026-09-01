@@ -61,7 +61,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       const Session = await login(user, password);
       set({ Session, IsAuthenticated: true, IsLoading: false });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'No se pudo iniciar sesión.';
+      const message =
+        error instanceof Error ? error.message : 'No se pudo iniciar sesión.';
       set({ Error: message, IsLoading: false });
       throw error;
     }

@@ -5,7 +5,10 @@ import * as React from 'react';
 import { Platform, Text as RNText } from 'react-native';
 
 const textVariants = cva(
-  cn('font-poppins text-foreground text-base', Platform.select({ web: 'select-text' })),
+  cn(
+    'font-poppins text-foreground text-base',
+    Platform.select({ web: 'select-text' }),
+  ),
   {
     variants: {
       variant: {

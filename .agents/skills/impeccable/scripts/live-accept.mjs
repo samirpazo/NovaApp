@@ -16,7 +16,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { isGeneratedFile } from './is-generated.mjs';
-import { readBuffer as readManualEditsBuffer, writeBuffer as writeManualEditsBuffer } from './live-manual-edits-buffer.mjs';
+import {
+  readBuffer as readManualEditsBuffer,
+  writeBuffer as writeManualEditsBuffer,
+} from './live-manual-edits-buffer.mjs';
 
 const EXTENSIONS = ['.html', '.jsx', '.tsx', '.vue', '.svelte', '.astro'];
 
@@ -53,19 +56,33 @@ Output (JSON):
   const pageUrl = argVal(args, '--page-url');
   const isDiscard = args.includes('--discard');
 
-  if (!id) { console.error('Missing --id'); process.exit(1); }
-  if (!isDiscard && !variantNum) { console.error('Need --discard or --variant N'); process.exit(1); }
+  if (!id) {
+    console.error('Missing --id');
+    process.exit(1);
+  }
+  if (!isDiscard && !variantNum) {
+    console.error('Need --discard or --variant N');
+    process.exit(1);
+  }
 
   let paramValues = null;
   if (paramValuesRaw) {
-    try { paramValues = JSON.parse(paramValuesRaw); }
-    catch { paramValues = null; } // malformed blob: skip the comment rather than failing the accept
+    try {
+      paramValues = JSON.parse(paramValuesRaw);
+    } catch {
+      paramValues = null;
+    } // malformed blob: skip the comment rather than failing the accept
   }
 
   // Find the file containing this session's markers
   const found = findSessionFile(id, process.cwd());
   if (!found) {
-    console.log(JSON.stringify({ handled: false, error: 'Session markers not found for id: ' + id }));
+    console.log(
+      JSON.stringify({
+        handled: false,
+        error: 'Session markers not found for id: ' + id,
+      }),
+    );
     process.exit(0);
   }
 
@@ -77,18 +94,27 @@ Output (JSON):
   // accepted variant to true source (or cleaning up on discard). See
   // "Handle fallback" in live.md.
   if (isGeneratedFile(targetFile, { cwd: process.cwd() })) {
-    console.log(JSON.stringify({
-      handled: false,
-      mode: 'fallback',
-      file: relFile,
-      hint: 'Session is in a generated file. Persist the accepted variant in source; do not rely on this script.',
-    }));
+    console.log(
+      JSON.stringify({
+        handled: false,
+        mode: 'fallback',
+        file: relFile,
+        hint: 'Session is in a generated file. Persist the accepted variant in source; do not rely on this script.',
+      }),
+    );
     process.exit(0);
   }
 
   if (isDiscard) {
     const result = handleDiscard(id, lines, targetFile);
-    console.log(JSON.stringify({ handled: true, file: relFile, carbonize: false, ...result }));
+    console.log(
+      JSON.stringify({
+        handled: true,
+        file: relFile,
+        carbonize: false,
+        ...result,
+      }),
+    );
   } else {
     const result = handleAccept(id, variantNum, lines, targetFile, paramValues);
     const acceptedOriginalText = result.acceptedOriginalText || '';
@@ -97,14 +123,21 @@ Output (JSON):
     // five-step checklist lives in reference/live.md (loaded once per
     // session); repeating it per-event would waste tokens.
     if (result.carbonize) {
-      result.todo = 'REQUIRED before next poll: carbonize cleanup in ' + relFile + '. See reference/live.md "Required after accept".';
+      result.todo =
+        'REQUIRED before next poll: carbonize cleanup in ' +
+        relFile +
+        '. See reference/live.md "Required after accept".';
     }
     // Scrub stash entries whose text appeared inside the just-replaced
     // original wrap block. The accept embodies those manual edits (wrap was
     // buffer-aware), so only those scoped ops are redundant.
     if (result.handled !== false) {
       try {
-        scrubManualEditsAgainstOriginalBlock(acceptedOriginalText, process.cwd(), pageUrl);
+        scrubManualEditsAgainstOriginalBlock(
+          acceptedOriginalText,
+          process.cwd(),
+          pageUrl,
+        );
       } catch {
         // Non-fatal; the buffer stays as-is and the user can discard later.
       }
@@ -122,7 +155,11 @@ Output (JSON):
  * Match both originalText and newText because live-wrap rewrites the original
  * preview block to reflect pending manual edits before variants are generated.
  */
-function scrubManualEditsAgainstOriginalBlock(originalBlockText, cwd = process.cwd(), pageUrl = null) {
+function scrubManualEditsAgainstOriginalBlock(
+  originalBlockText,
+  cwd = process.cwd(),
+  pageUrl = null,
+) {
   const originalBlock = String(originalBlockText || '');
   if (!originalBlock) return;
   if (!pageUrl) return;
@@ -142,15 +179,20 @@ function scrubManualEditsAgainstOriginalBlock(originalBlockText, cwd = process.c
 }
 
 function manualEditOpAppearsInBlock(op, originalBlock) {
-  const candidates = [op?.newText, op?.originalText]
-    .filter((text) => typeof text === 'string' && text.length > 0);
-  return candidates.some((text) => originalBlockHasExactManualText(originalBlock, text));
+  const candidates = [op?.newText, op?.originalText].filter(
+    (text) => typeof text === 'string' && text.length > 0,
+  );
+  return candidates.some((text) =>
+    originalBlockHasExactManualText(originalBlock, text),
+  );
 }
 
 function originalBlockHasExactManualText(originalBlock, text) {
   const needle = normalizeManualEditText(text);
   if (!needle) return false;
-  return manualEditTextSegments(originalBlock).some((segment) => segment === needle);
+  return manualEditTextSegments(originalBlock).some(
+    (segment) => segment === needle,
+  );
 }
 
 function manualEditTextSegments(source) {
@@ -164,12 +206,19 @@ function manualEditTextSegments(source) {
 }
 
 function normalizeManualEditText(text) {
-  return String(text || '').replace(/\s+/g, ' ').trim();
+  return String(text || '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 // Compatibility export for older tests/callers. The unsafe file-wide scrub was
 // removed; callers must pass accepted original-block text for scoped cleanup.
-function scrubManualEditsAgainstFile(_targetFile, cwd = process.cwd(), originalBlockText = '', pageUrl = null) {
+function scrubManualEditsAgainstFile(
+  _targetFile,
+  cwd = process.cwd(),
+  originalBlockText = '',
+  pageUrl = null,
+) {
   return scrubManualEditsAgainstOriginalBlock(originalBlockText, cwd, pageUrl);
 }
 
@@ -222,7 +271,8 @@ function handleAccept(id, variantNum, lines, targetFile, paramValues) {
 
   // Extract the chosen variant's inner content
   const variantContent = extractVariant(lines, block, variantNum);
-  if (!variantContent) return { handled: false, error: 'Variant ' + variantNum + ' not found' };
+  if (!variantContent)
+    return { handled: false, error: 'Variant ' + variantNum + ' not found' };
   const originalContent = extractOriginal(lines, block);
 
   // Extract CSS block if present
@@ -240,10 +290,19 @@ function handleAccept(id, variantNum, lines, targetFile, paramValues) {
   const replacement = [];
 
   if (cssContent) {
-    replacement.push(indent + commentSyntax.open + ' impeccable-carbonize-start ' + id + ' ' + commentSyntax.close);
+    replacement.push(
+      indent +
+        commentSyntax.open +
+        ' impeccable-carbonize-start ' +
+        id +
+        ' ' +
+        commentSyntax.close,
+    );
     // JSX targets need the CSS body wrapped in a template literal so that the
     // `{` and `}` in CSS rules don't get parsed as JSX expressions.
-    replacement.push(indent + '<style data-impeccable-css="' + id + '">' + (isJsx ? '{`' : ''));
+    replacement.push(
+      indent + '<style data-impeccable-css="' + id + '">' + (isJsx ? '{`' : ''),
+    );
     // Re-indent CSS content to match
     for (const cssLine of cssContent) {
       replacement.push(indent + cssLine.trimStart());
@@ -252,9 +311,25 @@ function handleAccept(id, variantNum, lines, targetFile, paramValues) {
     if (paramValues && Object.keys(paramValues).length > 0) {
       // Preserve the user's knob positions for the carbonize-cleanup agent
       // to bake into the final CSS when it collapses scoped rules.
-      replacement.push(indent + commentSyntax.open + ' impeccable-param-values ' + id + ': ' + JSON.stringify(paramValues) + ' ' + commentSyntax.close);
+      replacement.push(
+        indent +
+          commentSyntax.open +
+          ' impeccable-param-values ' +
+          id +
+          ': ' +
+          JSON.stringify(paramValues) +
+          ' ' +
+          commentSyntax.close,
+      );
     }
-    replacement.push(indent + commentSyntax.open + ' impeccable-carbonize-end ' + id + ' ' + commentSyntax.close);
+    replacement.push(
+      indent +
+        commentSyntax.open +
+        ' impeccable-carbonize-end ' +
+        id +
+        ' ' +
+        commentSyntax.close,
+    );
   }
 
   // Keep the `@scope ([data-impeccable-variant="N"])` selectors in the
@@ -267,8 +342,17 @@ function handleAccept(id, variantNum, lines, targetFile, paramValues) {
   // need the object form, otherwise React 19 throws "Failed to set indexed
   // property [0] on CSSStyleDeclaration" while parsing the string char-by-char.
   if (cssContent) {
-    const styleAttr = isJsx ? "style={{ display: 'contents' }}" : 'style="display: contents"';
-    replacement.push(indent + '<div data-impeccable-variant="' + variantNum + '" ' + styleAttr + '>');
+    const styleAttr = isJsx
+      ? "style={{ display: 'contents' }}"
+      : 'style="display: contents"';
+    replacement.push(
+      indent +
+        '<div data-impeccable-variant="' +
+        variantNum +
+        '" ' +
+        styleAttr +
+        '>',
+    );
     replacement.push(...restored);
     replacement.push(indent + '</div>');
   } else {
@@ -282,7 +366,10 @@ function handleAccept(id, variantNum, lines, targetFile, paramValues) {
   ];
   fs.writeFileSync(targetFile, newLines.join('\n'), 'utf-8');
 
-  return { carbonize: needsCarbonize, acceptedOriginalText: originalContent.join('\n') };
+  return {
+    carbonize: needsCarbonize,
+    acceptedOriginalText: originalContent.join('\n'),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -301,10 +388,13 @@ function findMarkerBlock(id, lines) {
 
   for (let i = 0; i < lines.length; i++) {
     if (start === -1 && lines[i].includes(startPattern)) start = i;
-    if (lines[i].includes(endPattern)) { end = i; break; }
+    if (lines[i].includes(endPattern)) {
+      end = i;
+      break;
+    }
   }
 
-  return (start !== -1 && end !== -1) ? { start, end, id } : null;
+  return start !== -1 && end !== -1 ? { start, end, id } : null;
 }
 
 /**
@@ -335,7 +425,11 @@ function expandReplaceRange(block, lines, isJsx) {
     if (isVariantEndMarkerLine(lines[i], block.id)) break;
     if (hasVariantWrapperAttr(lines[i], block.id)) {
       let opener = i;
-      while (opener > 0 && !/<div\b/.test(lines[opener]) && !isVariantEndMarkerLine(lines[opener], block.id)) {
+      while (
+        opener > 0 &&
+        !/<div\b/.test(lines[opener]) &&
+        !isVariantEndMarkerLine(lines[opener], block.id)
+      ) {
         opener--;
       }
       if (/<div\b/.test(lines[opener])) start = opener;
@@ -364,7 +458,8 @@ function expandReplaceRange(block, lines, isJsx) {
     else if (!isSelfClose) depth++;
     if (depth <= 0) {
       // m.index is offset within `joined`; convert back to a file line.
-      const linesBefore = joined.slice(0, m.index + m[0].length).split('\n').length - 1;
+      const linesBefore =
+        joined.slice(0, m.index + m[0].length).split('\n').length - 1;
       const candidateEnd = start + linesBefore;
       if (candidateEnd >= end) {
         end = candidateEnd;
@@ -381,12 +476,16 @@ function escapeRegExp(value) {
 }
 
 function isVariantEndMarkerLine(line, id) {
-  return new RegExp('impeccable-variants-end\\s+' + escapeRegExp(id) + '(?:\\s|--|\\*/|$)').test(line);
+  return new RegExp(
+    'impeccable-variants-end\\s+' + escapeRegExp(id) + '(?:\\s|--|\\*/|$)',
+  ).test(line);
 }
 
 function hasVariantWrapperAttr(line, id) {
   const escaped = escapeRegExp(id);
-  return new RegExp(`data-impeccable-variants\\s*=\\s*(?:"${escaped}"|'${escaped}'|\\{["']${escaped}["']\\})`).test(line);
+  return new RegExp(
+    `data-impeccable-variants\\s*=\\s*(?:"${escaped}"|'${escaped}'|\\{["']${escaped}["']\\})`,
+  ).test(line);
 }
 
 /**
@@ -439,7 +538,9 @@ function stripStyleAndJoin(lines, block) {
  * Returns the inner string (may be empty), or null if not found.
  */
 function extractInnerByAttr(text, attrMatch) {
-  const openerRe = new RegExp('<([A-Za-z][A-Za-z0-9]*)\\b[^>]*' + attrMatch + '[^>]*>');
+  const openerRe = new RegExp(
+    '<([A-Za-z][A-Za-z0-9]*)\\b[^>]*' + attrMatch + '[^>]*>',
+  );
   const openMatch = text.match(openerRe);
   if (!openMatch) return null;
 
@@ -483,12 +584,16 @@ function extractOriginal(lines, block) {
  */
 function extractVariant(lines, block, variantNum) {
   const text = stripStyleAndJoin(lines, block);
-  const inner = extractInnerByAttr(text, 'data-impeccable-variant="' + variantNum + '"');
+  const inner = extractInnerByAttr(
+    text,
+    'data-impeccable-variant="' + variantNum + '"',
+  );
   if (inner === null) return null;
   const result = inner.split('\n');
   // Collapse a lone empty leading/trailing line (common after string splice).
   while (result.length > 1 && result[0].trim() === '') result.shift();
-  while (result.length > 1 && result[result.length - 1].trim() === '') result.pop();
+  while (result.length > 1 && result[result.length - 1].trim() === '')
+    result.pop();
   return result.length > 0 ? result : null;
 }
 
@@ -605,7 +710,7 @@ function deindentContent(contentLines, baseIndent) {
   if (minIndent === Infinity) minIndent = 0;
 
   // Strip the extra indentation and re-add base indent
-  return contentLines.map(line => {
+  return contentLines.map((line) => {
     if (line.trim() === '') return '';
     return baseIndent + line.slice(minIndent);
   });
@@ -625,7 +730,16 @@ function detectCommentSyntax(filePath) {
 
 function findSessionFile(id, cwd) {
   const marker = 'impeccable-variants-start ' + id;
-  const searchDirs = ['src', 'app', 'pages', 'components', 'public', 'views', 'templates', '.'];
+  const searchDirs = [
+    'src',
+    'app',
+    'pages',
+    'components',
+    'public',
+    'views',
+    'templates',
+    '.',
+  ];
   const seen = new Set();
 
   for (const dir of searchDirs) {
@@ -643,13 +757,20 @@ function findSessionFile(id, cwd) {
 function searchDir(dir, query, seen, depth) {
   if (depth > 5) return null;
   let realDir;
-  try { realDir = fs.realpathSync(dir); } catch { return null; }
+  try {
+    realDir = fs.realpathSync(dir);
+  } catch {
+    return null;
+  }
   if (seen.has(realDir)) return null;
   seen.add(realDir);
 
   let entries;
-  try { entries = fs.readdirSync(dir, { withFileTypes: true }); }
-  catch { return null; }
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return null;
+  }
 
   for (const entry of entries) {
     if (!entry.isFile()) continue;
@@ -658,13 +779,21 @@ function searchDir(dir, query, seen, depth) {
     try {
       const content = fs.readFileSync(filePath, 'utf-8');
       if (content.includes(query)) return filePath;
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
   }
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    if (['node_modules', '.git', 'dist', 'build'].includes(entry.name)) continue;
-    const result = searchDir(path.join(dir, entry.name), query, seen, depth + 1);
+    if (['node_modules', '.git', 'dist', 'build'].includes(entry.name))
+      continue;
+    const result = searchDir(
+      path.join(dir, entry.name),
+      query,
+      seen,
+      depth + 1,
+    );
     if (result) return result;
   }
 
@@ -682,8 +811,20 @@ function argVal(args, flag) {
 
 // Auto-execute when run directly
 const _running = process.argv[1];
-if (_running?.endsWith('live-accept.mjs') || _running?.endsWith('live-accept.mjs/')) {
+if (
+  _running?.endsWith('live-accept.mjs') ||
+  _running?.endsWith('live-accept.mjs/')
+) {
   acceptCli();
 }
 
-export { findMarkerBlock, extractOriginal, extractVariant, extractCss, deindentContent, detectCommentSyntax, scrubManualEditsAgainstFile, scrubManualEditsAgainstOriginalBlock };
+export {
+  findMarkerBlock,
+  extractOriginal,
+  extractVariant,
+  extractCss,
+  deindentContent,
+  detectCommentSyntax,
+  scrubManualEditsAgainstFile,
+  scrubManualEditsAgainstOriginalBlock,
+};

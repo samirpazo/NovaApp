@@ -1,4 +1,6 @@
-import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { DateTime } from 'luxon';
 import { Calendar, X } from 'lucide-react-native';
 import * as React from 'react';
@@ -25,9 +27,15 @@ export interface NDateProps {
   containerClassName?: string;
 }
 
-const parseValue = (value: string | null | undefined, mode: NDateProps['mode']) => {
+const parseValue = (
+  value: string | null | undefined,
+  mode: NDateProps['mode'],
+) => {
   if (!value) return DateTime.now();
-  const parsed = mode === 'time' ? DateTime.fromFormat(value, 'HH:mm:ss') : DateTime.fromISO(value, { setZone: true });
+  const parsed =
+    mode === 'time'
+      ? DateTime.fromFormat(value, 'HH:mm:ss')
+      : DateTime.fromISO(value, { setZone: true });
   return parsed.isValid ? parsed : DateTime.now();
 };
 
@@ -48,13 +56,18 @@ export function NDate({
   containerClassName,
 }: NDateProps) {
   const controlled = value !== undefined;
-  const [internalValue, setInternalValue] = React.useState<string | null>(defaultValue);
-  const [pickerMode, setPickerMode] = React.useState<'date' | 'time' | null>(null);
+  const [internalValue, setInternalValue] = React.useState<string | null>(
+    defaultValue,
+  );
+  const [pickerMode, setPickerMode] = React.useState<'date' | 'time' | null>(
+    null,
+  );
   const activeValue = controlled ? value : internalValue;
   const selectedDate = parseValue(activeValue, mode);
 
   const emit = (date: DateTime) => {
-    const next = mode === 'time' ? date.toFormat('HH:mm:ss') : date.toISO() ?? '';
+    const next =
+      mode === 'time' ? date.toFormat('HH:mm:ss') : (date.toISO() ?? '');
     if (!controlled) setInternalValue(next);
     onChange?.(next);
   };
@@ -74,15 +87,38 @@ export function NDate({
     : placeholder;
 
   return (
-    <NField label={label} required={required} errorMessage={errorMessage} hint={hint} disabled={disabled} className={containerClassName}>
+    <NField
+      label={label}
+      required={required}
+      errorMessage={errorMessage}
+      hint={hint}
+      disabled={disabled}
+      className={containerClassName}
+    >
       <Pressable
         accessibilityLabel={label}
         accessibilityRole="button"
         disabled={disabled}
         onPress={() => setPickerMode(mode === 'time' ? 'time' : 'date')}
-        className={cn('h-10 flex-row items-center rounded-md border border-input bg-background px-3', errorMessage && 'border-destructive', disabled && 'opacity-50')}>
-        <Calendar size={18} className="mr-2 text-muted-foreground" />
-        <Text numberOfLines={1} className={cn('flex-1 text-sm', !activeValue && 'text-muted-foreground')}>{display}</Text>
+        className={cn(
+          'h-10 flex-row items-center rounded-md border border-input bg-background px-3',
+          errorMessage && 'border-destructive',
+          disabled && 'opacity-50',
+        )}
+      >
+        <Calendar
+          size={18}
+          className="mr-2 text-muted-foreground"
+        />
+        <Text
+          numberOfLines={1}
+          className={cn(
+            'flex-1 text-sm',
+            !activeValue && 'text-muted-foreground',
+          )}
+        >
+          {display}
+        </Text>
         {clearable && activeValue ? (
           <Pressable
             accessibilityLabel={`Limpiar ${label ?? 'fecha'}`}
@@ -91,23 +127,40 @@ export function NDate({
               event.stopPropagation();
               if (!controlled) setInternalValue(null);
               onChange?.('');
-            }}>
-            <X size={17} className="text-muted-foreground" />
+            }}
+          >
+            <X
+              size={17}
+              className="text-muted-foreground"
+            />
           </Pressable>
         ) : null}
       </Pressable>
       {pickerMode ? (
-        <View className={Platform.OS === 'ios' ? 'rounded-md border border-border bg-background p-2' : undefined}>
+        <View
+          className={
+            Platform.OS === 'ios'
+              ? 'rounded-md border border-border bg-background p-2'
+              : undefined
+          }
+        >
           <DateTimePicker
             value={selectedDate.toJSDate()}
             mode={pickerMode}
             display={Platform.OS === 'ios' ? 'compact' : 'default'}
-            minimumDate={minDate ? parseValue(minDate, mode).toJSDate() : undefined}
-            maximumDate={maxDate ? parseValue(maxDate, mode).toJSDate() : undefined}
+            minimumDate={
+              minDate ? parseValue(minDate, mode).toJSDate() : undefined
+            }
+            maximumDate={
+              maxDate ? parseValue(maxDate, mode).toJSDate() : undefined
+            }
             onChange={handleChange}
           />
           {Platform.OS === 'ios' ? (
-            <Pressable onPress={() => setPickerMode(null)} className="self-end px-3 py-2">
+            <Pressable
+              onPress={() => setPickerMode(null)}
+              className="self-end px-3 py-2"
+            >
               <Text className="text-sm font-semibold text-primary">Listo</Text>
             </Pressable>
           ) : null}

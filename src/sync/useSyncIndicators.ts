@@ -11,7 +11,11 @@ function countLocalChanges(
   changes: Awaited<ReturnType<typeof fetchLocalChanges>>['changes'],
 ): number {
   return (Object.values(changes) as SyncTableChangeSet[]).reduce(
-    (total, table) => total + table.created.length + table.updated.length + table.deleted.length,
+    (total, table) =>
+      total +
+      table.created.length +
+      table.updated.length +
+      table.deleted.length,
     0,
   );
 }

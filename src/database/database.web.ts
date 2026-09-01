@@ -11,7 +11,8 @@ const adapter = new LokiJSAdapter({
   migrations: databaseMigrations,
   useWebWorker: false,
   useIncrementalIndexedDB: true,
-  onSetUpError: (error) => console.error('No se pudo inicializar WatermelonDB.', error),
+  onSetUpError: (error) =>
+    console.error('No se pudo inicializar WatermelonDB.', error),
 });
 
 export const database = new Database({ adapter, modelClasses: databaseModels });

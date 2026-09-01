@@ -1,4 +1,7 @@
-import { addColumns, schemaMigrations } from '@nozbe/watermelondb/Schema/migrations';
+import {
+  addColumns,
+  schemaMigrations,
+} from '@nozbe/watermelondb/Schema/migrations';
 
 export const databaseMigrations = schemaMigrations({
   migrations: [
@@ -7,7 +10,9 @@ export const databaseMigrations = schemaMigrations({
       steps: [
         addColumns({
           table: 'GenDefinitionDetail',
-          columns: [{ name: 'DedImageFilID', type: 'number', isOptional: true }],
+          columns: [
+            { name: 'DedImageFilID', type: 'number', isOptional: true },
+          ],
         }),
       ],
     },

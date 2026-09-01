@@ -4,7 +4,10 @@ export type CurrencyDisplay = 'symbol' | 'code' | 'name' | 'narrowSymbol';
 export type DateValue = DateTime | Date | string | null | undefined;
 export type NumberValue = number | string | null | undefined;
 
-const penFormatter = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
+const penFormatter = new Intl.NumberFormat('es-PE', {
+  style: 'currency',
+  currency: 'PEN',
+});
 const decimalFormatter = new Intl.NumberFormat('es-PE', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -17,12 +20,22 @@ const percentFormatter = new Intl.NumberFormat('es-PE', {
 
 const formatterCache = new Map<string, Intl.NumberFormat>();
 
-function getFormatter(locale: string, options: Intl.NumberFormatOptions): Intl.NumberFormat {
+function getFormatter(
+  locale: string,
+  options: Intl.NumberFormatOptions,
+): Intl.NumberFormat {
   if (locale === 'es-PE') {
-    if (options.style === 'currency' && options.currency === 'PEN' && !options.currencyDisplay) {
+    if (
+      options.style === 'currency' &&
+      options.currency === 'PEN' &&
+      !options.currencyDisplay
+    ) {
       return penFormatter;
     }
-    if (options.minimumFractionDigits === 2 && options.maximumFractionDigits === 2) {
+    if (
+      options.minimumFractionDigits === 2 &&
+      options.maximumFractionDigits === 2
+    ) {
       if (!options.style) return decimalFormatter;
       if (options.style === 'percent') return percentFormatter;
     }
@@ -38,16 +51,20 @@ function getFormatter(locale: string, options: Intl.NumberFormatOptions): Intl.N
 }
 
 function normalizeUtc(value: string, fromUtc: boolean): string {
+  const normalized =
+    value.includes(' ') && !value.includes('T')
+      ? value.replace(' ', 'T')
+      : value;
   if (
     fromUtc &&
-    !value.endsWith('Z') &&
-    !value.includes('+') &&
-    value.split('T').length === 2 &&
-    !value.split('T')[1].includes('-')
+    !normalized.endsWith('Z') &&
+    !normalized.includes('+') &&
+    normalized.split('T').length === 2 &&
+    !normalized.split('T')[1].includes('-')
   ) {
-    return `${value}Z`;
+    return `${normalized}Z`;
   }
-  return value;
+  return normalized;
 }
 
 function asDateTime(value: DateValue, fromUtc: boolean): DateTime | null {
@@ -61,7 +78,10 @@ function asDateTime(value: DateValue, fromUtc: boolean): DateTime | null {
 }
 
 function asNumber(value: NumberValue): number | null {
-  const number = typeof value === 'number' ? value : Number.parseFloat(value?.toString() || '0');
+  const number =
+    typeof value === 'number'
+      ? value
+      : Number.parseFloat(value?.toString() || '0');
   return Number.isNaN(number) ? null : number;
 }
 
@@ -70,7 +90,11 @@ export const formatters = {
     return asDateTime(value, fromUtc)?.toFormat(format) ?? '-';
   },
 
-  datetime(value: DateValue, format = 'dd/MM/yyyy HH:mm', fromUtc = true): string {
+  datetime(
+    value: DateValue,
+    format = 'dd/MM/yyyy HH:mm',
+    fromUtc = true,
+  ): string {
     return asDateTime(value, fromUtc)?.toFormat(format) ?? '-';
   },
 
@@ -97,8 +121,10 @@ export const formatters = {
         }).format(number);
 
         if (display === 'name') {
-          return formatted.replace(/[a-záéíóúñ]+/gi, (word) =>
-            `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`,
+          return formatted.replace(
+            /[a-záéíóúñ]+/gi,
+            (word) =>
+              `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`,
           );
         }
         return formatted;
@@ -117,7 +143,10 @@ export const formatters = {
   number(value: NumberValue, locale = 'es-PE'): string {
     const number = asNumber(value);
     if (number === null) return '-';
-    return getFormatter(locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(number);
+    return getFormatter(locale, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(number);
   },
 
   decimal(value: NumberValue, decimals = 2, locale = 'es-PE'): string {

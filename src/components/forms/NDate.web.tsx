@@ -6,12 +6,17 @@ import { Pressable, View } from 'react-native';
 import { NField } from '@/components/forms/NField';
 import type { NDateProps } from '@/components/forms/NDate';
 
-const toInputValue = (value: string | null | undefined, mode: NDateProps['mode']) => {
+const toInputValue = (
+  value: string | null | undefined,
+  mode: NDateProps['mode'],
+) => {
   if (!value) return '';
   if (mode === 'time') return value.slice(0, 5);
   const date = DateTime.fromISO(value, { setZone: true });
   if (!date.isValid) return '';
-  return mode === 'datetime' ? date.toFormat("yyyy-LL-dd'T'HH:mm") : date.toFormat('yyyy-LL-dd');
+  return mode === 'datetime'
+    ? date.toFormat("yyyy-LL-dd'T'HH:mm")
+    : date.toFormat('yyyy-LL-dd');
 };
 
 export function NDate({
@@ -31,20 +36,30 @@ export function NDate({
   containerClassName,
 }: NDateProps) {
   const controlled = value !== undefined;
-  const [internalValue, setInternalValue] = React.useState<string | null>(defaultValue);
+  const [internalValue, setInternalValue] = React.useState<string | null>(
+    defaultValue,
+  );
   const activeValue = controlled ? value : internalValue;
   const inputType = mode === 'datetime' ? 'datetime-local' : mode;
 
   const emit = (inputValue: string) => {
     let next = inputValue;
     if (inputValue && mode === 'time') next = `${inputValue}:00`;
-    if (inputValue && mode !== 'time') next = DateTime.fromISO(inputValue).toISO() ?? '';
+    if (inputValue && mode !== 'time')
+      next = DateTime.fromISO(inputValue).toISO() ?? '';
     if (!controlled) setInternalValue(next || null);
     onChange?.(next);
   };
 
   return (
-    <NField label={label} required={required} errorMessage={errorMessage} hint={hint} disabled={disabled} className={containerClassName}>
+    <NField
+      label={label}
+      required={required}
+      errorMessage={errorMessage}
+      hint={hint}
+      disabled={disabled}
+      className={containerClassName}
+    >
       <View className="relative justify-center">
         {React.createElement('input', {
           'aria-invalid': Boolean(errorMessage),
@@ -52,7 +67,8 @@ export function NDate({
           disabled,
           max: toInputValue(maxDate, mode),
           min: toInputValue(minDate, mode),
-          onChange: (event: React.ChangeEvent<HTMLInputElement>) => emit(event.target.value),
+          onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
+            emit(event.target.value),
           placeholder,
           required,
           style: {
@@ -72,8 +88,15 @@ export function NDate({
           value: toInputValue(activeValue, mode),
         })}
         {clearable && activeValue && !disabled ? (
-          <Pressable accessibilityLabel={`Limpiar ${label ?? 'fecha'}`} className="absolute right-0 h-10 w-10 items-center justify-center" onPress={() => emit('')}>
-            <X size={17} className="text-muted-foreground" />
+          <Pressable
+            accessibilityLabel={`Limpiar ${label ?? 'fecha'}`}
+            className="absolute right-0 h-10 w-10 items-center justify-center"
+            onPress={() => emit('')}
+          >
+            <X
+              size={17}
+              className="text-muted-foreground"
+            />
           </Pressable>
         ) : null}
       </View>
