@@ -91,11 +91,9 @@ const applyFields = inputFields
   .join('\n');
 
 const files = {
-  'types.ts': `import type { SyncStatus } from '@nozbe/watermelondb/Model';
+  'types.ts': `import type { NCrudRow } from '@/components/crud';
 
-export interface ${args.entity}ListItem {
-  id: string;
-  syncStatus: SyncStatus;
+export interface ${args.entity}ListItem extends NCrudRow {
 ${typeFields}
 }
 
@@ -193,9 +191,15 @@ export const ${args.feature}Service = {
       apply(record, input);
     }));
   },
-  async remove(LocalId: string): Promise<void> {
+  async remove(LocalId: string, UserId: number): Promise<void> {
     const model = await ${args.feature}Queries.find(LocalId);
-    await database.write(() => model.markAsDeleted());
+    await database.write(async () => {
+      await model.update((record) => {
+        record.DeleteUserId = UserId;
+        record.DeleteDate = new Date().toISOString();
+      });
+      await model.markAsDeleted();
+    });
   },
 };
 `,

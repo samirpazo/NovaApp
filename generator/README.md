@@ -22,8 +22,9 @@ El generador inspecciona los decoradores `@field` y `@text` del modelo para prod
 
 - `types.ts`;
 - `queries.ts` con datasource paginado;
-- `service.ts` de lectura/escritura o solo lectura;
+- `service.ts` de lectura/escritura o solo lectura; las altas y bajas incluyen auditoría local;
 - `index.ts`.
 
 Después de generar se deben añadir las validaciones funcionales del recurso y construir su pantalla.
+La pantalla debe entregar `dataSource` a `NCrud`; no debe observar toda la colección y pasar `rows`.
 No usar `--force` sobre archivos personalizados sin revisar primero el diff.

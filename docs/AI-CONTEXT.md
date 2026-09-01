@@ -91,6 +91,8 @@ una variante mayor por una razón concreta, como el login, pero no debe cambiar 
 16. Las consultas funcionales deben filtrar `SecStatus = true`. Los registros con eliminación
     lógica pueden conservarse localmente para sincronización, pero no deben aparecer en listados,
     selectores ni relaciones activas.
+17. Todo listado NCrud debe usar `NCrudDataSource`. No cargar una colección completa en estado React
+    para entregarla mediante `rows`; los selectores auxiliares sí pueden observar su propio catálogo.
 
 ## Estado de recursos
 

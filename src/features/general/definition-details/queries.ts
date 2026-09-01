@@ -1,5 +1,6 @@
 import { Q } from '@nozbe/watermelondb';
 
+import { createLocalCrudDataSource } from '@/components/crud';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import {
   database,
@@ -22,8 +23,8 @@ const toDefinitionOption = (
 const toListItem = (
   model: GenDefinitionDetailModel,
 ): GenDefinitionDetailListItem => ({
-  LocalId: model.id,
-  SyncStatus: model.syncStatus,
+  id: model.id,
+  syncStatus: model.syncStatus,
   DedID: model.DedID,
   DefID: model.DefID,
   DedCode: model.DedCode,
@@ -40,6 +41,57 @@ const toListItem = (
   DedImageFilID: model.DedImageFilID,
 });
 
+export interface GenDefinitionDetailFilter {
+  DefID: number | null;
+}
+
+export const genDefinitionDetailDataSource = createLocalCrudDataSource<
+  GenDefinitionDetailModel,
+  GenDefinitionDetailListItem,
+  GenDefinitionDetailFilter
+>({
+  collection: database.get<GenDefinitionDetailModel>(
+    SYNC_RESOURCES.GenDefinitionDetail,
+  ),
+  map: toListItem,
+  activeColumn: 'SecStatus',
+  buildFilter: ({ DefID }) =>
+    DefID == null ? [Q.where('DefID', Q.lt(0))] : [Q.where('DefID', DefID)],
+  searchableColumns: [
+    'DedDescription',
+    'DedAbbreviation',
+    'DedHelper',
+    'DedHelper2',
+  ],
+  sortableColumns: {
+    DedID: 'DedID',
+    DedValue: 'DedValue',
+    DedDescription: 'DedDescription',
+    DedAbbreviation: 'DedAbbreviation',
+    DedHelper: 'DedHelper',
+    DedHelper2: 'DedHelper2',
+    DedStated: 'DedStated',
+  },
+  observedColumns: [
+    'DedID',
+    'DefID',
+    'DedCode',
+    'DedValue',
+    'DedDescription',
+    'DedAbbreviation',
+    'DedFormat',
+    'DedGroup',
+    'DedHelper',
+    'DedHelper2',
+    'DedIcon',
+    'DedColor',
+    'DedStated',
+    'DedImageFilID',
+    'SecStatus',
+  ],
+  defaultOrder: { column: 'DedValue', direction: 'asc' },
+});
+
 export const genDefinitionDetailQueries = {
   observeDefinitions(
     onNext: (records: GenDefinitionOption[]) => void,
@@ -51,20 +103,6 @@ export const genDefinitionDetailQueries = {
       .observe()
       .subscribe({
         next: (records) => onNext(records.map(toDefinitionOption)),
-        error: onError,
-      });
-  },
-
-  observeActive(
-    onNext: (records: GenDefinitionDetailListItem[]) => void,
-    onError: (error: unknown) => void,
-  ) {
-    return database
-      .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
-      .query(Q.where('SecStatus', true), Q.sortBy('DedValue', Q.asc))
-      .observe()
-      .subscribe({
-        next: (records) => onNext(records.map(toListItem)),
         error: onError,
       });
   },
@@ -89,6 +127,14 @@ export const genDefinitionDetailQueries = {
       )
       .fetch();
     return records.some((record) => record.id !== excludeLocalId);
+  },
+
+  async nextValue(DefID: number): Promise<number> {
+    const records = await database
+      .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
+      .query(Q.where('SecStatus', true), Q.where('DefID', DefID))
+      .fetch();
+    return Math.max(0, ...records.map((record) => record.DedValue)) + 1;
   },
 
   async nextTemporaryId(): Promise<number> {

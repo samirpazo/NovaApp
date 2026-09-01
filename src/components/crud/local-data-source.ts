@@ -36,6 +36,17 @@ function searchClauses(columns: string[], searchText: string): Clause[] {
   ];
 }
 
+function columnSearchClauses(
+  allowedColumns: string[],
+  values: Record<string, string>,
+): Clause[] {
+  return Object.entries(values).flatMap(([column, searchText]) => {
+    if (!allowedColumns.includes(column)) return [];
+    const value = Q.sanitizeLikeString(searchText.trim());
+    return value ? [Q.where(column, Q.like(`%${value}%`))] : [];
+  });
+}
+
 function resultFor<T>(
   Data: T[],
   TotalCount: number,
@@ -67,6 +78,53 @@ export function createLocalCrudDataSource<
   config: LocalCrudDataSourceConfig<TModel, TRow, TFilter>,
 ): NCrudDataSource<TRow, TFilter> {
   return {
+    async fetch(request) {
+      const baseClauses: Clause[] = [
+        ...(config.activeColumn ? [Q.where(config.activeColumn, true)] : []),
+        ...searchClauses(config.searchableColumns ?? [], request.SearchText),
+        ...columnSearchClauses(
+          config.searchableColumns ?? [],
+          request.ColumnSearch,
+        ),
+        ...(config.buildFilter?.(request.Filter) ?? []),
+      ];
+      const TotalCount = await config.collection
+        .query(...baseClauses)
+        .fetchCount();
+      const requestedPage = Math.max(1, request.Page);
+      const TotalPages =
+        request.PageSize === -1
+          ? 1
+          : Math.max(1, Math.ceil(TotalCount / request.PageSize));
+      const Page = Math.min(requestedPage, TotalPages);
+      const selectedColumn = request.OrderBy
+        ? config.sortableColumns[request.OrderBy]
+        : undefined;
+      const order = selectedColumn
+        ? {
+            column: selectedColumn,
+            direction: request.SortOrder ?? 'asc',
+          }
+        : config.defaultOrder;
+      const records = await config.collection
+        .query(
+          ...baseClauses,
+          Q.sortBy(order.column, order.direction === 'desc' ? Q.desc : Q.asc),
+          ...(request.PageSize === -1
+            ? []
+            : [
+                Q.skip((Page - 1) * request.PageSize),
+                Q.take(request.PageSize),
+              ]),
+        )
+        .fetch();
+      return resultFor(
+        records.map(config.map),
+        TotalCount,
+        Page,
+        request.PageSize,
+      );
+    },
     observe(request, onNext, onError) {
       let rowsSubscription: { unsubscribe(): void } | null = null;
       let disposed = false;
@@ -74,6 +132,10 @@ export function createLocalCrudDataSource<
       const baseClauses: Clause[] = [
         ...(config.activeColumn ? [Q.where(config.activeColumn, true)] : []),
         ...searchClauses(config.searchableColumns ?? [], request.SearchText),
+        ...columnSearchClauses(
+          config.searchableColumns ?? [],
+          request.ColumnSearch,
+        ),
         ...(config.buildFilter?.(request.Filter) ?? []),
       ];
 

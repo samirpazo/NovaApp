@@ -1,32 +1,24 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Paperclip, Save } from 'lucide-react-native';
+import { ArrowLeft, Paperclip } from 'lucide-react-native';
 import * as React from 'react';
-import { Alert, Platform, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 
 import { useAuthStore } from '@/auth';
-import { NCrud, type NCrudColumn, type NCrudRow } from '@/components/crud';
-import { NFormPanel, NSelect, NSwitch, NText } from '@/components/forms';
+import { NCrud, type NCrudColumn } from '@/components/crud';
+import { NSelect, NSwitch, NText } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
+import { SYNC_RESOURCES } from '@/contracts/sync';
 import {
   genDefinitionDetailQueries,
+  genDefinitionDetailDataSource,
   genDefinitionDetailService,
   type GenDefinitionDetailListItem,
   type GenDefinitionOption,
 } from '@/features/general/definition-details';
 import { uploadManagedFile } from '@/lib/fileService';
-
-interface DetailRow extends NCrudRow {
-  DedID: number;
-  DedValue: number;
-  DedDescription: string;
-  DedAbbreviation: string | null;
-  DedHelper: string | null;
-  DedHelper2: string | null;
-  DedStated: number;
-}
 
 interface DetailDraft {
   DedValue: string;
@@ -58,12 +50,22 @@ const emptyDraft = (): DetailDraft => ({
   attachmentName: null,
 });
 
-const columns: NCrudColumn<DetailRow>[] = [
+const columns: NCrudColumn<GenDefinitionDetailListItem>[] = [
   { key: 'DedValue', title: 'Valor', width: 85, align: 'right' },
-  { key: 'DedDescription', title: 'Descripción', width: 280 },
-  { key: 'DedAbbreviation', title: 'Abreviatura', width: 130 },
-  { key: 'DedHelper', title: 'Aux. 1', width: 170 },
-  { key: 'DedHelper2', title: 'Aux. 2', width: 170 },
+  {
+    key: 'DedDescription',
+    title: 'Descripción',
+    width: 280,
+    searchable: true,
+  },
+  {
+    key: 'DedAbbreviation',
+    title: 'Abreviatura',
+    width: 130,
+    searchable: true,
+  },
+  { key: 'DedHelper', title: 'Aux. 1', width: 170, searchable: true },
+  { key: 'DedHelper2', title: 'Aux. 2', width: 170, searchable: true },
   {
     key: 'DedStated',
     title: 'Estado',
@@ -71,20 +73,6 @@ const columns: NCrudColumn<DetailRow>[] = [
     format: (row) => (row.DedStated === 1 ? 'Activo' : 'Inactivo'),
   },
 ];
-
-function toRow(model: GenDefinitionDetailListItem): DetailRow {
-  return {
-    id: model.LocalId,
-    syncStatus: model.SyncStatus,
-    DedID: model.DedID,
-    DedValue: model.DedValue,
-    DedDescription: model.DedDescription,
-    DedAbbreviation: model.DedAbbreviation,
-    DedHelper: model.DedHelper,
-    DedHelper2: model.DedHelper2,
-    DedStated: model.DedStated,
-  };
-}
 
 export default function DefinitionDetailsScreen() {
   const router = useRouter();
@@ -102,18 +90,13 @@ export default function DefinitionDetailsScreen() {
   const [definitions, setDefinitions] = React.useState<GenDefinitionOption[]>(
     [],
   );
-  const [details, setDetails] = React.useState<GenDefinitionDetailListItem[]>(
-    [],
-  );
   const [definitionId, setDefinitionId] = React.useState<number | null>(
     requestedDefinitionId,
   );
-  const [loading, setLoading] = React.useState(true);
-  const [formMode, setFormMode] = React.useState<'add' | 'edit' | null>(null);
   const [editing, setEditing] =
     React.useState<GenDefinitionDetailListItem | null>(null);
   const [draft, setDraft] = React.useState<DetailDraft>(emptyDraft);
-  const [saving, setSaving] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -123,7 +106,6 @@ export default function DefinitionDetailsScreen() {
           ? reason.message
           : 'No se pudieron leer los detalles locales.',
       );
-      setLoading(false);
     };
     const definitionSubscription =
       genDefinitionDetailQueries.observeDefinitions((records) => {
@@ -137,29 +119,13 @@ export default function DefinitionDetailsScreen() {
               : (records[0]?.DefID ?? null),
         );
       }, onError);
-    const detailSubscription = genDefinitionDetailQueries.observeActive(
-      (records) => {
-        setDetails(records);
-        setLoading(false);
-      },
-      onError,
-    );
     return () => {
       definitionSubscription.unsubscribe();
-      detailSubscription.unsubscribe();
     };
   }, [requestedDefinitionId]);
 
   const selectedDefinition =
     definitions.find((definition) => definition.DefID === definitionId) ?? null;
-  const currentDetails = React.useMemo(
-    () =>
-      details
-        .filter((detail) => detail.DefID === definitionId)
-        .sort((a, b) => a.DedValue - b.DedValue),
-    [definitionId, details],
-  );
-  const rows = React.useMemo(() => currentDetails.map(toRow), [currentDetails]);
   const definitionItems = React.useMemo(
     () =>
       definitions.map((definition) => ({
@@ -170,26 +136,22 @@ export default function DefinitionDetailsScreen() {
   );
 
   const closeForm = () => {
-    setFormMode(null);
     setEditing(null);
     setDraft(emptyDraft());
     setError(null);
   };
 
-  const beginAdd = () => {
+  const beginAdd = async () => {
     if (!selectedDefinition) return;
-    const nextValue =
-      Math.max(0, ...currentDetails.map((detail) => detail.DedValue)) + 1;
-    setFormMode('add');
+    const nextValue = await genDefinitionDetailQueries.nextValue(
+      selectedDefinition.DefID,
+    );
     setEditing(null);
     setDraft({ ...emptyDraft(), DedValue: String(nextValue) });
     setError(null);
   };
 
-  const beginEdit = (row: DetailRow) => {
-    const model = details.find((detail) => detail.LocalId === row.id);
-    if (!model) return;
-    setFormMode('edit');
+  const beginEdit = (model: GenDefinitionDetailListItem) => {
     setEditing(model);
     setDraft({
       DedValue: String(model.DedValue),
@@ -211,7 +173,7 @@ export default function DefinitionDetailsScreen() {
   };
 
   const selectAttachment = async () => {
-    setSaving(true);
+    setUploading(true);
     setError(null);
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -242,7 +204,7 @@ export default function DefinitionDetailsScreen() {
           : 'No se pudo cargar el archivo.',
       );
     } finally {
-      setSaving(false);
+      setUploading(false);
     }
   };
 
@@ -256,13 +218,12 @@ export default function DefinitionDetailsScreen() {
       !description
     ) {
       setError('Definición, valor y descripción son obligatorios.');
-      return;
+      return false;
     }
-    setSaving(true);
     setError(null);
     try {
       await genDefinitionDetailService.save({
-        LocalId: editing?.LocalId,
+        LocalId: editing?.id,
         Definition: selectedDefinition,
         DedValue: value,
         DedDescription: description,
@@ -277,39 +238,27 @@ export default function DefinitionDetailsScreen() {
         DedImageFilID: draft.DedImageFilID,
         UserId: userId,
       });
-      closeForm();
+      return true;
     } catch (reason) {
       setError(
         reason instanceof Error
           ? reason.message
           : 'No se pudo guardar el detalle local.',
       );
-    } finally {
-      setSaving(false);
+      return false;
     }
   };
 
-  const remove = async (row: DetailRow) => {
-    const execute = async () => {
-      try {
-        await genDefinitionDetailService.remove(row.id);
-      } catch (reason) {
-        setError(
-          reason instanceof Error
-            ? reason.message
-            : 'No se pudo eliminar el detalle local.',
-        );
-      }
-    };
-    if (Platform.OS === 'web') {
-      if (globalThis.confirm(`¿Eliminar el valor ${row.DedDescription}?`))
-        await execute();
-      return;
+  const remove = async (row: GenDefinitionDetailListItem) => {
+    try {
+      await genDefinitionDetailService.remove(row.id, userId);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : 'No se pudo eliminar el detalle local.',
+      );
     }
-    Alert.alert('Eliminar valor', `¿Eliminar el valor ${row.DedDescription}?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: execute },
-    ]);
   };
 
   return (
@@ -356,42 +305,32 @@ export default function DefinitionDetailsScreen() {
           </Text>
         ) : null}
         <NCrud
+          authorization={{ optCode: 'GEN_DEFINITIONS' }}
+          offline={{ resource: SYNC_RESOURCES.GenDefinitionDetail }}
           title={
             selectedDefinition
               ? `Valores: ${selectedDefinition.DefDescription}`
               : 'GenDefinitionDetail'
           }
-          form={
-            formMode ? (
-              <NFormPanel
-                title={editing ? 'Editar valor' : 'Nuevo valor'}
-                description={selectedDefinition?.DefCode}
-                onClose={closeForm}
-                footer={
-                  <>
-                    <NSwitch
-                      value={draft.active}
-                      onValueChange={(active) =>
-                        setDraft((state) => ({ ...state, active }))
-                      }
-                      label="Activo"
-                    />
-                    <Button
-                      className="h-8 px-3"
-                      disabled={saving}
-                      onPress={save}
-                    >
-                      <Save
-                        size={14}
-                        className="text-primary-foreground"
-                      />
-                      <Text className="text-xs">
-                        {saving ? 'Guardando...' : 'Guardar localmente'}
-                      </Text>
-                    </Button>
-                  </>
+          persistenceKey={`gen-definition-details-${definitionId ?? 'none'}`}
+          filter={{ DefID: definitionId }}
+          form={{
+            addTitle: 'Nuevo valor',
+            editTitle: 'Editar valor',
+            description: selectedDefinition?.DefCode,
+            onSubmit: save,
+            onClose: closeForm,
+            footer: () => (
+              <NSwitch
+                value={draft.active}
+                onValueChange={(active) =>
+                  setDraft((state) => ({ ...state, active }))
                 }
-              >
+                label="Activo"
+              />
+            ),
+            render: () => (
+              <>
                 <View className="gap-3 md:flex-row">
                   <NText
                     label="Descripción"
@@ -407,7 +346,7 @@ export default function DefinitionDetailsScreen() {
                     required
                     number
                     value={draft.DedValue}
-                    editable={formMode === 'edit'}
+                    editable={editing === null}
                     onChange={(DedValue) =>
                       setDraft((state) => ({ ...state, DedValue }))
                     }
@@ -427,7 +366,7 @@ export default function DefinitionDetailsScreen() {
                   <Button
                     variant="outline"
                     className="h-8 px-3"
-                    disabled={saving}
+                    disabled={uploading}
                     onPress={selectAttachment}
                   >
                     <Paperclip size={14} />
@@ -489,16 +428,19 @@ export default function DefinitionDetailsScreen() {
                     containerClassName="flex-1"
                   />
                 </View>
-              </NFormPanel>
-            ) : undefined
-          }
-          rows={rows}
+              </>
+            ),
+          }}
+          dataSource={genDefinitionDetailDataSource}
           columns={columns}
-          loading={loading}
           searchPlaceholder="Descripción, abreviatura o auxiliar"
-          searchText={(row) =>
-            `${row.DedValue} ${row.DedDescription} ${row.DedAbbreviation ?? ''} ${row.DedHelper ?? ''} ${row.DedHelper2 ?? ''}`
-          }
+          selectionMode="single"
+          toolbar={{
+            add: Boolean(selectedDefinition),
+            edit: true,
+            remove: true,
+            export: true,
+          }}
           onAdd={selectedDefinition ? beginAdd : undefined}
           onEdit={beginEdit}
           onDelete={remove}

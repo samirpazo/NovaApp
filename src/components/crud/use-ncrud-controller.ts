@@ -30,6 +30,7 @@ export function useNCrudController<
     Page: 1,
     PageSize: initialPageSize,
     SearchText: '',
+    ColumnSearch: {},
     OrderBy: null,
     SortOrder: null,
     Filter: initialFilter,
@@ -96,6 +97,40 @@ export function useNCrudController<
       setRequest((current) => ({ ...current, Page: 1, Filter })),
     [],
   );
+  const setColumnSearch = React.useCallback((column: string, value: string) => {
+    setRequest((current) => {
+      const ColumnSearch = { ...current.ColumnSearch };
+      if (value.trim()) ColumnSearch[column] = value;
+      else delete ColumnSearch[column];
+      return { ...current, Page: 1, ColumnSearch };
+    });
+  }, []);
+  const resetQuery = React.useCallback((Filter: TFilter) => {
+    setLiveSearchText('');
+    setRequest((current) => ({
+      ...current,
+      Page: 1,
+      SearchText: '',
+      ColumnSearch: {},
+      OrderBy: null,
+      SortOrder: null,
+      Filter,
+    }));
+  }, []);
+  const clearFilters = React.useCallback((Filter: TFilter) => {
+    setLiveSearchText('');
+    setRequest((current) => ({
+      ...current,
+      Page: 1,
+      SearchText: '',
+      ColumnSearch: {},
+      Filter,
+    }));
+  }, []);
+  const restoreRequest = React.useCallback((next: NCrudRequest<TFilter>) => {
+    setLiveSearchText(next.SearchText);
+    setRequest(next);
+  }, []);
 
   return {
     request,
@@ -108,5 +143,9 @@ export function useNCrudController<
     setPage,
     setPageSize,
     setFilter,
+    setColumnSearch,
+    resetQuery,
+    clearFilters,
+    restoreRequest,
   };
 }

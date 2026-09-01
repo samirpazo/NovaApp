@@ -1,28 +1,19 @@
-import { Save } from 'lucide-react-native';
 import * as React from 'react';
-import { Alert, Platform, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/auth';
-import { NCrud, type NCrudColumn, type NCrudRow } from '@/components/crud';
-import { NFormPanel, NSelect, NText } from '@/components/forms';
-import { Button } from '@/components/ui/button';
+import { NCrud, type NCrudColumn } from '@/components/crud';
+import { NSelect, NText } from '@/components/forms';
 import { Text } from '@/components/ui/text';
+import { SYNC_RESOURCES } from '@/contracts/sync';
 import {
   rstBranchQueries,
+  rstBranchDataSource,
   rstBranchService,
   type CurrencyOption,
   type RstBranchListItem,
 } from '@/features/restaurant/branches';
-
-interface BranchRow extends NCrudRow {
-  BrhID: number;
-  BrhName: string;
-  BrhAddress: string | null;
-  BrhPhone: string | null;
-  BrhEmail: string | null;
-  BrhManagerName: string | null;
-}
 
 interface BranchDraft {
   BrhName: string;
@@ -41,37 +32,26 @@ const emptyDraft = (): BranchDraft => ({
   BrhManagerName: '',
   BrhCurrencyDefID: null,
 });
-const columns: NCrudColumn<BranchRow>[] = [
+const columns: NCrudColumn<RstBranchListItem>[] = [
   { key: 'BrhID', title: 'ID', width: 70, align: 'right' },
-  { key: 'BrhName', title: 'Nombre', width: 220 },
-  { key: 'BrhAddress', title: 'Dirección', width: 280 },
-  { key: 'BrhPhone', title: 'Teléfono', width: 140 },
-  { key: 'BrhEmail', title: 'Email', width: 220 },
-  { key: 'BrhManagerName', title: 'Encargado', width: 200 },
+  { key: 'BrhName', title: 'Nombre', width: 220, searchable: true },
+  { key: 'BrhAddress', title: 'Dirección', width: 280, searchable: true },
+  { key: 'BrhPhone', title: 'Teléfono', width: 140, searchable: true },
+  { key: 'BrhEmail', title: 'Email', width: 220, searchable: true },
+  {
+    key: 'BrhManagerName',
+    title: 'Encargado',
+    width: 200,
+    searchable: true,
+  },
 ];
-
-function toRow(model: RstBranchListItem): BranchRow {
-  return {
-    id: model.LocalId,
-    syncStatus: model.SyncStatus,
-    BrhID: model.BrhID,
-    BrhName: model.BrhName,
-    BrhAddress: model.BrhAddress,
-    BrhPhone: model.BrhPhone,
-    BrhEmail: model.BrhEmail,
-    BrhManagerName: model.BrhManagerName,
-  };
-}
 
 export default function BranchesScreen() {
   const userId = useAuthStore((state) => state.Session?.User.UsrID ?? 0);
-  const [branches, setBranches] = React.useState<RstBranchListItem[]>([]);
   const [currencies, setCurrencies] = React.useState<CurrencyOption[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [formMode, setFormMode] = React.useState<'add' | 'edit' | null>(null);
+  const [restaurantId, setRestaurantId] = React.useState<number | null>(null);
   const [editing, setEditing] = React.useState<RstBranchListItem | null>(null);
   const [draft, setDraft] = React.useState<BranchDraft>(emptyDraft);
-  const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -81,50 +61,42 @@ export default function BranchesScreen() {
           ? reason.message
           : 'No se pudieron leer las sucursales locales.',
       );
-      setLoading(false);
     };
     const currenciesSubscription = rstBranchQueries.observeCurrencies(
       setCurrencies,
       onError,
     );
-    const branchSubscription = rstBranchQueries.observeActive((records) => {
-      setBranches(records);
-      setLoading(false);
-    }, onError);
+    const restaurantSubscription = rstBranchQueries.observeRestaurantId(
+      setRestaurantId,
+      onError,
+    );
     return () => {
       currenciesSubscription.unsubscribe();
-      branchSubscription.unsubscribe();
+      restaurantSubscription.unsubscribe();
     };
   }, []);
 
-  const rows = React.useMemo(() => branches.map(toRow), [branches]);
-  const restaurantId = branches[0]?.BrhResID ?? null;
   const currencyItems = currencies;
   const closeForm = () => {
-    setFormMode(null);
     setEditing(null);
     setDraft(emptyDraft());
     setError(null);
   };
   const beginAdd = () => {
     if (!restaurantId) return;
-    setFormMode('add');
     setEditing(null);
     setDraft(emptyDraft());
     setError(null);
   };
-  const beginEdit = (row: BranchRow) => {
-    const model = branches.find((branch) => branch.LocalId === row.id);
-    if (!model) return;
-    setFormMode('edit');
-    setEditing(model);
+  const beginEdit = (row: RstBranchListItem) => {
+    setEditing(row);
     setDraft({
-      BrhName: model.BrhName,
-      BrhAddress: model.BrhAddress ?? '',
-      BrhPhone: model.BrhPhone ?? '',
-      BrhEmail: model.BrhEmail ?? '',
-      BrhManagerName: model.BrhManagerName ?? '',
-      BrhCurrencyDefID: model.BrhCurrencyDefID,
+      BrhName: row.BrhName,
+      BrhAddress: row.BrhAddress ?? '',
+      BrhPhone: row.BrhPhone ?? '',
+      BrhEmail: row.BrhEmail ?? '',
+      BrhManagerName: row.BrhManagerName ?? '',
+      BrhCurrencyDefID: row.BrhCurrencyDefID,
     });
     setError(null);
   };
@@ -136,11 +108,10 @@ export default function BranchesScreen() {
       setError('Nombre y restaurante son obligatorios.');
       return;
     }
-    setSaving(true);
     setError(null);
     try {
       await rstBranchService.save({
-        LocalId: editing?.LocalId,
+        LocalId: editing?.id,
         BrhResID: activeRestaurantId,
         BrhName: name,
         BrhAddress: draft.BrhAddress,
@@ -150,39 +121,27 @@ export default function BranchesScreen() {
         BrhCurrencyDefID: draft.BrhCurrencyDefID,
         UserId: userId,
       });
-      closeForm();
+      return true;
     } catch (reason) {
       setError(
         reason instanceof Error
           ? reason.message
           : 'No se pudo guardar la sucursal local.',
       );
-    } finally {
-      setSaving(false);
+      return false;
     }
   };
 
-  const remove = async (row: BranchRow) => {
-    const execute = async () => {
-      try {
-        await rstBranchService.remove(row.id);
-      } catch (reason) {
-        setError(
-          reason instanceof Error
-            ? reason.message
-            : 'No se pudo eliminar la sucursal local.',
-        );
-      }
-    };
-    if (Platform.OS === 'web') {
-      if (globalThis.confirm(`¿Eliminar la sucursal ${row.BrhName}?`))
-        await execute();
-      return;
+  const remove = async (row: RstBranchListItem) => {
+    try {
+      await rstBranchService.remove(row.id, userId);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : 'No se pudo eliminar la sucursal local.',
+      );
     }
-    Alert.alert('Eliminar sucursal', `¿Eliminar la sucursal ${row.BrhName}?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: execute },
-    ]);
   };
 
   return (
@@ -205,30 +164,17 @@ export default function BranchesScreen() {
         ) : null}
         <NCrud
           title="RstBranch"
-          form={
-            formMode ? (
-              <NFormPanel
-                title={editing ? 'Editar sucursal' : 'Nueva sucursal'}
-                description="El cambio quedará pendiente de sincronización"
-                onClose={closeForm}
-                footer={
-                  <View className="flex-1 items-end">
-                    <Button
-                      className="h-8 px-3"
-                      disabled={saving}
-                      onPress={save}
-                    >
-                      <Save
-                        size={14}
-                        className="text-primary-foreground"
-                      />
-                      <Text className="text-xs">
-                        {saving ? 'Guardando...' : 'Guardar localmente'}
-                      </Text>
-                    </Button>
-                  </View>
-                }
-              >
+          authorization={{ optCode: 'RST_BRANCH' }}
+          offline={{ resource: SYNC_RESOURCES.RstBranch }}
+          persistenceKey="rst-branches"
+          form={{
+            addTitle: 'Nueva sucursal',
+            editTitle: 'Editar sucursal',
+            description: 'El cambio quedará pendiente de sincronización',
+            onSubmit: save,
+            onClose: closeForm,
+            render: () => (
+              <>
                 <View className="gap-3 md:flex-row">
                   <NText
                     label="Nombre"
@@ -289,16 +235,19 @@ export default function BranchesScreen() {
                     containerClassName="flex-1"
                   />
                 </View>
-              </NFormPanel>
-            ) : undefined
-          }
-          rows={rows}
+              </>
+            ),
+          }}
+          dataSource={rstBranchDataSource}
           columns={columns}
-          loading={loading}
           searchPlaceholder="Nombre, dirección o encargado"
-          searchText={(row) =>
-            `${row.BrhName} ${row.BrhAddress ?? ''} ${row.BrhManagerName ?? ''}`
-          }
+          selectionMode="single"
+          toolbar={{
+            add: Boolean(restaurantId),
+            edit: true,
+            remove: true,
+            export: true,
+          }}
           onAdd={restaurantId ? beginAdd : undefined}
           onEdit={beginEdit}
           onDelete={remove}

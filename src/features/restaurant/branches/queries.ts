@@ -1,5 +1,6 @@
 import { Q } from '@nozbe/watermelondb';
 
+import { createLocalCrudDataSource } from '@/components/crud';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import { database, GenDefinitionDetailModel, RstBranchModel } from '@/database';
 import type {
@@ -8,8 +9,8 @@ import type {
 } from '@/features/restaurant/branches/types';
 
 const toListItem = (model: RstBranchModel): RstBranchListItem => ({
-  LocalId: model.id,
-  SyncStatus: model.syncStatus,
+  id: model.id,
+  syncStatus: model.syncStatus,
   BrhID: model.BrhID,
   BrhResID: model.BrhResID,
   BrhName: model.BrhName,
@@ -20,21 +21,40 @@ const toListItem = (model: RstBranchModel): RstBranchListItem => ({
   BrhCurrencyDefID: model.BrhCurrencyDefID,
 });
 
-export const rstBranchQueries = {
-  observeActive(
-    onNext: (records: RstBranchListItem[]) => void,
-    onError: (error: unknown) => void,
-  ) {
-    return database
-      .get<RstBranchModel>(SYNC_RESOURCES.RstBranch)
-      .query(Q.where('SecStatus', true), Q.sortBy('BrhName', Q.asc))
-      .observe()
-      .subscribe({
-        next: (records) => onNext(records.map(toListItem)),
-        error: onError,
-      });
+export const rstBranchDataSource = createLocalCrudDataSource({
+  collection: database.get<RstBranchModel>(SYNC_RESOURCES.RstBranch),
+  map: toListItem,
+  activeColumn: 'SecStatus',
+  searchableColumns: [
+    'BrhName',
+    'BrhAddress',
+    'BrhPhone',
+    'BrhEmail',
+    'BrhManagerName',
+  ],
+  sortableColumns: {
+    BrhID: 'BrhID',
+    BrhName: 'BrhName',
+    BrhAddress: 'BrhAddress',
+    BrhPhone: 'BrhPhone',
+    BrhEmail: 'BrhEmail',
+    BrhManagerName: 'BrhManagerName',
   },
+  observedColumns: [
+    'BrhID',
+    'BrhResID',
+    'BrhName',
+    'BrhAddress',
+    'BrhPhone',
+    'BrhEmail',
+    'BrhManagerName',
+    'BrhCurrencyDefID',
+    'SecStatus',
+  ],
+  defaultOrder: { column: 'BrhName', direction: 'asc' },
+});
 
+export const rstBranchQueries = {
   observeCurrencies(
     onNext: (records: CurrencyOption[]) => void,
     onError: (error: unknown) => void,
@@ -61,6 +81,20 @@ export const rstBranchQueries = {
 
   find(LocalId: string) {
     return database.get<RstBranchModel>(SYNC_RESOURCES.RstBranch).find(LocalId);
+  },
+
+  observeRestaurantId(
+    onNext: (restaurantId: number | null) => void,
+    onError: (error: unknown) => void,
+  ) {
+    return database
+      .get<RstBranchModel>(SYNC_RESOURCES.RstBranch)
+      .query(Q.where('SecStatus', true), Q.take(1))
+      .observeWithColumns(['BrhResID', 'SecStatus'])
+      .subscribe({
+        next: (records) => onNext(records[0]?.BrhResID ?? null),
+        error: onError,
+      });
   },
 
   async nextTemporaryId(): Promise<number> {

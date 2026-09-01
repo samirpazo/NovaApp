@@ -1,8 +1,6 @@
-import type { SyncStatus } from '@nozbe/watermelondb/Model';
+import type { NCrudRow } from '@/components/crud';
 
-export interface RstTableListItem {
-  LocalId: string;
-  SyncStatus: SyncStatus;
+export interface RstTableListItem extends NCrudRow {
   TabID: number;
   TabTableNumber: number;
   TabCapacity: number;

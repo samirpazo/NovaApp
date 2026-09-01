@@ -1,4 +1,4 @@
-import type { SyncStatus } from '@nozbe/watermelondb/Model';
+import type { NCrudRow } from '@/components/crud';
 
 export interface GenDefinitionOption {
   DefID: number;
@@ -6,9 +6,7 @@ export interface GenDefinitionOption {
   DefDescription: string;
 }
 
-export interface GenDefinitionDetailListItem {
-  LocalId: string;
-  SyncStatus: SyncStatus;
+export interface GenDefinitionDetailListItem extends NCrudRow {
   DedID: number;
   DefID: number;
   DedCode: string | null;

@@ -60,8 +60,14 @@ export const genDefinitionService = {
     );
   },
 
-  async remove(LocalId: string): Promise<void> {
+  async remove(LocalId: string, UserId: number): Promise<void> {
     const model = await genDefinitionQueries.find(LocalId);
-    await database.write(() => model.markAsDeleted());
+    await database.write(async () => {
+      await model.update((record) => {
+        record.DeleteUserId = UserId;
+        record.DeleteDate = new Date().toISOString();
+      });
+      await model.markAsDeleted();
+    });
   },
 };

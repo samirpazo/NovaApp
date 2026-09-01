@@ -142,7 +142,13 @@ await database.write(() =>
 Eliminación correcta:
 
 ```ts
-await database.write(() => model.markAsDeleted());
+await database.write(async () => {
+  await model.update((record) => {
+    record.DeleteUserId = userId;
+    record.DeleteDate = new Date().toISOString();
+  });
+  await model.markAsDeleted();
+});
 ```
 
 ### 8. UI y navegación

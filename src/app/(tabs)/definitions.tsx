@@ -1,14 +1,13 @@
 import { useRouter } from 'expo-router';
-import { ListTree, Save } from 'lucide-react-native';
 import * as React from 'react';
-import { Alert, Platform, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/auth';
 import { NCrud, type NCrudColumn, type NCrudRow } from '@/components/crud';
-import { NFormPanel, NSwitch, NText } from '@/components/forms';
-import { Button } from '@/components/ui/button';
+import { NSwitch, NText } from '@/components/forms';
 import { Text } from '@/components/ui/text';
+import { SYNC_RESOURCES } from '@/contracts/sync';
 import {
   genDefinitionDataSource,
   genDefinitionService,
@@ -35,8 +34,14 @@ const emptyDraft: DefinitionDraft = {
 
 const columns: NCrudColumn<DefinitionRow>[] = [
   { key: 'DefID', title: 'ID', width: 64, align: 'right' },
-  { key: 'DefCode', title: 'Código', width: 180, flex: 1 },
-  { key: 'DefDescription', title: 'Descripción', width: 240, flex: 1.5 },
+  { key: 'DefCode', title: 'Código', width: 180, flex: 1, searchable: true },
+  {
+    key: 'DefDescription',
+    title: 'Descripción',
+    width: 240,
+    flex: 1.5,
+    searchable: true,
+  },
   {
     key: 'DefStated',
     title: 'Estado',
@@ -59,21 +64,17 @@ const columns: NCrudColumn<DefinitionRow>[] = [
 export default function DefinitionsScreen() {
   const router = useRouter();
   const userId = useAuthStore((state) => state.Session?.User.UsrID ?? 0);
-  const [formMode, setFormMode] = React.useState<'add' | 'edit' | null>(null);
   const [editing, setEditing] = React.useState<DefinitionRow | null>(null);
   const [draft, setDraft] = React.useState<DefinitionDraft>(emptyDraft);
-  const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const beginAdd = () => {
-    setFormMode('add');
     setEditing(null);
     setDraft({ ...emptyDraft });
     setError(null);
   };
 
   const beginEdit = (row: DefinitionRow) => {
-    setFormMode('edit');
     setEditing(row);
     setDraft({
       DefCode: row.DefCode,
@@ -84,14 +85,12 @@ export default function DefinitionsScreen() {
   };
 
   const cancelForm = () => {
-    setFormMode(null);
     setEditing(null);
     setDraft(emptyDraft);
     setError(null);
   };
 
   const save = async () => {
-    setSaving(true);
     setError(null);
     try {
       await genDefinitionService.save({
@@ -101,44 +100,27 @@ export default function DefinitionsScreen() {
         DefStated: draft.active ? 1 : 0,
         UserId: userId,
       });
-      cancelForm();
+      return true;
     } catch (reason) {
       setError(
         reason instanceof Error
           ? reason.message
           : 'No se pudo guardar el registro local.',
       );
-    } finally {
-      setSaving(false);
+      return false;
     }
   };
 
   const remove = async (row: DefinitionRow) => {
-    const execute = async () => {
-      try {
-        await genDefinitionService.remove(row.id);
-      } catch (reason) {
-        setError(
-          reason instanceof Error
-            ? reason.message
-            : 'No se pudo eliminar el registro local.',
-        );
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      if (globalThis.confirm(`¿Eliminar la definición ${row.DefCode}?`))
-        await execute();
-      return;
+    try {
+      await genDefinitionService.remove(row.id, userId);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : 'No se pudo eliminar el registro local.',
+      );
     }
-    Alert.alert(
-      'Eliminar definición',
-      `¿Eliminar la definición ${row.DefCode}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Eliminar', style: 'destructive', onPress: execute },
-      ],
-    );
   };
 
   return (
@@ -167,88 +149,71 @@ export default function DefinitionsScreen() {
 
         <NCrud
           title="GenDefinition"
-          form={
-            formMode ? (
-              <NFormPanel
-                title={editing ? 'Editar definición' : 'Nueva definición'}
-                description="El cambio quedará pendiente de sincronización"
-                onClose={cancelForm}
-                footer={
-                  <>
-                    <NSwitch
-                      value={draft.active}
-                      onValueChange={(active) =>
-                        setDraft((value) => ({ ...value, active }))
-                      }
-                      label="Activo"
-                    />
-                    <Button
-                      className="h-8 px-3"
-                      disabled={saving}
-                      onPress={save}
-                    >
-                      <Save
-                        size={14}
-                        className="text-primary-foreground"
-                      />
-                      <Text className="text-xs">
-                        {saving ? 'Guardando...' : 'Guardar localmente'}
-                      </Text>
-                    </Button>
-                  </>
+          authorization={{ optCode: 'GEN_DEFINITIONS' }}
+          offline={{ resource: SYNC_RESOURCES.GenDefinition }}
+          persistenceKey="gen-definitions"
+          form={{
+            addTitle: 'Nueva definición',
+            editTitle: 'Editar definición',
+            description: 'El cambio quedará pendiente de sincronización',
+            onSubmit: save,
+            onClose: cancelForm,
+            footer: () => (
+              <NSwitch
+                value={draft.active}
+                onValueChange={(active) =>
+                  setDraft((value) => ({ ...value, active }))
                 }
-              >
-                <View className="gap-3 md:flex-row">
-                  <NText
-                    label="Código"
-                    required
-                    uppercase
-                    value={draft.DefCode}
-                    onChange={(DefCode) =>
-                      setDraft((value) => ({ ...value, DefCode }))
-                    }
-                    containerClassName="flex-1"
-                  />
-                  <NText
-                    label="Descripción"
-                    required
-                    value={draft.DefDescription}
-                    onChange={(DefDescription) =>
-                      setDraft((value) => ({ ...value, DefDescription }))
-                    }
-                    containerClassName="flex-[2]"
-                  />
-                </View>
-              </NFormPanel>
-            ) : undefined
-          }
+                label="Activo"
+              />
+            ),
+            render: () => (
+              <View className="gap-3 md:flex-row">
+                <NText
+                  label="Código"
+                  required
+                  uppercase
+                  value={draft.DefCode}
+                  onChange={(DefCode) =>
+                    setDraft((value) => ({ ...value, DefCode }))
+                  }
+                  containerClassName="flex-1"
+                />
+                <NText
+                  label="Descripción"
+                  required
+                  value={draft.DefDescription}
+                  onChange={(DefDescription) =>
+                    setDraft((value) => ({ ...value, DefDescription }))
+                  }
+                  containerClassName="flex-[2]"
+                />
+              </View>
+            ),
+          }}
           dataSource={genDefinitionDataSource}
           columns={columns}
           searchPlaceholder="Código o descripción"
           searchText={(row) => `${row.DefCode} ${row.DefDescription}`}
+          selectionMode="single"
+          toolbar={{ add: true, edit: true, remove: true, export: true }}
           onAdd={beginAdd}
           onEdit={beginEdit}
           onDelete={remove}
-          rowAction={(row) => (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              accessibilityLabel={`Ver valores de ${row.DefCode}`}
-              onPress={(event) => {
-                event.stopPropagation();
+          rowActions={(row) => [
+            {
+              id: 'details',
+              label: 'Ver valores',
+              kind: 'custom',
+              placement: 'row',
+              onPress: () => {
                 router.push({
                   pathname: '/definition-details',
                   params: { definitionId: String(row.DefID) },
                 });
-              }}
-            >
-              <ListTree
-                size={16}
-                className="text-primary"
-              />
-            </Button>
-          )}
+              },
+            },
+          ]}
         />
       </ScrollView>
     </SafeAreaView>

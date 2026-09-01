@@ -38,20 +38,6 @@ export const genDefinitionDataSource = createLocalCrudDataSource({
 });
 
 export const genDefinitionQueries = {
-  observeActive(
-    onNext: (records: GenDefinitionListItem[]) => void,
-    onError: (error: unknown) => void,
-  ) {
-    return database
-      .get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition)
-      .query(Q.where('SecStatus', true), Q.sortBy('DefDescription', Q.asc))
-      .observe()
-      .subscribe({
-        next: (records) => onNext(records.map(toListItem)),
-        error: onError,
-      });
-  },
-
   find(LocalId: string) {
     return database
       .get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition)
