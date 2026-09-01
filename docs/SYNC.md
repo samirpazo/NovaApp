@@ -100,6 +100,11 @@ Respuesta lógica:
 Sin cursor, NovaApi devuelve el estado inicial de los recursos permitidos. Toma también el cursor
 máximo del journal para que las siguientes ejecuciones sean incrementales.
 
+Nova App ofrece **Descargar estado completo** para solicitar deliberadamente este bootstrap aunque
+ya exista un cursor local. Se usa para recuperar instalaciones antiguas cuyo cursor fue creado antes
+de que el journal cubriera todos los registros. La operación fusiona altas y actualizaciones del
+servidor; no ejecuta `unsafeResetDatabase()` ni descarta cambios locales pendientes.
+
 ### Pull incremental
 
 Con cursor, NovaApi consulta `SysSyncChanges` por `SycID > cursor`, ordena y pagina. El cliente:
@@ -156,6 +161,34 @@ Operaciones:
 - `D`: eliminación; `Data` es `null`.
 
 El cliente limita el lote a 500 cambios. `RstTable` no puede aparecer en Push.
+
+### Contrato validado por recurso
+
+Pull, Push, los resultados del Push y los conflictos se validan mediante una unión discriminada
+por `Resource`. Por tanto, un cambio de `GenDefinition` solo admite los campos de esa entidad, y
+lo mismo aplica a `GenDefinitionDetail` y `RstBranch`. Las operaciones `C` y `U` exigen `Data`; la
+operación `D` exige `Data: null`. `RstTable` queda fuera del contrato de Push y de conflictos por
+ser un recurso de solo lectura.
+
+Los schemas `SyncJsonSchemas` exponen las formas JSON Schema Draft 2020-12 de Pull, Push, resultados
+de Push y decisiones de conflicto. Son una representación para documentación o validadores externos;
+la validación de runtime continúa haciéndose con Zod antes de tocar WatermelonDB.
+
+El detalle de definición sincroniza la referencia inmutable `DedImageFilID`, no una ruta local ni
+`DedImagePath`. La versión 2 del esquema de WatermelonDB agrega esa columna y conserva la columna
+legada para no perder datos de instalaciones existentes; solo el identificador participa en el
+contrato de sincronización.
+
+Las imágenes de `GenDefinitionDetail` se cargan antes mediante `POST /GenFiles/upload` usando
+`ROUTE_DEFINITION_IMGS`. La entidad local y el Push solo conservan el `FileId` en `DedImageFilID`;
+el archivo administrado permanece inmutable y no se replica por WatermelonDB.
+
+## Observabilidad local
+
+Cada sincronización emite un evento estructurado `sync_completed` o `sync_failed` con duración,
+cantidad enviada/recibida/páginas o una categoría limitada de fallo. No se emiten tokens, UUIDs,
+usuarios, payloads ni mensajes remotos. La pantalla de sincronización muestra duración y páginas de
+la última ejecución para diagnóstico local.
 
 ### Idempotencia
 
@@ -247,6 +280,16 @@ pertenecen al alcance de la base local.
 En ejecuciones siguientes, un conflicto sin resolver se excluye del POST y su UUID se devuelve en
 `experimentalRejectedIds`. WatermelonDB conserva ese registro pendiente, pero puede confirmar el
 resto del lote.
+
+La decisión de resolución se valida como un comando discriminado antes de modificar el estado:
+
+```ts
+{ Decision: "KeepLocal" | "UseServer", Resource, SyncId }
+```
+
+`KeepLocal` conserva el cambio local para el siguiente Push con `Force`; `UseServer` aplica la
+versión recibida del servidor y elimina el conflicto. `RstTable`, por ser de solo lectura, no puede
+ser una decisión válida.
 
 ### Presentación en la app
 

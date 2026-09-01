@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { AlertTriangle, ChevronRight, CloudDownload, CloudUpload, RefreshCw } from 'lucide-react-native';
 import * as React from 'react';
-import { ScrollView, View } from 'react-native';
+import { Alert, Platform, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/auth';
@@ -11,6 +11,7 @@ import { Text } from '@/components/ui/text';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import { database } from '@/database';
 import { getLastPull, getSyncConflicts, pullNova, useSyncConflictState, useSyncState } from '@/sync';
+import { syncRecoveryConfirmation } from '@/sync/recovery';
 type LocalCounts = Record<(typeof SYNC_RESOURCES)[keyof typeof SYNC_RESOURCES], number>;
 
 const emptyCounts: LocalCounts = {
@@ -57,13 +58,25 @@ export default function SyncScreen() {
     };
   }, []);
 
-  const synchronize = async () => {
+  const synchronize = async (forceBootstrap = false) => {
     try {
-      await pullNova();
+      await pullNova({ forceBootstrap });
       setCounts(await readLocalCounts());
     } catch {
       // The store exposes the normalized error below.
     }
+  };
+
+  const confirmServerRecovery = () => {
+    const execute = () => void synchronize(true);
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm(syncRecoveryConfirmation.message)) execute();
+      return;
+    }
+    Alert.alert(syncRecoveryConfirmation.title, syncRecoveryConfirmation.message, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: syncRecoveryConfirmation.confirmLabel, onPress: execute },
+    ]);
   };
 
   const statusLabel = sync.Status === 'syncing' ? 'Sincronizando' : sync.Status === 'success' ? 'Sincronizado' : sync.Status === 'error' ? 'Error' : 'Sin ejecutar';
@@ -90,10 +103,15 @@ export default function SyncScreen() {
               <Text variant="caption">Envía tus cambios y recibe la información más reciente</Text>
             </View>
           </View>
-          <Button className="h-9" disabled={!ready || sync.Status === 'syncing'} onPress={synchronize}>
+          <Button className="h-9" disabled={!ready || sync.Status === 'syncing'} onPress={() => void synchronize()}>
             <RefreshCw size={15} className="text-primary-foreground" />
             <Text>{sync.Status === 'syncing' ? 'Sincronizando...' : 'Sincronizar'}</Text>
           </Button>
+          <Button variant="outline" className="h-9" disabled={!ready || sync.Status === 'syncing'} onPress={confirmServerRecovery}>
+            <CloudDownload size={15} className="text-foreground" />
+            <Text>Recuperar datos del servidor</Text>
+          </Button>
+          <Text variant="caption">Acción técnica: vuelve a descargar el estado completo y conserva cambios offline pendientes.</Text>
           {sync.Error ? <Text className="text-xs text-destructive" role="alert">{sync.Error}</Text> : null}
         </Card>
 
@@ -114,6 +132,12 @@ export default function SyncScreen() {
             <Text className="font-poppins-semibold text-base">{conflictCount}</Text>
           </View>
         </View>
+
+        {sync.LastPull ? (
+          <Text variant="caption" className="text-center">
+            Duración de la última sincronización: {((sync.LastPull.DurationMs ?? 0) / 1000).toFixed(1)} s · {sync.LastPull.Pages} página{sync.LastPull.Pages === 1 ? '' : 's'}
+          </Text>
+        ) : null}
 
         <Button variant="outline" className="h-12 justify-start px-3" onPress={() => router.push('/conflict-resolution')}>
           <AlertTriangle size={16} className={conflictCount ? 'text-warning' : 'text-muted-foreground'} />

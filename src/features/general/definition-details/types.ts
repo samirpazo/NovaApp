@@ -22,6 +22,7 @@ export interface GenDefinitionDetailListItem {
   DedIcon: string | null;
   DedColor: string | null;
   DedStated: number;
+  DedImageFilID: number | null;
 }
 
 export interface SaveGenDefinitionDetailInput {
@@ -37,5 +38,6 @@ export interface SaveGenDefinitionDetailInput {
   DedIcon: string;
   DedColor: string;
   DedStated: number;
+  DedImageFilID: number | null;
   UserId: number;
 }

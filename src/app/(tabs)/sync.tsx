@@ -34,7 +34,7 @@ export default function SyncTab() {
         </View>
         <Button className="h-9" disabled={sync.Status === 'syncing'} onPress={() => void synchronize()}>
           <RefreshCw size={15} className="text-primary-foreground" />
-          <Text>{sync.Status === 'syncing' ? 'Sincronizando...' : 'Sincronizar'}</Text>
+          <Text>{sync.Status === 'syncing' ? 'Sincronizando...' : 'Sincronizar ahora'}</Text>
         </Button>
         {sync.Error ? <Text className="text-sm text-destructive">{sync.Error}</Text> : null}
       </Card>

@@ -19,5 +19,7 @@ export class GenDefinitionDetailModel extends EntityBaseModel {
   @field('DedStated') DedStated: number;
   @field('DefID') DefID: number;
   @text('DedGroup') DedGroup: string | null;
+  // Legacy local value retained during the non-destructive schema migration.
   @text('DedImagePath') DedImagePath: string | null;
+  @field('DedImageFilID') DedImageFilID: number | null;
 }

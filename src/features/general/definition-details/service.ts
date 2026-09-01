@@ -30,6 +30,7 @@ export const genDefinitionDetailService = {
       record.DedIcon = nullable(input.DedIcon);
       record.DedColor = nullable(input.DedColor);
       record.DedStated = input.DedStated;
+      record.DedImageFilID = input.DedImageFilID;
     };
 
     if (input.LocalId) {
@@ -59,7 +60,6 @@ export const genDefinitionDetailService = {
         record.UpdateDate = now;
         record.DeleteDate = null;
         record.DedID = temporaryId;
-        record.DedImagePath = null;
         apply(record);
       }));
   },

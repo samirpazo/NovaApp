@@ -71,7 +71,15 @@ npm run android     # Android
 npm run ios         # iOS
 npm run typecheck   # TypeScript
 npm run lint        # ESLint de Expo
+npm test            # Contratos y servicios puros con Jest
+npx expo-doctor     # Compatibilidad de dependencias Expo
 ```
+
+El workflow de GitHub Actions `Nova App Quality` vive en este repositorio y ejecuta estos cuatro
+checks en cada push a `main`/`develop` y en los pull requests hacia `main`. No genera ni publica
+binarios.
+Mientras WatermelonDB siga sin validación oficial para New Architecture, Expo Doctor se informa
+como check visible no bloqueante; no se han excluido sus advertencias.
 
 Durante el desarrollo actual:
 

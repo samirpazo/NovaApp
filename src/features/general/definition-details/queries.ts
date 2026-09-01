@@ -29,6 +29,7 @@ const toListItem = (model: GenDefinitionDetailModel): GenDefinitionDetailListIte
   DedIcon: model.DedIcon,
   DedColor: model.DedColor,
   DedStated: model.DedStated,
+  DedImageFilID: model.DedImageFilID,
 });
 
 export const genDefinitionDetailQueries = {

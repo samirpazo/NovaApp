@@ -5,9 +5,14 @@
 Antes de cerrar cualquier fase:
 
 ```bash
+npm test
 npm run typecheck
 npm run lint
+npx expo-doctor
 ```
+
+El workflow `Nova App Quality` ejecuta estos checks en CI. `expo-doctor` permanece como advertencia
+visible no bloqueante hasta validar WatermelonDB con New Architecture en dispositivos físicos.
 
 Cuando se modifica NovaApi:
 
@@ -75,6 +80,39 @@ Si aparecen dos filas locales con igual UUID o datos equivalentes, revisar inmed
 4. Repetir con el padre cuando ya no se necesite.
 
 Una respuesta Pull de borrado sin `Data` es válida.
+
+### 7. Archivo administrado en detalle de definición
+
+1. Abrir un detalle de definición y seleccionar **Adjuntar imagen**.
+2. Elegir una imagen válida y confirmar que se muestra el nombre del archivo.
+3. Guardar el detalle localmente y sincronizar.
+4. Confirmar que se conserva `DedImageFilID`; no debe existir una ruta física ni contenido binario
+   en WatermelonDB ni en el payload de Push.
+5. Reabrir el detalle tras Pull y confirmar que el identificador sigue presente.
+
+## Checklist de QA y release móvil
+
+### Antes de generar un build
+
+- [ ] `npm test`, `npm run typecheck` y `npm run lint` pasan.
+- [ ] `npx expo-doctor` fue revisado; no ocultar la advertencia de WatermelonDB/New Architecture.
+- [ ] La configuración de API apunta a un host accesible desde el dispositivo; no usar `localhost`.
+- [ ] No hay secretos, credenciales ni archivos `.env.local` en el commit.
+- [ ] Los cambios de contrato Sync incluyen sus schemas Zod, migración WatermelonDB y documentación.
+
+### Android e iOS físicos — pendiente
+
+- [ ] Login y restauración de sesión.
+- [ ] Pull inicial e incremental.
+- [ ] Alta, edición, eliminación y conflicto de una definición.
+- [ ] Relación definición/detalle creada offline.
+- [ ] Adjuntar imagen y conservar `DedImageFilID` tras sincronizar.
+- [ ] Confirmar la pantalla de Sync: duración, páginas, enviados, recibidos y conflictos.
+- [ ] Revisar logs de `sync_completed`/`sync_failed` y comprobar que no contienen tokens, UUIDs,
+  usuarios, payloads ni mensajes remotos.
+
+No hacer bloqueante `expo-doctor` hasta completar ambos dispositivos y registrar la fecha, versión
+de build y resultado en el PR o release correspondiente.
 
 ## Prueba de conflicto
 

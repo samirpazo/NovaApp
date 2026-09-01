@@ -24,8 +24,8 @@ function cookieValue(response: AxiosResponse, name: string): string | null {
 
 async function persistTokens(response: AxiosResponse): Promise<void> {
   if (Platform.OS === 'web') return;
-  const accessToken = cookieValue(response, 'nova_access_token');
-  const refreshToken = cookieValue(response, 'nova_refresh_token');
+  const accessToken = cookieValue(response, 'nova_app_access_token') ?? cookieValue(response, 'nova_access_token');
+  const refreshToken = cookieValue(response, 'nova_app_refresh_token') ?? cookieValue(response, 'nova_refresh_token');
   if (!accessToken || !refreshToken) throw new Error('Nova no devolvió los tokens de la sesión móvil.');
   await Promise.all([saveAccessToken(accessToken), saveRefreshToken(refreshToken)]);
 }

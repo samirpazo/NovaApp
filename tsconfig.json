@@ -5,6 +5,7 @@
     "strictPropertyInitialization": false,
     "useDefineForClassFields": false,
     "strict": true,
+    "types": ["jest"],
     "paths": {
       "@/*": [
         "./src/*"

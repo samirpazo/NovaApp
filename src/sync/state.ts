@@ -7,6 +7,7 @@ export interface PullResult {
   Downloaded: number;
   Uploaded: number;
   Pages: number;
+  DurationMs: number;
   FinishedAt: string;
 }
 

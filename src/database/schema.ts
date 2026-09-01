@@ -15,7 +15,7 @@ const entityBaseColumns: ColumnSchema[] = [
 ];
 
 export const databaseSchema = appSchema({
-  version: 1,
+  version: 2,
   tables: [
     tableSchema({
       name: SYNC_RESOURCES.GenDefinition,
@@ -45,6 +45,7 @@ export const databaseSchema = appSchema({
         { name: 'DefID', type: 'number', isIndexed: true },
         { name: 'DedGroup', type: 'string', isOptional: true },
         { name: 'DedImagePath', type: 'string', isOptional: true },
+        { name: 'DedImageFilID', type: 'number', isOptional: true },
       ],
     }),
     tableSchema({

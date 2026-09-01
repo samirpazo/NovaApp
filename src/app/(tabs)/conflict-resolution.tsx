@@ -8,19 +8,24 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConflictComparison } from '@/components/sync/conflict-comparison';
 import { Text } from '@/components/ui/text';
-import type { SyncConflict } from '@/contracts/sync';
-import { applyServerConflict, getSyncConflicts, keepLocalConflict, pullNova, useSyncConflictState } from '@/sync';
+import { SyncConflictResolutionSchema, type SyncConflict } from '@/contracts/sync';
+import { getSyncConflicts, pullNova, resolveSyncConflict, useSyncConflictState } from '@/sync';
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined || value === '') return 'Sin valor';
   return typeof value === 'object' ? JSON.stringify(value) : String(value);
 }
 
+function fieldRecord(value: object | null): Record<string, unknown> {
+  return value ? Object.fromEntries(Object.entries(value)) : {};
+}
+
 function changedFields(conflict: SyncConflict) {
-  const local = conflict.LocalData ?? {};
+  const local = fieldRecord(conflict.LocalData);
+  const server = fieldRecord(conflict.ServerData);
   const ignored = new Set(['SyncId', 'SyncVersion', 'CreateDate', 'CreateUserId', 'UpdateDate', 'UpdateUserId', 'DeleteDate', 'DeleteUserId']);
-  return [...new Set([...Object.keys(local), ...Object.keys(conflict.ServerData)])]
-    .filter((field) => !ignored.has(field) && formatValue(local[field]) !== formatValue(conflict.ServerData[field]));
+  return [...new Set([...Object.keys(local), ...Object.keys(server)])]
+    .filter((field) => !ignored.has(field) && formatValue(local[field]) !== formatValue(server[field]));
 }
 
 export default function ConflictsScreen() {
@@ -38,7 +43,7 @@ export default function ConflictsScreen() {
     setBusyKey(key);
     setError(null);
     try {
-      await applyServerConflict(conflict);
+      await resolveSyncConflict(conflict, SyncConflictResolutionSchema.parse({ Decision: 'UseServer', Resource: conflict.Resource, SyncId: conflict.SyncId }));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo aplicar la versión del servidor.');
     } finally {
@@ -51,7 +56,7 @@ export default function ConflictsScreen() {
     setBusyKey(key);
     setError(null);
     try {
-      await keepLocalConflict(conflict.Resource, conflict.SyncId);
+      await resolveSyncConflict(conflict, SyncConflictResolutionSchema.parse({ Decision: 'KeepLocal', Resource: conflict.Resource, SyncId: conflict.SyncId }));
       await pullNova();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo conservar la versión local.');
@@ -114,8 +119,8 @@ export default function ConflictsScreen() {
                     <ConflictComparison
                       key={field}
                       field={field}
-                      localValue={formatValue(conflict.LocalData?.[field])}
-                      serverValue={formatValue(conflict.ServerData[field])}
+                      localValue={formatValue(fieldRecord(conflict.LocalData)[field])}
+                      serverValue={formatValue(fieldRecord(conflict.ServerData)[field])}
                     />
                   ))}
                 </View>

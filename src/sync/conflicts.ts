@@ -3,8 +3,10 @@ import { create } from 'zustand';
 
 import {
   SyncConflictSchema,
+  SyncConflictResolutionSchema,
   SyncPullChangeSchema,
   type SyncConflict,
+  type SyncConflictResolution,
   type SyncPushChange,
   type SyncResource,
 } from '@/contracts/sync';
@@ -66,6 +68,21 @@ export async function applyServerConflict(conflict: SyncConflict): Promise<void>
     await database.batch(prepared);
   }, 'resolve sync conflict with server version');
   await removeSyncConflict(conflict.Resource, conflict.SyncId);
+}
+
+export async function resolveSyncConflict(
+  conflict: SyncConflict,
+  decision: SyncConflictResolution,
+): Promise<void> {
+  const parsedDecision = SyncConflictResolutionSchema.parse(decision);
+  if (parsedDecision.Resource !== conflict.Resource || parsedDecision.SyncId !== conflict.SyncId) {
+    throw new Error('La decisión no corresponde al conflicto seleccionado.');
+  }
+  if (parsedDecision.Decision === 'KeepLocal') {
+    await keepLocalConflict(parsedDecision.Resource, parsedDecision.SyncId);
+    return;
+  }
+  await applyServerConflict(conflict);
 }
 
 export function conflictForChange(conflicts: SyncConflict[], change: SyncPushChange): SyncConflict | undefined {

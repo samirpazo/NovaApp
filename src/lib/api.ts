@@ -36,6 +36,7 @@ export const api = create({
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
+    'X-Nova-Client': 'nova-app',
     ...(Platform.OS === 'web' ? {} : { 'X-Client-Platform': 'native' }),
   },
 });

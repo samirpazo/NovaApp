@@ -13,7 +13,6 @@ export const AuthUserSchema = z.object({
   PrsName: z.string().nullish(),
   PaternalLastName: z.string().nullish(),
   MaternalLastName: z.string().nullish(),
-  PrsPhoto: z.string().nullish(),
   PrsID: z.number().int().nullish(),
   UsrChangePassword: z.boolean().nullish(),
 });

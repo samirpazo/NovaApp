@@ -23,6 +23,17 @@ una sucursal en Nova App. `BranchId` está preparado como opcional para una fase
 - React Native Reusables, NativeWind y componentes propios `N*`.
 - Lucide para iconos.
 
+## Verificación automatizada
+
+- `npm test` ejecuta Jest con `jest-expo` en modo serial.
+- Las pruebas de contratos y servicios puros viven en `__tests__/`; agregar una prueba antes de
+  modificar un comportamiento de sincronización, archivos o validación.
+- Antes de cerrar un cambio de Nova App ejecutar `npm test`, `npm run typecheck` y `npm run lint`.
+- Para cambios de dependencias Expo, ejecutar también `npx expo-doctor`. Actualmente deja visible una
+  advertencia conocida: WatermelonDB no figura como probado para New Architecture y
+  `@nozbe/simdjson` no tiene metadata en React Native Directory. No excluir ni silenciar esa alerta
+  sin una validación real en dispositivos Android e iOS.
+
 ## Seguridad de datos locales
 
 - En iOS y Android, access token, refresh token y sesión se guardan exclusivamente con Expo

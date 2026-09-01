@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Save } from 'lucide-react-native';
+import { ArrowLeft, Paperclip, Save } from 'lucide-react-native';
 import * as React from 'react';
 import { Alert, Platform, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as DocumentPicker from 'expo-document-picker';
 
 import { useAuthStore } from '@/auth';
 import { NCrud, type NCrudColumn, type NCrudRow } from '@/components/crud';
@@ -15,6 +16,7 @@ import {
   type GenDefinitionDetailListItem,
   type GenDefinitionOption,
 } from '@/features/general/definition-details';
+import { uploadManagedFile } from '@/lib/fileService';
 
 interface DetailRow extends NCrudRow {
   DedID: number;
@@ -37,11 +39,13 @@ interface DetailDraft {
   DedIcon: string;
   DedColor: string;
   active: boolean;
+  DedImageFilID: number | null;
+  attachmentName: string | null;
 }
 
 const emptyDraft = (): DetailDraft => ({
   DedValue: '', DedDescription: '', DedAbbreviation: '', DedFormat: '', DedGroup: '',
-  DedHelper: '', DedHelper2: '', DedIcon: '', DedColor: '', active: true,
+  DedHelper: '', DedHelper2: '', DedIcon: '', DedColor: '', active: true, DedImageFilID: null, attachmentName: null,
 });
 
 const columns: NCrudColumn<DetailRow>[] = [
@@ -136,8 +140,25 @@ export default function DefinitionDetailsScreen() {
       DedAbbreviation: model.DedAbbreviation ?? '', DedFormat: model.DedFormat ?? '',
       DedGroup: model.DedGroup ?? '', DedHelper: model.DedHelper ?? '', DedHelper2: model.DedHelper2 ?? '',
       DedIcon: model.DedIcon ?? '', DedColor: model.DedColor ?? '', active: model.DedStated === 1,
+      DedImageFilID: model.DedImageFilID, attachmentName: model.DedImageFilID ? `Archivo #${model.DedImageFilID}` : null,
     });
     setError(null);
+  };
+
+  const selectAttachment = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: 'image/*', copyToCacheDirectory: true, multiple: false });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      const file = await uploadManagedFile({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType, file: asset.file }, 'ROUTE_DEFINITION_IMGS');
+      setDraft((state) => ({ ...state, DedImageFilID: file.FileId, attachmentName: file.OriginalName }));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'No se pudo cargar el archivo.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const save = async () => {
@@ -163,6 +184,7 @@ export default function DefinitionDetailsScreen() {
         DedIcon: draft.DedIcon,
         DedColor: draft.DedColor,
         DedStated: draft.active ? 1 : 0,
+        DedImageFilID: draft.DedImageFilID,
         UserId: userId,
       });
       closeForm();
@@ -219,6 +241,10 @@ export default function DefinitionDetailsScreen() {
               <NText label="Descripción" required value={draft.DedDescription} onChange={(DedDescription) => setDraft((state) => ({ ...state, DedDescription }))} containerClassName="flex-[2]" />
               <NText label="Valor" required number value={draft.DedValue} editable={formMode === 'edit'} onChange={(DedValue) => setDraft((state) => ({ ...state, DedValue }))} containerClassName="flex-1" />
               <NText label="Abreviatura" uppercase value={draft.DedAbbreviation} onChange={(DedAbbreviation) => setDraft((state) => ({ ...state, DedAbbreviation }))} containerClassName="flex-1" />
+            </View>
+            <View className="flex-row items-center gap-3">
+              <Button variant="outline" className="h-8 px-3" disabled={saving} onPress={selectAttachment}><Paperclip size={14} /><Text className="text-xs">Adjuntar imagen</Text></Button>
+              <Text className="text-xs text-muted-foreground">{draft.attachmentName ?? 'Sin archivo adjunto'}</Text>
             </View>
             <View className="gap-3 md:flex-row">
               <NText label="Formato" value={draft.DedFormat} onChange={(DedFormat) => setDraft((state) => ({ ...state, DedFormat }))} containerClassName="flex-1" />

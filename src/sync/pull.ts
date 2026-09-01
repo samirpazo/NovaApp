@@ -7,9 +7,9 @@ import { ensureOnlineSession } from '@/auth/service';
 import { createResponseApiSchema } from '@/contracts/api';
 import {
   SYNC_RESOURCES,
-  SYNC_ACCESS,
   SyncPullResponseSchema,
   SyncPushChangeSchema,
+  SyncConflictSchema,
   SyncPushResponseSchema,
   type AnySyncPullChange,
   type SyncEntityMap,
@@ -23,6 +23,8 @@ import { flushPendingAppearance } from '@/theme/appearance';
 import { getSyncConnection, SyncConnectionSchema, type SyncConnection } from '@/sync/config';
 import { conflictForChange, getSyncConflicts, removeSyncConflict, saveSyncConflicts } from '@/sync/conflicts';
 import { type PullResult, useSyncState } from '@/sync/state';
+import { classifySyncFailure, reportSyncTelemetry } from '@/sync/telemetry';
+import { initialPullCursor } from '@/sync/pull-options';
 
 const ACTIVE_SCOPE_KEY = localStorageKey<string>('nova.sync.activeScope');
 const LAST_PULL_KEY = localStorageKey<PullResult>('nova.sync.lastPull');
@@ -79,21 +81,23 @@ function pushChangesFrom({ changes }: SyncPushArgs): SyncPushChange[] {
   for (const resource of Object.values(SYNC_RESOURCES)) {
     const table = (changes as Partial<Record<SyncResource, SyncTableChangeSet>>)[resource];
     if (!table) continue;
-    if (SYNC_ACCESS[resource] === 'ReadOnly' && (table.created.length || table.updated.length || table.deleted.length)) {
-      throw new Error(`${resource} es un recurso local de solo lectura.`);
+    if (resource === SYNC_RESOURCES.RstTable) {
+      if (table.created.length || table.updated.length || table.deleted.length) {
+        throw new Error(`${resource} es un recurso local de solo lectura.`);
+      }
+      continue;
     }
-    if (SYNC_ACCESS[resource] === 'ReadOnly') continue;
     for (const raw of table.created) {
-      result.push({ Resource: resource, SyncId: String(raw.SyncId), Operation: 'C', SyncVersion: String(raw.SyncVersion || ''), Data: rawData(raw) });
+      result.push(SyncPushChangeSchema.parse({ Resource: resource, SyncId: String(raw.SyncId), Operation: 'C', SyncVersion: String(raw.SyncVersion || ''), Data: rawData(raw) }));
     }
     for (const raw of table.updated) {
-      result.push({ Resource: resource, SyncId: String(raw.SyncId), Operation: 'U', SyncVersion: String(raw.SyncVersion || ''), Data: rawData(raw) });
+      result.push(SyncPushChangeSchema.parse({ Resource: resource, SyncId: String(raw.SyncId), Operation: 'U', SyncVersion: String(raw.SyncVersion || ''), Data: rawData(raw) }));
     }
     for (const SyncId of table.deleted) {
-      result.push({ Resource: resource, SyncId, Operation: 'D', Data: null });
+      result.push(SyncPushChangeSchema.parse({ Resource: resource, SyncId, Operation: 'D', Data: null }));
     }
   }
-  return result.map((change) => SyncPushChangeSchema.parse(change));
+  return result;
 }
 
 async function prepareScope(connection: SyncConnection): Promise<void> {
@@ -125,6 +129,8 @@ export interface PullNovaOptions {
   connection?: SyncConnection;
   signal?: AbortSignal;
   limit?: number;
+  /** Requests NovaApi's bootstrap snapshot without deleting local pending changes. */
+  forceBootstrap?: boolean;
 }
 
 let activePull: Promise<PullResult> | null = null;
@@ -138,6 +144,7 @@ export function pullNova(options: PullNovaOptions = {}): Promise<PullResult> {
 }
 
 async function executePull(options: PullNovaOptions): Promise<PullResult> {
+  const startedAt = Date.now();
   const state = useSyncState.getState();
   state.startPull();
 
@@ -157,10 +164,12 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
     let uploaded = 0;
     let pages = 0;
     let finalCursor = 0;
+    let bootstrapRequested = options.forceBootstrap ?? false;
 
     const pullChanges = async ({ lastPulledAt }: { lastPulledAt?: number }) => {
         const changes = createChangeSet();
-        let cursor = lastPulledAt == null ? undefined : lastPulledAt - 1;
+        let cursor = initialPullCursor(lastPulledAt, bootstrapRequested);
+        bootstrapRequested = false;
         let hasMore: boolean;
 
         do {
@@ -230,18 +239,19 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
           const envelope = createResponseApiSchema(SyncPushResponseSchema).safeParse(error.response.data);
           if (envelope.success && envelope.data.Data) {
             const detected = envelope.data.Data.Results.flatMap<SyncConflict>((result) => {
-              if (result.Status !== 'Conflict' || !result.Data || typeof result.Data !== 'object') return [];
+              if (result.Status !== 'Conflict' || !result.Data || result.Resource === SYNC_RESOURCES.RstTable) return [];
               const local = changes.find((change) => change.Resource === result.Resource && change.SyncId === result.SyncId);
-              return [{
+              const conflict = SyncConflictSchema.safeParse({
                 Resource: result.Resource,
                 SyncId: result.SyncId,
                 Operation: local?.Operation ?? 'U',
                 Message: result.Message || 'El registro cambió también en el servidor.',
                 LocalData: local?.Data ?? null,
-                ServerData: result.Data as Record<string, unknown>,
+                ServerData: result.Data,
                 KeepLocal: false,
                 DetectedAt: new Date().toISOString(),
-              }];
+              });
+              return conflict.success ? [conflict.data] : [];
             });
             if (detected.length) {
               await saveSyncConflicts(detected);
@@ -273,14 +283,17 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
       Downloaded: downloaded,
       Uploaded: uploaded,
       Pages: pages,
+      DurationMs: Date.now() - startedAt,
       FinishedAt: new Date().toISOString(),
     };
     await database.localStorage.set(LAST_PULL_KEY, result);
     useSyncState.getState().completePull(result);
+    reportSyncTelemetry({ event: 'sync_completed', durationMs: result.DurationMs, downloaded, uploaded, pages });
     return result;
   } catch (error) {
     const message = getApiErrorMessage(error);
     useSyncState.getState().failPull(message);
+    reportSyncTelemetry({ event: 'sync_failed', durationMs: Date.now() - startedAt, failureKind: classifySyncFailure(message) });
     throw new Error(message, { cause: error });
   }
 }

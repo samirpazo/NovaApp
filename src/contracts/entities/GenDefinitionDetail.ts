@@ -1,5 +1,5 @@
 import { EntityBaseContractSchema } from '@/contracts/entities/EntityBaseContract';
-import { nullableStringSchema } from '@/contracts/common';
+import { nullableIntegerSchema, nullableStringSchema } from '@/contracts/common';
 import { z } from 'zod';
 
 export const GenDefinitionDetailSchema = EntityBaseContractSchema.extend({
@@ -16,7 +16,7 @@ export const GenDefinitionDetailSchema = EntityBaseContractSchema.extend({
   DedStated: z.number().int(),
   DefID: z.number().int(),
   DedGroup: nullableStringSchema,
-  DedImagePath: nullableStringSchema,
+  DedImageFilID: nullableIntegerSchema,
 });
 
 export type GenDefinitionDetail = z.infer<typeof GenDefinitionDetailSchema>;
