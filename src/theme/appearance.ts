@@ -6,8 +6,11 @@ import { create } from 'zustand';
 
 export const NOVA_COLORS = ['#002aff', '#06b6d4', '#10b981', '#8b5cf6', '#f59e0b', '#e11d48'] as const;
 
+export const ThemeModeSchema = z.enum(['light', 'dark', 'system']);
+export type ThemeMode = z.infer<typeof ThemeModeSchema>;
+
 export const AppearancePreferencesSchema = z.object({
-  Theme: z.string().nullish(),
+  Theme: ThemeModeSchema.nullish(),
   PrimaryColor: z.string().nullish(),
   HeaderColor: z.string().nullish(),
   SidebarColor: z.string().nullish(),
@@ -18,10 +21,30 @@ export type AppearancePreferences = z.infer<typeof AppearancePreferencesSchema>;
 const STORAGE_KEY = 'nova.appearance';
 const PENDING_STORAGE_KEY = 'nova.appearance.pending';
 const DEFAULTS: Required<Pick<AppearancePreferences, 'Theme' | 'PrimaryColor' | 'HeaderColor'>> = {
-  Theme: 'light',
+  Theme: 'system',
   PrimaryColor: '#002aff',
   HeaderColor: '#002aff',
 };
+
+export function resolveThemeMode(value: unknown): ThemeMode {
+  const parsed = ThemeModeSchema.safeParse(value);
+  return parsed.success ? parsed.data : 'system';
+}
+
+export function getNextThemeMode(value: unknown): ThemeMode {
+  const current = resolveThemeMode(value);
+  if (current === 'light') return 'dark';
+  if (current === 'dark') return 'system';
+  return 'light';
+}
+
+function normalizeAppearance(preferences: AppearancePreferences | null | undefined): AppearancePreferences {
+  return {
+    ...DEFAULTS,
+    ...preferences,
+    Theme: resolveThemeMode(preferences?.Theme),
+  };
+}
 
 interface AppearanceState {
   preferences: AppearancePreferences;
@@ -47,13 +70,13 @@ export const useAppearanceStore = create<AppearanceState>((set) => ({
     } catch {
       parsed = null;
     }
-    const preferences = parsed?.success ? { ...DEFAULTS, ...parsed.data } : DEFAULTS;
+    const preferences = parsed?.success ? normalizeAppearance(parsed.data) : DEFAULTS;
     set({ preferences, preview: preferences, ready: true });
   },
   previewChanges: (preferences) => set((state) => ({ preview: { ...state.preview, ...preferences }, revision: state.revision + 1 })),
   discardPreview: () => set((state) => ({ preview: state.preferences })),
   commit: async (preferences) => {
-    const next = { ...DEFAULTS, ...preferences };
+    const next = normalizeAppearance(preferences);
     await storage.setItem(STORAGE_KEY, JSON.stringify(next));
     set((state) => ({ preferences: next, preview: next, revision: state.revision + 1 }));
   },

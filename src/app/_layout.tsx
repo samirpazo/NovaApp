@@ -13,8 +13,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useColorScheme, vars } from 'nativewind';
 import * as React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Platform } from 'react-native';
 import { AuthGate } from '@/auth';
-import { hexToHslChannels, useAppearanceStore } from '@/theme/appearance';
+import { hexToHslChannels, resolveThemeMode, useAppearanceStore } from '@/theme/appearance';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({ Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold });
@@ -33,7 +34,20 @@ export default function RootLayout() {
 
   React.useEffect(() => {
     if (!appearanceReady) return;
-    setColorSchemeRef.current(appearance.Theme === 'light' ? 'light' : 'dark');
+    const themeMode = resolveThemeMode(appearance.Theme);
+    if (Platform.OS !== 'web' || themeMode !== 'system') {
+      setColorSchemeRef.current(themeMode);
+      return;
+    }
+
+    setColorSchemeRef.current('system');
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const syncSystemClass = () => {
+      document.documentElement.classList.toggle('dark', mediaQuery.matches);
+    };
+    syncSystemClass();
+    mediaQuery.addEventListener('change', syncSystemClass);
+    return () => mediaQuery.removeEventListener('change', syncSystemClass);
   }, [appearance.Theme, appearanceReady]);
 
   if (!fontsLoaded || !appearanceReady) return null;
