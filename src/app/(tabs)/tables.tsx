@@ -35,11 +35,10 @@ export default function TablesScreen() {
           title="RstTable"
           authorization={{ optCode: 'RST_TABLE' }}
           offline={{ resource: SYNC_RESOURCES.RstTable }}
-          persistenceKey="rst-tables"
           dataSource={rstTableDataSource}
           columns={columns}
           readOnly
-          toolbar={{ export: true }}
+          export
           searchPlaceholder="Forma de mesa"
         />
       </ScrollView>

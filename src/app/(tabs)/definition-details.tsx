@@ -312,7 +312,6 @@ export default function DefinitionDetailsScreen() {
               ? `Valores: ${selectedDefinition.DefDescription}`
               : 'GenDefinitionDetail'
           }
-          persistenceKey={`gen-definition-details-${definitionId ?? 'none'}`}
           filter={{ DefID: definitionId }}
           form={{
             addTitle: 'Nuevo valor',
@@ -435,12 +434,10 @@ export default function DefinitionDetailsScreen() {
           columns={columns}
           searchPlaceholder="Descripción, abreviatura o auxiliar"
           selectionMode="single"
-          toolbar={{
-            add: Boolean(selectedDefinition),
-            edit: true,
-            remove: true,
-            export: true,
-          }}
+          add={Boolean(selectedDefinition)}
+          edit
+          remove
+          export
           onAdd={selectedDefinition ? beginAdd : undefined}
           onEdit={beginEdit}
           onDelete={remove}

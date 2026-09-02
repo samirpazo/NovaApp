@@ -88,7 +88,10 @@ export function NCrudPagination({
           accessibilityLabel="Primera página"
           className="h-7 w-7 items-center justify-center disabled:opacity-40"
         >
-          <ChevronsLeft size={15} />
+          <ChevronsLeft
+            size={15}
+            className="text-foreground"
+          />
         </Pressable>
         <Pressable
           disabled={page === 1}
@@ -96,7 +99,10 @@ export function NCrudPagination({
           accessibilityLabel="Anterior"
           className="h-7 w-7 items-center justify-center disabled:opacity-40"
         >
-          <ChevronLeft size={15} />
+          <ChevronLeft
+            size={15}
+            className="text-foreground"
+          />
         </Pressable>
         <Text className="w-5 text-center text-[11px] font-semibold">
           {page}
@@ -107,7 +113,10 @@ export function NCrudPagination({
           accessibilityLabel="Siguiente"
           className="h-7 w-7 items-center justify-center disabled:opacity-40"
         >
-          <ChevronRight size={15} />
+          <ChevronRight
+            size={15}
+            className="text-foreground"
+          />
         </Pressable>
         <Pressable
           disabled={page === pageCount}
@@ -115,7 +124,10 @@ export function NCrudPagination({
           accessibilityLabel="Última página"
           className="h-7 w-7 items-center justify-center disabled:opacity-40"
         >
-          <ChevronsRight size={15} />
+          <ChevronsRight
+            size={15}
+            className="text-foreground"
+          />
         </Pressable>
       </View>
     </View>

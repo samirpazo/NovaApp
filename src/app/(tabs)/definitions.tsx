@@ -148,10 +148,10 @@ export default function DefinitionsScreen() {
         ) : null}
 
         <NCrud
-          title="GenDefinition"
+          title="Definiciones"
           authorization={{ optCode: 'GEN_DEFINITIONS' }}
           offline={{ resource: SYNC_RESOURCES.GenDefinition }}
-          persistenceKey="gen-definitions"
+          config={{ dataSource: genDefinitionDataSource, columns }}
           form={{
             addTitle: 'Nueva definición',
             editTitle: 'Editar definición',
@@ -191,22 +191,22 @@ export default function DefinitionsScreen() {
               </View>
             ),
           }}
-          dataSource={genDefinitionDataSource}
-          columns={columns}
           searchPlaceholder="Código o descripción"
           searchText={(row) => `${row.DefCode} ${row.DefDescription}`}
           selectionMode="single"
-          toolbar={{ add: true, edit: true, remove: true, export: true }}
-          onAdd={beginAdd}
-          onEdit={beginEdit}
-          onDelete={remove}
-          rowActions={(row) => [
+          add
+          edit
+          remove
+          export
+          extraActions={[
             {
               id: 'details',
               label: 'Ver valores',
               kind: 'custom',
-              placement: 'row',
-              onPress: () => {
+              minSelection: 1,
+              maxSelection: 1,
+              onPress: ([row]) => {
+                if (!row) return;
                 router.push({
                   pathname: '/definition-details',
                   params: { definitionId: String(row.DefID) },
@@ -214,6 +214,9 @@ export default function DefinitionsScreen() {
               },
             },
           ]}
+          onAdd={beginAdd}
+          onEdit={beginEdit}
+          onDelete={remove}
         />
       </ScrollView>
     </SafeAreaView>

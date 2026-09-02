@@ -7,7 +7,6 @@ export * from '@/components/crud/n-crud-table';
 export * from '@/components/crud/n-crud-form-state';
 export * from '@/components/crud/n-crud-actions';
 export * from '@/components/crud/n-crud-table-state';
-export * from '@/components/crud/n-crud-column-picker';
 export * from '@/components/crud/n-crud-view-state';
 export * from '@/components/crud/n-crud-filter-panel';
 export * from '@/components/crud/n-crud-offline-state';

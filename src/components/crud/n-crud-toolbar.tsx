@@ -313,7 +313,7 @@ export function NCrudToolbar<T extends NCrudRow>({
           {showSearch ? (
             <View className="relative min-w-0 flex-1 md:w-72 md:flex-none">
               <Search
-                className="absolute left-3 z-10 text-muted-foreground"
+                className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-muted-foreground"
                 size={16}
               />
               <Input

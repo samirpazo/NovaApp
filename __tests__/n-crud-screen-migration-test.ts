@@ -28,7 +28,7 @@ describe('NCrud screen migration', () => {
   it.each(screens)('%s consumes an NCrudDataSource', (screen) => {
     const source = read(screen);
 
-    expect(source).toMatch(/dataSource=\{/);
+    expect(source).toMatch(/dataSource=\{|config=\{[^\n]*dataSource/);
     expect(source).not.toMatch(/\brows=\{/);
   });
 

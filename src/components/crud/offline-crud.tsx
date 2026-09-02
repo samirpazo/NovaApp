@@ -1,12 +1,12 @@
 import * as React from 'react';
-import { RotateCcw, Save, SlidersHorizontal } from 'lucide-react-native';
+import { Save, SlidersHorizontal } from 'lucide-react-native';
 import { ActivityIndicator, useWindowDimensions, View } from 'react-native';
 
 import type {
   NCrudAction,
   NCrudAuthorizationConfig,
   NCrudColumn,
-  NCrudColumnVisibility,
+  NCrudConfig,
   NCrudDataSource,
   NCrudFormConfig,
   NCrudFormContext,
@@ -16,7 +16,6 @@ import type {
   NCrudSelectionMode,
   NCrudToolbarConfig,
 } from '@/components/crud/contracts';
-import { NCrudColumnPicker } from '@/components/crud/n-crud-column-picker';
 import { deliverNCrudCsv } from '@/components/crud/n-crud-export-file';
 import {
   buildNCrudCsv,
@@ -26,24 +25,17 @@ import {
 import { NCrudFilterPanel } from '@/components/crud/n-crud-filter-panel';
 import { nCrudFormReducer } from '@/components/crud/n-crud-form-state';
 import { NCrudPagination } from '@/components/crud/n-crud-pagination';
-import { NCrudOfflineSummary } from '@/components/crud/n-crud-offline-summary';
 import { NCrudTable } from '@/components/crud/n-crud-table';
 import {
-  getNCrudVisibleColumns,
   paginateNCrudRows,
   toggleNCrudRowSelection,
   toggleNCrudVisibleSelection,
 } from '@/components/crud/n-crud-table-state';
 import { NCrudToolbar } from '@/components/crud/n-crud-toolbar';
 import { useNCrudController } from '@/components/crud/use-ncrud-controller';
-import {
-  createNCrudViewStorageKey,
-  parseNCrudViewState,
-} from '@/components/crud/n-crud-view-state';
 import { NFormPanel } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
-import { storage } from '@/lib/storage';
 import { useOptionPermissions } from '@/features/security/options';
 import { useSyncConflictState } from '@/sync/conflicts';
 import { useSyncState } from '@/sync/state';
@@ -53,33 +45,40 @@ export interface NCrudProps<
   TFilter extends object = Record<string, never>,
 > {
   title: string;
+  config?: NCrudConfig<T, TFilter>;
   form?: NCrudFormConfig<T>;
   rows?: T[];
   dataSource?: NCrudDataSource<T, TFilter>;
   filter?: TFilter;
   extraFilters?: React.ReactNode;
-  columns: NCrudColumn<T>[];
+  columns?: NCrudColumn<T>[];
   loading?: boolean;
   readOnly?: boolean;
   pageSizes?: number[];
   searchPlaceholder?: string;
   searchText?: (row: T) => string;
-  toolbar?: Omit<NCrudToolbarConfig<T>, 'extraActions'>;
+  add?: boolean;
+  edit?: boolean;
+  remove?: boolean;
+  export?: boolean;
+  search?: boolean;
+  searchInput?: boolean;
+  showSelectionInfo?: boolean;
+  permissions?: NCrudToolbarConfig<T>['permissions'];
   extraActions?: NCrudAction<T>[];
-  rowActions?: (row: T) => NCrudAction<T>[];
   selectionMode?: NCrudSelectionMode;
+  singleRow?: boolean;
   onAdd?: () => void | Promise<void>;
+  onAddClick?: () => void | Promise<void>;
   onEdit?: (row: T) => void | Promise<void>;
   onDelete?: (row: T) => void | Promise<void>;
   onExport?: (rows: T[]) => void | Promise<void>;
   onActionError?: (error: unknown, action: NCrudAction<T>) => void;
-  columnsConfigurable?: boolean;
   onSelectionChange?: (rows: T[]) => void;
-  onColumnVisibilityChange?: (visibility: NCrudColumnVisibility<T>) => void;
+  onRowSelected?: (rows: T[]) => void;
   emptyFilter?: TFilter;
   filterActiveCount?: number;
   onResetFilters?: () => void;
-  persistenceKey?: string;
   offline?: NCrudOfflineConfig;
   authorization?: NCrudAuthorizationConfig;
 }
@@ -89,46 +88,53 @@ export function NCrud<
   TFilter extends object = Record<string, never>,
 >({
   title,
+  config,
   form,
   rows = [],
-  dataSource,
+  dataSource: dataSourceProp,
   filter,
   extraFilters,
-  columns,
+  columns: columnsProp,
   loading: externalLoading = false,
   readOnly = false,
   pageSizes = [10, 25, 50, -1],
   searchPlaceholder = 'Buscar...',
   searchText,
-  toolbar = {},
+  add = false,
+  edit = false,
+  remove = false,
+  export: exportEnabled = false,
+  search,
+  searchInput,
+  showSelectionInfo = false,
+  permissions,
   extraActions = [],
-  rowActions,
   selectionMode = 'single',
+  singleRow,
   onAdd,
+  onAddClick,
   onEdit,
   onDelete,
   onExport,
   onActionError,
-  columnsConfigurable = true,
   onSelectionChange,
-  onColumnVisibilityChange,
+  onRowSelected,
   emptyFilter,
   filterActiveCount = 0,
   onResetFilters,
-  persistenceKey,
   offline,
   authorization,
 }: NCrudProps<T, TFilter>) {
+  const dataSource = config?.dataSource ?? dataSourceProp;
+  const columns = config?.columns ?? columnsProp ?? [];
+  const effectiveSelectionMode = singleRow ? 'single' : selectionMode;
+  const addHandler = onAddClick ?? onAdd;
+  const selectionHandler = onRowSelected ?? onSelectionChange;
   const compact = useWindowDimensions().width < 768;
   const [containerWidth, setContainerWidth] = React.useState(0);
   const [selectedRows, setSelectedRows] = React.useState<T[]>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<
-    NCrudColumnVisibility<T>
-  >({});
   const [filtersOpen, setFiltersOpen] = React.useState(false);
-  const [viewHydrated, setViewHydrated] = React.useState(!persistenceKey);
-  const onSelectionChangeRef = React.useRef(onSelectionChange);
-  const onColumnVisibilityChangeRef = React.useRef(onColumnVisibilityChange);
+  const onSelectionChangeRef = React.useRef(selectionHandler);
   const [formState, dispatchForm] = React.useReducer(nCrudFormReducer<T>, {
     mode: 'closed',
     row: null,
@@ -188,10 +194,7 @@ export function NCrud<
     ? controller.result.Data
     : paginateNCrudRows(filteredRows, page, pageSize);
   const selectedIds = selectedRows.map((row) => row.id);
-  const visibleColumns = React.useMemo(
-    () => getNCrudVisibleColumns(columns, columnVisibility, compact),
-    [columnVisibility, columns, compact],
-  );
+  const visibleColumns = columns;
   const loading = externalLoading || controller.loading;
   const syncStatus = useSyncState((state) => state.Status);
   const granted = useOptionPermissions(authorization?.optCode);
@@ -209,10 +212,6 @@ export function NCrud<
   const authorizedExtraActions = React.useMemo(
     () => extraActions.map(authorizeAction),
     [authorizeAction, extraActions],
-  );
-  const authorizedRowActions = React.useCallback(
-    (row: T) => rowActions?.(row).map(authorizeAction) ?? [],
-    [authorizeAction, rowActions],
   );
   const conflicts = useSyncConflictState((state) => state.Conflicts);
   const conflictIds = React.useMemo(
@@ -240,46 +239,6 @@ export function NCrud<
   }, [filterSignature]);
 
   React.useEffect(() => {
-    if (!persistenceKey) return;
-    let active = true;
-    void storage
-      .getItem(createNCrudViewStorageKey(persistenceKey))
-      .then((stored) => {
-        if (!active) return;
-        const state = parseNCrudViewState(stored);
-        if (state) {
-          controller.restoreRequest({
-            ...state.request,
-            Filter: state.request.Filter as TFilter,
-          });
-          setColumnVisibility(
-            state.columnVisibility as NCrudColumnVisibility<T>,
-          );
-        }
-        setViewHydrated(true);
-      })
-      .catch(() => {
-        if (active) setViewHydrated(true);
-      });
-    return () => {
-      active = false;
-    };
-    // Persistence is restored only when the CRUD identity changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [persistenceKey]);
-
-  React.useEffect(() => {
-    if (!persistenceKey || !viewHydrated) return;
-    const timeout = setTimeout(() => {
-      void storage.setItem(
-        createNCrudViewStorageKey(persistenceKey),
-        JSON.stringify({ request: controller.request, columnVisibility }),
-      );
-    }, 250);
-    return () => clearTimeout(timeout);
-  }, [columnVisibility, controller.request, persistenceKey, viewHydrated]);
-
-  React.useEffect(() => {
     setSelectedRows((current) => {
       const next = current.map(
         (selected) =>
@@ -296,45 +255,26 @@ export function NCrud<
   }, [onSelectionChange]);
 
   React.useEffect(() => {
-    onColumnVisibilityChangeRef.current = onColumnVisibilityChange;
-  }, [onColumnVisibilityChange]);
-
-  React.useEffect(() => {
     onSelectionChangeRef.current?.(selectedRows);
   }, [selectedRows]);
-
-  React.useEffect(() => {
-    onColumnVisibilityChangeRef.current?.(columnVisibility);
-  }, [columnVisibility]);
 
   const selectRow = (row: T) => {
     if (selectionMode === 'none') return;
     setSelectedRows((current) =>
-      toggleNCrudRowSelection(current, row, selectionMode),
+      toggleNCrudRowSelection(current, row, effectiveSelectionMode),
     );
   };
 
   const selectAllVisible = () => {
-    if (selectionMode !== 'multiple') return;
+    if (effectiveSelectionMode !== 'multiple') return;
     setSelectedRows((current) =>
       toggleNCrudVisibleSelection(current, visibleRows),
     );
   };
 
-  const toggleColumn = (key: keyof T & string, visible: boolean) => {
-    setColumnVisibility((current) => ({ ...current, [key]: visible }));
-  };
-
   const resetFilters = () => {
     controller.clearFilters(emptyFilter ?? ({} as TFilter));
     onResetFilters?.();
-  };
-
-  const resetView = () => {
-    controller.resetQuery(emptyFilter ?? ({} as TFilter));
-    onResetFilters?.();
-    setColumnVisibility({});
-    setSelectedRows([]);
   };
 
   const exportRows = async (toolbarSelection: T[]) => {
@@ -370,7 +310,7 @@ export function NCrud<
   };
 
   const openAdd = async () => {
-    await onAdd?.();
+    await addHandler?.();
     dispatchForm({ type: 'open-add' });
   };
 
@@ -440,18 +380,21 @@ export function NCrud<
         title={title}
         config={{
           ...toolbar,
-          add: !readOnly && toolbar.add,
-          edit: !readOnly && toolbar.edit,
-          remove: !readOnly && toolbar.remove,
-          showSelectionInfo: toolbar.showSelectionInfo ?? true,
+          add: !readOnly && add,
+          edit: !readOnly && edit,
+          remove: !readOnly && remove,
+          export: exportEnabled,
+          search,
+          searchInput,
+          showSelectionInfo,
           permissions: authorization
             ? {
-                add: granted.add && toolbar.permissions?.add !== false,
-                edit: granted.edit && toolbar.permissions?.edit !== false,
-                remove: granted.remove && toolbar.permissions?.remove !== false,
-                export: granted.export && toolbar.permissions?.export !== false,
+                add: granted.add && permissions?.add !== false,
+                edit: granted.edit && permissions?.edit !== false,
+                remove: granted.remove && permissions?.remove !== false,
+                export: granted.export && permissions?.export !== false,
               }
-            : toolbar.permissions,
+            : permissions,
           extraActions: readOnly ? [] : authorizedExtraActions,
         }}
         selectedRows={selectedRows}
@@ -473,7 +416,7 @@ export function NCrud<
         onActionError={onActionError}
         tools={
           <View className="flex-row items-center gap-1">
-            {columns.some((column) => column.searchable) || extraFilters ? (
+            {compact && extraFilters ? (
               <Button
                 variant="ghost"
                 size="icon"
@@ -491,36 +434,16 @@ export function NCrud<
                 ) : null}
               </Button>
             ) : null}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onPress={resetView}
-              accessibilityLabel="Restablecer vista"
-            >
-              <RotateCcw size={15} />
-            </Button>
-            {columnsConfigurable ? (
-              <NCrudColumnPicker
-                columns={columns}
-                visibleKeys={visibleColumns.map((column) => column.key)}
-                onToggle={toggleColumn}
-              />
-            ) : null}
           </View>
         }
       />
 
-      {offline && offline.showSummary !== false ? (
-        <NCrudOfflineSummary resource={offline.resource} />
-      ) : null}
-
-      {filtersOpen ? (
+      {extraFilters && (compact ? filtersOpen : true) ? (
         <NCrudFilterPanel
-          columns={columns}
-          values={controller.request.ColumnSearch}
+          columns={[]}
+          values={{}}
           customFilters={extraFilters}
-          onChange={controller.setColumnSearch}
+          onChange={() => undefined}
           onReset={resetFilters}
         />
       ) : null}
@@ -545,13 +468,12 @@ export function NCrud<
           compact={compact}
           containerWidth={containerWidth}
           selectedIds={selectedIds}
-          selectionMode={selectionMode}
+          selectionMode={effectiveSelectionMode}
           onSelect={selectRow}
           onSelectAll={selectAllVisible}
           orderBy={controller.request.OrderBy}
           sortOrder={controller.request.SortOrder}
           onSort={controller.sort}
-          rowActions={rowActions ? authorizedRowActions : undefined}
           conflictIds={conflictIds}
           syncing={syncStatus === 'syncing'}
         />

@@ -63,6 +63,14 @@ export interface NCrudOfflineConfig {
   showSummary?: boolean;
 }
 
+export interface NCrudConfig<
+  T extends NCrudRow = NCrudRow,
+  TFilter extends object = Record<string, never>,
+> {
+  dataSource?: NCrudDataSource<T, TFilter>;
+  columns: NCrudColumn<T>[];
+}
+
 export interface NCrudAuthorizationConfig {
   /** Must match the backend RequireOption code. */
   optCode: string;

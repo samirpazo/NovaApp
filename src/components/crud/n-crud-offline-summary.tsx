@@ -6,6 +6,10 @@ import { View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
+import {
+  filterResourceConflicts,
+  selectSyncConflicts,
+} from '@/components/crud/n-crud-offline-selectors';
 import type { SyncResource } from '@/contracts/sync';
 import { pullNova } from '@/sync/pull';
 import { useSyncIndicators } from '@/sync/useSyncIndicators';
@@ -15,8 +19,10 @@ import { useSyncState } from '@/sync/state';
 export function NCrudOfflineSummary({ resource }: { resource: SyncResource }) {
   const router = useRouter();
   const { pendingChanges } = useSyncIndicators();
-  const conflicts = useSyncConflictState((state) =>
-    state.Conflicts.filter((conflict) => conflict.Resource === resource),
+  const allConflicts = useSyncConflictState(selectSyncConflicts);
+  const conflicts = React.useMemo(
+    () => filterResourceConflicts(allConflicts, resource),
+    [allConflicts, resource],
   );
   const status = useSyncState((state) => state.Status);
   const error = useSyncState((state) => state.Error);

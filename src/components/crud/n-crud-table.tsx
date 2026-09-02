@@ -2,12 +2,7 @@ import { ArrowDown, ArrowUp, ChevronsUpDown, Check } from 'lucide-react-native';
 import * as React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
-import type {
-  NCrudAction,
-  NCrudColumn,
-  NCrudRow,
-} from '@/components/crud/contracts';
-import { isNCrudActionDisabled } from '@/components/crud/n-crud-actions';
+import type { NCrudColumn, NCrudRow } from '@/components/crud/contracts';
 import {
   resolveNCrudOfflineStatus,
   type NCrudOfflineStatus,
@@ -27,7 +22,6 @@ export interface NCrudTableProps<T extends NCrudRow> {
   orderBy: string | null;
   sortOrder: 'asc' | 'desc' | null;
   onSort: (column: string) => void;
-  rowActions?: (row: T) => NCrudAction<T>[];
   conflictIds?: string[];
   syncing?: boolean;
 }
@@ -104,7 +98,6 @@ export function NCrudTable<T extends NCrudRow>({
   orderBy,
   sortOrder,
   onSort,
-  rowActions,
   conflictIds = [],
   syncing = false,
 }: NCrudTableProps<T>) {
@@ -117,32 +110,6 @@ export function NCrudTable<T extends NCrudRow>({
       hasConflict: conflictIds.includes(row.id),
       isSyncing: syncing,
     });
-  const renderRowActions = (row: T) =>
-    (rowActions?.(row) ?? [])
-      .filter((action) => {
-        if (action.permission === false) return false;
-        return typeof action.visible === 'function'
-          ? action.visible([row])
-          : action.visible !== false;
-      })
-      .map((action) => (
-        <Pressable
-          key={action.id}
-          accessibilityRole="button"
-          accessibilityLabel={action.label}
-          disabled={isNCrudActionDisabled(action, [row])}
-          onPress={(event) => {
-            event.stopPropagation();
-            void action.onPress([row]);
-          }}
-          className={cn(
-            'rounded px-2 py-1',
-            isNCrudActionDisabled(action, [row]) && 'opacity-40',
-          )}
-        >
-          <Text className="text-xs text-primary">{action.label}</Text>
-        </Pressable>
-      ));
   const SortIcon = ({ column }: { column: string }) =>
     orderBy !== column ? (
       <ChevronsUpDown
@@ -150,9 +117,15 @@ export function NCrudTable<T extends NCrudRow>({
         className="text-muted-foreground"
       />
     ) : sortOrder === 'desc' ? (
-      <ArrowDown size={13} />
+      <ArrowDown
+        size={13}
+        className="text-foreground"
+      />
     ) : (
-      <ArrowUp size={13} />
+      <ArrowUp
+        size={13}
+        className="text-foreground"
+      />
     );
 
   if (compact)
@@ -240,11 +213,6 @@ export function NCrudTable<T extends NCrudRow>({
                 </View>
               </View>
             ))}
-            {rowActions ? (
-              <View className="flex-row justify-end pt-1">
-                {renderRowActions(row)}
-              </View>
-            ) : null}
           </Pressable>
         ))}
       </View>
@@ -306,11 +274,6 @@ export function NCrudTable<T extends NCrudRow>({
               ) : null}
             </Pressable>
           ))}
-          {rowActions ? (
-            <Text className="w-24 text-center text-[10px] font-semibold text-muted-foreground">
-              Acción
-            </Text>
-          ) : null}
         </View>
         {rows.map((row) => (
           <Pressable
@@ -363,11 +326,6 @@ export function NCrudTable<T extends NCrudRow>({
                 />
               </View>
             ))}
-            {rowActions ? (
-              <View className="w-24 items-center justify-center">
-                {renderRowActions(row)}
-              </View>
-            ) : null}
           </Pressable>
         ))}
         {rows.length === 0 ? (

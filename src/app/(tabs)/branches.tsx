@@ -166,7 +166,6 @@ export default function BranchesScreen() {
           title="RstBranch"
           authorization={{ optCode: 'RST_BRANCH' }}
           offline={{ resource: SYNC_RESOURCES.RstBranch }}
-          persistenceKey="rst-branches"
           form={{
             addTitle: 'Nueva sucursal',
             editTitle: 'Editar sucursal',
@@ -242,12 +241,10 @@ export default function BranchesScreen() {
           columns={columns}
           searchPlaceholder="Nombre, dirección o encargado"
           selectionMode="single"
-          toolbar={{
-            add: Boolean(restaurantId),
-            edit: true,
-            remove: true,
-            export: true,
-          }}
+          add={Boolean(restaurantId)}
+          edit
+          remove
+          export
           onAdd={restaurantId ? beginAdd : undefined}
           onEdit={beginEdit}
           onDelete={remove}
