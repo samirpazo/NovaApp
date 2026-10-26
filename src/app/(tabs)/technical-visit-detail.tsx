@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { DateTime } from 'luxon';
 import * as React from 'react';
 import { Alert, Modal, ScrollView, View } from 'react-native';
@@ -6,7 +6,6 @@ import * as DocumentPicker from 'expo-document-picker';
 
 import { useAuthStore } from '@/auth/store';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { NText } from '@/components/forms/NText';
 import { NDate } from '@/components/forms/NDate';
 import { Text } from '@/components/ui/text';
@@ -14,48 +13,77 @@ import { NSwitch } from '@/components/forms/NSwitch';
 import { NSelect } from '@/components/forms/NSelect';
 import { Q } from '@nozbe/watermelondb';
 import { SYNC_RESOURCES } from '@/contracts/sync';
-import { database, GenDefinitionDetailModel, GenDefinitionModel, OagTechnicalVisitModel } from '@/database';
+import { database, GenDefinitionDetailModel, GenDefinitionModel, OagTechnicalVisitModel, OagTechnicalVisitScheduleModel } from '@/database';
 import { randomUUID } from 'expo-crypto';
+import { formatters } from '@/lib/formatter';
+import { Building2, ClipboardCheck, ClipboardList, MapPin, MapPinned, Pencil, Save, Sprout, ArrowLeft, X } from 'lucide-react-native';
+import { Image } from 'expo-image';
+import { loadManagedImage } from '@/lib/managed-image';
+import { useSyncState } from '@/sync/state';
+import { TechnicalVisitSections, VisitSectionHeading } from '@/components/operationsagr/TechnicalVisitSections';
+import {
+  parseTechnicalVisitSnapshot,
+  previousTechnicalVisitRows,
+  validateTechnicalVisitSectionRow,
+  validateTechnicalVisitSnapshot,
+  type TechnicalVisitSectionKey,
+  type TechnicalVisitSnapshot,
+  type TechnicalVisitSnapshotRow,
+} from '@/lib/technical-visit-validation';
 
-type VisitSnapshot = {
-  Visit: Record<string, unknown>;
-  Applications: unknown[];
-  ApplicationDetails: unknown[];
-  Diagnoses: unknown[];
-  Phenology: unknown[];
-  Activities: unknown[];
-  Installations: unknown[];
-  Recommendations: unknown[];
-  PreviousRecommendations: unknown[];
-  RecommendationFollowUps: unknown[];
-  CulturalActivities: unknown[];
-  PreviousCulturalActivities: unknown[];
-  CulturalActivityFollowUps: unknown[];
-  Evidences: unknown[];
-  PendingSignatureFile?: { uri: string; name: string; mimeType?: string | null };
-};
-
-type SectionKey = Exclude<keyof VisitSnapshot, 'Visit' | 'PendingSignatureFile'>;
+type SectionKey = TechnicalVisitSectionKey;
 type SectionField = { key: string; label: string; kind?: 'number' | 'decimal' | 'boolean' | 'datetime'; required?: boolean; definitionCode?: string };
 type SectionDefinition = { key: SectionKey; label: string; id: string; fields: SectionField[] };
 
-const sections: { key: SectionKey; label: string }[] = [
-  { key: 'Applications', label: 'Aplicaciones' },
-  { key: 'ApplicationDetails', label: 'Productos aplicados' },
-  { key: 'Diagnoses', label: 'Diagnósticos' },
-  { key: 'Phenology', label: 'Fenología' },
-  { key: 'Activities', label: 'Labores de campo' },
-  { key: 'Installations', label: 'Instalaciones' },
-  { key: 'Recommendations', label: 'Recomendaciones' },
-  { key: 'RecommendationFollowUps', label: 'Seguimiento de recomendaciones' },
-  { key: 'CulturalActivities', label: 'Actividades culturales' },
-  { key: 'CulturalActivityFollowUps', label: 'Seguimiento cultural' },
-  { key: 'Evidences', label: 'Evidencias' },
-];
+function normalizeSnapshot(
+  snapshot: TechnicalVisitSnapshot,
+  currentVisitId: number,
+): TechnicalVisitSnapshot {
+  const visitDate = String(snapshot.Visit.TviPerformedDate ?? '');
+  const previousRecommendations = previousTechnicalVisitRows(
+    snapshot.PreviousRecommendations,
+    currentVisitId,
+    visitDate,
+  );
+  const previousCulturalActivities = previousTechnicalVisitRows(
+    snapshot.PreviousCulturalActivities,
+    currentVisitId,
+    visitDate,
+  );
+  if (!DateTime.fromISO(visitDate, { setZone: true }).isValid) {
+    return {
+      ...snapshot,
+      PreviousRecommendations: previousRecommendations,
+      PreviousCulturalActivities: previousCulturalActivities,
+    };
+  }
+  const recommendationIds = new Set(
+    previousRecommendations.map((row) => Number(row.TvrID)),
+  );
+  const culturalActivityIds = new Set(
+    previousCulturalActivities.map((row) => Number(row.TcaID)),
+  );
+  return {
+    ...snapshot,
+    PreviousRecommendations: previousRecommendations,
+    PreviousCulturalActivities: previousCulturalActivities,
+    RecommendationFollowUps: snapshot.RecommendationFollowUps.filter(
+      (row) => row.SecStatus === false || recommendationIds.has(Number(row.TvrID)),
+    ),
+    CulturalActivityFollowUps: snapshot.CulturalActivityFollowUps.filter(
+      (row) => row.SecStatus === false || culturalActivityIds.has(Number(row.TcaID)),
+    ),
+  };
+}
 
 const editableSections: SectionDefinition[] = [
+  { key: 'Evidences', label: 'Evidencia', id: 'TveID', fields: [
+    { key: 'TveDescription', label: 'Descripción de la evidencia' },
+  ] },
   { key: 'Applications', label: 'Aplicaciones', id: 'TapID', fields: [
     { key: 'TapApplicationMode', label: 'Modo de aplicación', kind: 'number', definitionCode: 'OAG_FIELD_APPLICATION_MODE' },
+    { key: 'TapStartDateTime', label: 'Inicio', kind: 'datetime', required: true },
+    { key: 'TapEndDateTime', label: 'Fin', kind: 'datetime', required: true },
     { key: 'TapWaterLiters', label: 'Agua (litros)', kind: 'decimal' },
     { key: 'TapFuelExpense', label: 'Combustible', kind: 'decimal' },
     { key: 'TapAppliedHectares', label: 'Hectáreas aplicadas', kind: 'decimal' },
@@ -76,7 +104,7 @@ const editableSections: SectionDefinition[] = [
     { key: 'TadObservation', label: 'Observación' },
   ] },
   { key: 'Diagnoses', label: 'Diagnósticos', id: 'TvdID', fields: [
-    { key: 'TvdCategory', label: 'Categoría', kind: 'number', required: true },
+    { key: 'TvdCategory', label: 'Categoría', kind: 'number', required: true, definitionCode: 'OAG_TECHNICAL_DIAGNOSIS_CATEGORY' },
     { key: 'PlgID', label: 'ID de plaga', kind: 'number' },
     { key: 'FrsID', label: 'ID de insumo relacionado', kind: 'number' },
     { key: 'TvdPlantOrgan', label: 'Órgano de la planta', kind: 'number', definitionCode: 'OAG_PLANT_ORGAN' },
@@ -148,16 +176,38 @@ export default function TechnicalVisitDetailScreen() {
   const router = useRouter();
   const userId = useAuthStore((state) => state.Session?.User.UsrID ?? 0);
   const [model, setModel] = React.useState<OagTechnicalVisitModel | null>(null);
-  const [snapshot, setSnapshot] = React.useState<VisitSnapshot | null>(null);
+  const [schedule, setSchedule] = React.useState<OagTechnicalVisitScheduleModel | null>(null);
+  const [snapshot, setSnapshot] = React.useState<TechnicalVisitSnapshot | null>(null);
   const [date, setDate] = React.useState('');
   const [latitude, setLatitude] = React.useState('');
   const [longitude, setLongitude] = React.useState('');
   const [observation, setObservation] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [activeSection, setActiveSection] = React.useState<SectionDefinition | null>(null);
-  const [editingRow, setEditingRow] = React.useState<Record<string, unknown> | null>(null);
+  const [editingRow, setEditingRow] = React.useState<TechnicalVisitSnapshotRow | null>(null);
   const [sectionValues, setSectionValues] = React.useState<Record<string, string | boolean>>({});
   const [definitionOptions, setDefinitionOptions] = React.useState<Record<string, { label: string; value: number }[]>>({});
+  const applicationOptions = React.useMemo(() => (snapshot?.Applications ?? [])
+    .filter((row) => row.SecStatus !== false)
+    .map((row) => ({
+      label: `#${String(row.TapID)} · ${row.TapStartDateTime ? formatters.datetime(String(row.TapStartDateTime)) : 'Sin fecha'}`,
+      value: Number(row.TapID),
+    }))
+    .filter((item) => Number.isFinite(item.value)), [snapshot]);
+  const previousRecommendationOptions = React.useMemo(() => (snapshot?.PreviousRecommendations ?? [])
+    .filter((row) => row.SecStatus !== false)
+    .map((row) => ({
+      label: `#${String(row.TvrID)} · ${String(row.TvrProductDescription || row.TvrObjective || 'Recomendación')}`,
+      value: Number(row.TvrID),
+    }))
+    .filter((item) => Number.isFinite(item.value)), [snapshot]);
+  const previousCulturalActivityOptions = React.useMemo(() => (snapshot?.PreviousCulturalActivities ?? [])
+    .filter((row) => row.SecStatus !== false)
+    .map((row) => ({
+      label: `#${String(row.TcaID)} · Actividad cultural anterior`,
+      value: Number(row.TcaID),
+    }))
+    .filter((item) => Number.isFinite(item.value)), [snapshot]);
 
   React.useEffect(() => {
     void Promise.all([
@@ -175,20 +225,67 @@ export default function TechnicalVisitDetailScreen() {
     }).catch(() => setDefinitionOptions({}));
   }, []);
 
+  const [signaturePreview, setSignaturePreview] = React.useState<string | null>(null);
+  const signatureFileId = Number(snapshot?.Visit.TviSignatureFilID) || 0;
   React.useEffect(() => {
+    let cancelled = false;
+    setSignaturePreview(null);
+    if (signatureFileId > 0) {
+      void loadManagedImage(signatureFileId).then((uri) => {
+        if (!cancelled) setSignaturePreview(uri);
+      }).catch(() => { /* The registered signature remains valid when its preview is unavailable. */ });
+    }
+    return () => { cancelled = true; };
+  }, [signatureFileId]);
+
+  const syncFinishedAt = useSyncState((state) => state.LastPull?.FinishedAt);
+  const hydratedFields = React.useRef<{ id: string; date: string; latitude: string; longitude: string; observation: string } | null>(null);
+
+  const loadVisit = React.useCallback(async (isCancelled: () => boolean) => {
     if (!id) return;
-    void database.get<OagTechnicalVisitModel>(SYNC_RESOURCES.OagTechnicalVisit).find(id)
-      .then((record) => {
-        const parsed = JSON.parse(record.Snapshot) as VisitSnapshot;
-        setModel(record);
-        setSnapshot(parsed);
-        setDate(String(parsed.Visit.TviPerformedDate ?? record.TviPerformedDate));
-        setLatitude(parsed.Visit.TviLatitude == null ? '' : String(parsed.Visit.TviLatitude));
-        setLongitude(parsed.Visit.TviLongitude == null ? '' : String(parsed.Visit.TviLongitude));
-        setObservation(String(parsed.Visit.TviObservation ?? ''));
-      })
-      .catch(() => Alert.alert('Visita no disponible', 'No se encontró el borrador local.'));
+    try {
+      const record = await database.get<OagTechnicalVisitModel>(SYNC_RESOURCES.OagTechnicalVisit).find(id);
+      const normalized = normalizeSnapshot(
+        parseTechnicalVisitSnapshot(record.Snapshot),
+        record.TviID,
+      );
+      const schedules = await database.get<OagTechnicalVisitScheduleModel>(SYNC_RESOURCES.OagTechnicalVisitSchedule)
+        .query(Q.where('TvsID', record.TvsID), Q.where('SecStatus', true)).fetch();
+      if (isCancelled()) return;
+      setModel(record);
+      setSnapshot(normalized);
+      setSchedule(schedules[0] ?? null);
+      const nextFields = {
+        id: record.id,
+        date: String(normalized.Visit.TviPerformedDate ?? record.TviPerformedDate),
+        latitude: normalized.Visit.TviLatitude == null ? '' : String(normalized.Visit.TviLatitude),
+        longitude: normalized.Visit.TviLongitude == null ? '' : String(normalized.Visit.TviLongitude),
+        observation: String(normalized.Visit.TviObservation ?? ''),
+      };
+      const previous = hydratedFields.current;
+      const reset = previous?.id !== record.id;
+      setDate((current) => reset || current === previous?.date ? nextFields.date : current);
+      setLatitude((current) => reset || current === previous?.latitude ? nextFields.latitude : current);
+      setLongitude((current) => reset || current === previous?.longitude ? nextFields.longitude : current);
+      setObservation((current) => reset || current === previous?.observation ? nextFields.observation : current);
+      hydratedFields.current = nextFields;
+    } catch {
+      if (!isCancelled()) Alert.alert('Visita no disponible', 'No se encontró el borrador local.');
+    }
   }, [id]);
+
+  useFocusEffect(React.useCallback(() => {
+    let cancelled = false;
+    void loadVisit(() => cancelled);
+    return () => { cancelled = true; };
+  }, [loadVisit]));
+
+  React.useEffect(() => {
+    if (!syncFinishedAt) return;
+    let cancelled = false;
+    void loadVisit(() => cancelled);
+    return () => { cancelled = true; };
+  }, [loadVisit, syncFinishedAt]);
 
   const save = async () => {
     if (!model || !snapshot) return;
@@ -200,21 +297,26 @@ export default function TechnicalVisitDetailScreen() {
       Alert.alert('Revisa los datos', 'La fecha y las coordenadas deben ser válidas.');
       return;
     }
+    const now = DateTime.utc().toISO() ?? '';
+    const next: TechnicalVisitSnapshot = {
+      ...snapshot,
+      Visit: {
+        ...snapshot.Visit,
+        TviPerformedDate: parsedDate.toUTC().toISO(),
+        TviLatitude: lat,
+        TviLongitude: lon,
+        TviObservation: observation.trim() || null,
+        UpdateUserId: userId,
+        UpdateDate: now,
+      },
+    };
+    const validationError = validateTechnicalVisitSnapshot(next);
+    if (validationError) {
+      Alert.alert('Revisa la visita', validationError);
+      return;
+    }
     setSaving(true);
     try {
-      const now = DateTime.utc().toISO() ?? '';
-      const next: VisitSnapshot = {
-        ...snapshot,
-        Visit: {
-          ...snapshot.Visit,
-          TviPerformedDate: parsedDate.toUTC().toISO(),
-          TviLatitude: lat,
-          TviLongitude: lon,
-          TviObservation: observation.trim() || null,
-          UpdateUserId: userId,
-          UpdateDate: now,
-        },
-      };
       await database.write(() => model.update((record) => {
         record.TviPerformedDate = String(next.Visit.TviPerformedDate);
         record.TviLatitude = lat;
@@ -297,21 +399,37 @@ export default function TechnicalVisitDetailScreen() {
         ? Boolean(row?.[field.key])
         : row?.[field.key] == null ? '' : String(row[field.key]),
     ])) as Record<string, string | boolean>;
+    if (!row && definition.key === 'Applications') {
+      const start = DateTime.now().startOf('minute');
+      initial.TapStartDateTime = start.toISO() ?? '';
+      initial.TapEndDateTime = start.plus({ hours: 1 }).toISO() ?? '';
+    }
     if (!row && definition.key === 'ApplicationDetails') {
-      const first = snapshot?.Applications[0] as Record<string, unknown> | undefined;
+      const first = snapshot?.Applications.find((item) => item.SecStatus !== false);
       if (first?.TapID != null) initial.TapID = String(first.TapID);
     }
     if (!row && definition.key === 'RecommendationFollowUps') {
-      const first = snapshot?.Recommendations[0] as Record<string, unknown> | undefined;
+      const first = snapshot?.PreviousRecommendations.find((item) => item.SecStatus !== false);
       if (first?.TvrID != null) initial.TvrID = String(first.TvrID);
     }
     if (!row && definition.key === 'CulturalActivityFollowUps') {
-      const first = snapshot?.CulturalActivities[0] as Record<string, unknown> | undefined;
+      const first = snapshot?.PreviousCulturalActivities.find((item) => item.SecStatus !== false);
       if (first?.TcaID != null) initial.TcaID = String(first.TcaID);
     }
     setSectionValues(initial);
     setEditingRow(row ?? null);
     setActiveSection(definition);
+  };
+
+  const openSection = (key: SectionKey, row?: TechnicalVisitSnapshotRow, parent?: TechnicalVisitSnapshotRow) => {
+    const definition = editableSections.find((item) => item.key === key);
+    if (!definition) return;
+    openSectionRow(definition, row);
+    if (parent) {
+      const relation = key === 'ApplicationDetails' ? 'TapID'
+        : key === 'RecommendationFollowUps' ? 'TvrID' : 'TcaID';
+      setSectionValues((current) => ({ ...current, [relation]: String(parent[relation]) }));
+    }
   };
 
   const saveSectionRow = async () => {
@@ -347,7 +465,7 @@ export default function TechnicalVisitDetailScreen() {
       }
     }
     const now = DateTime.utc().toISO() ?? '';
-    const rows = snapshot[activeSection.key] as Record<string, unknown>[];
+    const rows = snapshot[activeSection.key] as TechnicalVisitSnapshotRow[];
     const primaryId = editingRow
       ? editingRow[activeSection.id]
       : -Date.now() - rows.length;
@@ -362,7 +480,7 @@ export default function TechnicalVisitDetailScreen() {
       UpdateDate: now,
       DeleteDate: null,
     };
-    const nextRow = {
+    const nextRow: TechnicalVisitSnapshotRow = {
       ...base,
       ...data,
       [activeSection.id]: primaryId,
@@ -370,12 +488,22 @@ export default function TechnicalVisitDetailScreen() {
       UpdateUserId: userId,
       UpdateDate: now,
     };
-    const next = {
+    const next: TechnicalVisitSnapshot = {
       ...snapshot,
       [activeSection.key]: editingRow
         ? rows.map((row) => row === editingRow ? nextRow : row)
         : [...rows, nextRow],
     };
+    const validationError = validateTechnicalVisitSectionRow(
+      activeSection.key,
+      nextRow,
+      next,
+      String(next.Visit.TviPerformedDate ?? ''),
+    );
+    if (validationError) {
+      Alert.alert('Revisa la sección', validationError);
+      return;
+    }
     await database.write(() => model.update((record) => {
       record.Snapshot = JSON.stringify(next);
       record.UpdateUserId = userId;
@@ -392,13 +520,40 @@ export default function TechnicalVisitDetailScreen() {
   ) => {
     if (!model || !snapshot) return;
     const now = DateTime.utc().toISO() ?? '';
-    const rows = snapshot[definition.key] as Record<string, unknown>[];
-    const next = {
+    const rows = snapshot[definition.key] as TechnicalVisitSnapshotRow[];
+    const remove = (item: TechnicalVisitSnapshotRow) => item === row
+      ? { ...item, SecStatus: false, DeleteUserId: userId, DeleteDate: now }
+      : item;
+    let next: TechnicalVisitSnapshot = {
       ...snapshot,
-      [definition.key]: rows.map((item) => item === row
-        ? { ...item, SecStatus: false, DeleteUserId: userId, DeleteDate: now }
-        : item),
+      [definition.key]: rows.map(remove),
     };
+    if (definition.key === 'Applications') {
+      next = {
+        ...next,
+        ApplicationDetails: next.ApplicationDetails.map((item) =>
+          Number(item.TapID) === Number(row.TapID)
+            ? { ...item, SecStatus: false, DeleteUserId: userId, DeleteDate: now }
+            : item
+        ),
+      };
+    }
+    if (definition.key === 'Recommendations') {
+      next = {
+        ...next,
+        RecommendationFollowUps: next.RecommendationFollowUps.map((item) =>
+          Number(item.TvrID) === Number(row.TvrID) ? { ...item, SecStatus: false, DeleteUserId: userId, DeleteDate: now } : item
+        ),
+      };
+    }
+    if (definition.key === 'CulturalActivities') {
+      next = {
+        ...next,
+        CulturalActivityFollowUps: next.CulturalActivityFollowUps.map((item) =>
+          Number(item.TcaID) === Number(row.TcaID) ? { ...item, SecStatus: false, DeleteUserId: userId, DeleteDate: now } : item
+        ),
+      };
+    }
     await database.write(() => model.update((record) => {
       record.Snapshot = JSON.stringify(next);
       record.UpdateUserId = userId;
@@ -407,35 +562,38 @@ export default function TechnicalVisitDetailScreen() {
     setSnapshot(next);
   };
 
-  const toggleFollowUp = async (
-    property: 'Recommendations' | 'CulturalActivities',
-    followUpProperty: 'RecommendationFollowUps' | 'CulturalActivityFollowUps',
-    followUpId: 'TvrID' | 'TcaID',
-    statusProperty: 'TrfStatus' | 'TcfStatus',
+  const saveCatalogValue = async (
+    key: 'Phenology' | 'Installations',
+    option: { label: string; value: number },
+    field: 'TphPercentage' | 'TinIsAvailable',
+    value: string | boolean,
   ) => {
     if (!model || !snapshot) return;
-    const parent = snapshot[property][0] as Record<string, unknown> | undefined;
-    if (!parent) return;
+    const rows = snapshot[key] as Record<string, unknown>[];
+    const stageKey = key === 'Phenology' ? 'TphStage' : 'TinInstallationType';
+    const existing = rows.find((row) => row[stageKey] === option.value);
     const now = DateTime.utc().toISO() ?? '';
-    const followUps = snapshot[followUpProperty] as Record<string, unknown>[];
-    const current = followUps.find((row) => row[followUpId] === parent[followUpId]);
-    const nextRow = current
-      ? { ...current, [statusProperty]: current[statusProperty] === 1 ? 2 : 1, UpdateUserId: userId, UpdateDate: now }
-      : {
-          SyncId: randomUUID(), SyncVersion: '', SecStatus: true,
-          CreateUserId: userId, UpdateUserId: userId, DeleteUserId: null,
-          CreateDate: now, UpdateDate: now, DeleteDate: null,
-          ...(followUpProperty === 'RecommendationFollowUps'
-            ? { TrfID: -Math.floor(Date.now()) }
-            : { TcfID: -Math.floor(Date.now()) }),
-          TviID: model.TviID, [followUpId]: parent[followUpId],
-          [statusProperty]: 1, TrfObservation: null, TcfObservation: null,
-        };
+    const updated = {
+      ...existing,
+      SyncId: existing?.SyncId ?? randomUUID(),
+      SyncVersion: existing?.SyncVersion ?? '',
+      SecStatus: true,
+      CreateUserId: existing?.CreateUserId ?? userId,
+      UpdateUserId: userId,
+      DeleteUserId: null,
+      CreateDate: existing?.CreateDate ?? now,
+      UpdateDate: now,
+      DeleteDate: null,
+      [key === 'Phenology' ? 'TphID' : 'TinID']: existing?.[key === 'Phenology' ? 'TphID' : 'TinID'] ?? -Date.now(),
+      TviID: model.TviID,
+      [stageKey]: option.value,
+      [field]: field === 'TphPercentage' ? Number(value) : value,
+    };
     const next = {
       ...snapshot,
-      [followUpProperty]: current
-        ? followUps.map((row) => row === current ? nextRow : row)
-        : [...followUps, nextRow],
+      [key]: existing
+        ? rows.map((row) => row === existing ? updated : row)
+        : [...rows, updated],
     };
     await database.write(() => model.update((record) => {
       record.Snapshot = JSON.stringify(next);
@@ -445,79 +603,155 @@ export default function TechnicalVisitDetailScreen() {
     setSnapshot(next);
   };
 
-  if (!model || !snapshot) return <View className="flex-1 items-center justify-center"><Text>Cargando visita guardada…</Text></View>;
+  const updatePhenology = (option: { label: string; value: number }, value: string) => {
+    if (!snapshot) return;
+    const percentage = Number(value) || 0;
+    if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) return;
+    const rows = snapshot.Phenology as Record<string, unknown>[];
+    const otherTotal = rows
+      .filter((row) => row.SecStatus !== false && row.TphStage !== option.value)
+      .reduce((sum, row) => sum + (Number(row.TphPercentage) || 0), 0);
+    if (otherTotal + percentage > 100) {
+      Alert.alert('Porcentaje excedido', 'El total fenológico no puede superar 100 %.');
+      return;
+    }
+    void saveCatalogValue('Phenology', option, 'TphPercentage', value);
+  };
+
+  if (!model || !snapshot || model.id !== id) return <View className="flex-1 items-center justify-center"><Text>Cargando visita guardada…</Text></View>;
+
+  const signatureUri = snapshot.PendingSignatureFile?.uri
+    ?? signaturePreview;
 
   return (
-    <ScrollView className="flex-1" contentContainerClassName="gap-4 py-4">
+    <ScrollView className="flex-1 bg-background" contentContainerClassName="mx-auto w-full max-w-7xl gap-4 px-3 py-3 pb-24 md:gap-6 md:px-4 md:py-5 md:pb-28">
       <View className="flex-row items-center gap-3">
-        <Button size="sm" variant="ghost" onPress={() => router.back()}><Text>Volver</Text></Button>
+        <Button size="icon" variant="ghost" accessibilityLabel="Volver a programaciones" onPress={() => router.replace('/technical-visits')}><ArrowLeft size={20} className="text-foreground" /></Button>
         <View className="flex-1">
-          <Text className="text-xl font-poppins-semibold">Registro de visita</Text>
-          <Text className="text-sm text-muted-foreground">Programación #{model.TvsID} · {model.TviDocumentNumber ? 'N.º ' + model.TviDocumentNumber : 'Número al sincronizar'}</Text>
+          <Text className="text-xl font-poppins-semibold">Editar visita técnica{schedule?.PlfName ? ` · ${schedule.PlfName}` : ''}</Text>
+          <Text className="text-xs text-muted-foreground">Programación #{model.TvsID} · {model.TviDocumentNumber ? `Documento ${model.TviDocumentSeries ?? '1'}-${model.TviDocumentNumber}` : 'Borrador local'}</Text>
         </View>
       </View>
-      <Card className="gap-3 p-4">
-        <Text className="font-poppins-semibold">Datos de campo</Text>
-        <NDate label="Fecha y hora" mode="datetime" value={date} onChange={setDate} required />
-        <View className="flex-row gap-2">
-          <NText className="flex-1" label="Latitud" decimal value={latitude} onChange={setLatitude} placeholder="Latitud" />
-          <NText className="flex-1" label="Longitud" decimal value={longitude} onChange={setLongitude} placeholder="Longitud" />
+      <View className="gap-3 rounded-xl border border-border p-3 md:gap-4 md:p-5">
+        <VisitSectionHeading title="Información del documento" subtitle="Datos de identificación de la visita técnica" icon={ClipboardList} />
+        <View className="flex-row flex-wrap gap-3 md:gap-4">
+          <NDate label="Fecha y hora" mode="datetime" value={date} onChange={setDate} required containerClassName="min-w-[180px] flex-1" />
+          <VisitValue label="Supervisor" value={schedule?.ResponsibleName} boxed />
+          <VisitValue label="ID Prog." value={model.TvsID} boxed />
+          <VisitValue label="Serie" value={snapshot.Visit.TviDocumentSeries ?? 'Al sincronizar'} boxed />
+          <VisitValue label="Correlativo" value={snapshot.Visit.TviDocumentNumber ?? 'Al sincronizar'} boxed />
         </View>
-        <NText multiline numberOfLines={4} className="min-h-24 py-2" label="Observación general" value={observation} onChange={setObservation} placeholder="Describe los hallazgos del recorrido" />
-        <Button variant="outline" onPress={() => void attachSignature()}>
-          <Text>{snapshot.PendingSignatureFile ? 'Cambiar firma del productor' : 'Adjuntar firma del productor'}</Text>
-        </Button>
-        <Button disabled={saving} onPress={() => void save()}><Text>{saving ? 'Guardando…' : 'Guardar borrador'}</Text></Button>
-      </Card>
-      <Text className="text-lg font-poppins-semibold">Secciones de la visita</Text>
-      {sections.map(({ key, label }) => (
-        <Card key={key} className="gap-3 p-4">
-          <View className="flex-row items-center justify-between">
-            <Text className="flex-1 font-poppins-medium">{label}</Text>
-            <Text className="text-sm text-muted-foreground">{snapshot[key].length}</Text>
+      </View>
+      <View className="gap-3 md:gap-4">
+        <VisitSectionHeading title="Información del lote" icon={MapPin} />
+        <View className="flex-row flex-wrap gap-3 md:gap-4">
+          <VisitValue label="ID lote" value={schedule?.PlfID} boxed />
+          <VisitValue label="Campaña" value={schedule?.CmpName} boxed />
+        </View>
+        <View className="gap-4 rounded-xl border border-border p-3 md:flex-row md:gap-5 md:p-5">
+          <View className="min-w-0 flex-1 gap-3">
+            <LotHeading title="Datos del lote" icon={Sprout} />
+            <LotValue label="Nombre" value={schedule?.PlfName} />
+            <LotValue label="Variedad" value={schedule?.VrtDescription} />
+            <LotValue label="Tipo cultivo" value={schedule?.TypeCropDescription ?? schedule?.CltDescription} />
           </View>
-          {key === 'Evidences' ? <Button variant="outline" onPress={() => void attachEvidence()}><Text>Adjuntar foto</Text></Button> : null}
-          {editableSections.filter((item) => item.key === key).map((definition) => {
-            const rows = snapshot[key] as Record<string, unknown>[];
-            return (
-              <View key={definition.key} className="gap-2">
-                {rows.filter((row) => row.SecStatus !== false).map((row) => (
-                  <View key={String(row.SyncId)} className="flex-row items-center gap-2 rounded-md bg-muted p-2">
-                    <Text className="flex-1 text-xs" numberOfLines={2}>
-                      {definition.fields.slice(0, 3).map((field) => {
-                        const value = row[field.key];
-                        return value == null || value === '' ? null : field.label + ': ' + String(value);
-                      }).filter(Boolean).join(' · ') || 'Registro guardado'}
-                    </Text>
-                    <Button size="sm" variant="ghost" onPress={() => openSectionRow(definition, row)}><Text>Editar</Text></Button>
-                    <Button size="sm" variant="ghost" onPress={() => void removeSectionRow(definition, row)}><Text>Quitar</Text></Button>
-                  </View>
-                ))}
-                <Button variant="outline" onPress={() => openSectionRow(definition)}><Text>Agregar</Text></Button>
-              </View>
-            );
+          <View className="min-w-0 flex-1 gap-3">
+            <LotHeading title="Productor y fundo" icon={Building2} />
+            <LotValue label="Productor" value={schedule?.ProducerName} />
+            <LotValue label="Fundo" value={schedule?.FrfName} />
+            <LotValue label="Dirección" value={schedule?.FrfAddress} />
+          </View>
+          <View className="min-w-0 flex-1 gap-3">
+            <LotHeading title="Ubicación" icon={MapPinned} />
+            <LotValue label="Zona" value={schedule?.ZonDescription} />
+            <LotValue label="Subzona" value={schedule?.SzoDescription} />
+          </View>
+        </View>
+      </View>
+      <TechnicalVisitSections
+        snapshot={snapshot}
+        options={definitionOptions}
+        onAdd={(key, parent) => openSection(key, undefined, parent)}
+        onEdit={(key, row) => openSection(key, row)}
+        onRemove={(key, row) => {
+          const definition = editableSections.find((item) => item.key === key);
+          if (definition) void removeSectionRow(definition, row);
+        }}
+        onPhenology={updatePhenology}
+        onInstallation={(option, value) => void saveCatalogValue('Installations', option, 'TinIsAvailable', value)}
+        onEvidence={() => void attachEvidence()}
+      />
+      <View className="gap-3 md:gap-4">
+        <VisitSectionHeading title="Visita realizada" subtitle="Completa ubicación, observaciones generales y firma del productor" icon={ClipboardCheck} />
+        <View className="flex-row flex-wrap gap-3 md:gap-4">
+          <NText label="Latitud GPS" value={latitude} onChange={setLatitude} placeholder="Latitud" containerClassName="min-w-[140px] flex-1" />
+          <NText label="Longitud GPS" value={longitude} onChange={setLongitude} placeholder="Longitud" containerClassName="min-w-[140px] flex-1" />
+        </View>
+        <View className="gap-3 md:flex-row md:gap-4">
+          <NText multiline numberOfLines={6} className="min-h-40 py-3" label="Observaciones generales" value={observation} onChange={setObservation} placeholder="Describe los hallazgos del recorrido" containerClassName="min-w-0 flex-1" />
+          <View className="min-w-0 flex-1 gap-3">
+            <View className={`h-40 items-center justify-center overflow-hidden rounded-xl border border-border ${signatureUri ? 'bg-white' : 'bg-muted/40'}`}>
+              {signatureUri ? <Image source={{ uri: signatureUri }} contentFit="contain" style={{ width: '100%', height: '100%' }} accessibilityLabel="Firma del productor" />
+                : <Text className="text-sm text-muted-foreground">{signatureFileId > 0 ? 'Firma registrada · vista previa no disponible' : 'Firma del productor'}</Text>}
+            </View>
+            <Button variant="outline" className="self-start" onPress={() => void attachSignature()}><Pencil size={15} className="text-foreground" /><Text>{signatureUri || signatureFileId > 0 ? 'Reemplazar firma' : 'Adjuntar firma del productor'}</Text></Button>
+          </View>
+        </View>
+        <View className="items-end border-t border-border pt-4">
+          <Button disabled={saving} onPress={() => void save()}><Save size={16} className="text-primary-foreground" /><Text>{saving ? 'Guardando…' : 'Guardar cambios'}</Text></Button>
+          <Text className="mt-2 text-xs text-muted-foreground">Guardado en este dispositivo. Se envía al sincronizar.</Text>
+        </View>
+      </View>
+      <Modal visible={activeSection !== null} transparent animationType="fade" onRequestClose={() => setActiveSection(null)}>
+        <View className="flex-1 items-center justify-center bg-black/60 px-4 py-6">
+        <ScrollView className="max-h-[90%] w-full max-w-3xl rounded-xl border border-border bg-background" contentContainerClassName="gap-4 p-5">
+          <View className="flex-row items-center justify-between gap-3 border-b border-border pb-3">
+            <Text className="flex-1 text-xl font-poppins-semibold">{editingRow ? 'Editar ' : 'Agregar '}{activeSection?.label}</Text>
+            <Button variant="ghost" size="icon" accessibilityLabel="Cerrar formulario" onPress={() => setActiveSection(null)}><X size={18} className="text-muted-foreground" /></Button>
+          </View>
+          {activeSection?.fields.map((field) => {
+            const items = field.definitionCode
+              ? definitionOptions[field.definitionCode] ?? []
+              : field.key === 'TapID'
+                ? applicationOptions
+                : field.key === 'TvrID'
+                  ? previousRecommendationOptions
+                  : field.key === 'TcaID'
+                    ? previousCulturalActivityOptions
+                    : null;
+            if (items) {
+              return <NSelect key={field.key} label={field.label} items={items} itemText="label" itemValue="value" value={sectionValues[field.key] === '' ? null : Number(sectionValues[field.key])} onChange={(value) => setSectionValues((current) => ({ ...current, [field.key]: value == null ? '' : String(value) }))} placeholder="Selecciona una opción descargada" searchable clearable required={field.required} />;
+            }
+            return field.kind === 'boolean'
+              ? <NSwitch key={field.key} label={field.label} value={Boolean(sectionValues[field.key])} onValueChange={(value) => setSectionValues((current) => ({ ...current, [field.key]: value }))} />
+              : field.kind === 'datetime'
+                ? <NDate key={field.key} label={field.label} mode="datetime" value={String(sectionValues[field.key] || '')} onChange={(value) => setSectionValues((current) => ({ ...current, [field.key]: value }))} />
+                : <NText key={field.key} accessibilityLabel={field.label} label={field.label} value={String(sectionValues[field.key] ?? '')} onChange={(value) => setSectionValues((current) => ({ ...current, [field.key]: value }))} number={field.kind === 'number'} decimal={field.kind === 'decimal'} required={field.required} />;
           })}
-          {key === 'CulturalActivities' ? <NSwitch label="Seguimiento cultural confirmado" value={(snapshot.CulturalActivityFollowUps[0] as Record<string, unknown> | undefined)?.TcfStatus === 1} onValueChange={() => void toggleFollowUp('CulturalActivities', 'CulturalActivityFollowUps', 'TcaID', 'TcfStatus')} /> : null}
-          {key === 'Recommendations' ? <NSwitch label="Seguimiento de recomendación confirmado" value={(snapshot.RecommendationFollowUps[0] as Record<string, unknown> | undefined)?.TrfStatus === 1} onValueChange={() => void toggleFollowUp('Recommendations', 'RecommendationFollowUps', 'TvrID', 'TrfStatus')} /> : null}
-        </Card>
-      ))}
-      <Modal visible={activeSection !== null} animationType="slide" onRequestClose={() => setActiveSection(null)}>
-        <ScrollView className="flex-1 bg-background" contentContainerClassName="gap-4 px-4 py-6">
-          <Text className="text-xl font-poppins-semibold">{editingRow ? 'Editar ' : 'Agregar '}{activeSection?.label}</Text>
-          {activeSection?.fields.map((field) => field.definitionCode
-            ? <NSelect key={field.key} label={field.label} items={definitionOptions[field.definitionCode] ?? []} itemText="label" itemValue="value" value={sectionValues[field.key] === '' ? null : Number(sectionValues[field.key])} onChange={(value) => setSectionValues((current) => ({ ...current, [field.key]: value == null ? '' : String(value) }))} placeholder="Selecciona una opción descargada" searchable clearable required={field.required} />
-            : field.kind === 'boolean'
-            ? <NSwitch key={field.key} label={field.label} value={Boolean(sectionValues[field.key])} onValueChange={(value) => setSectionValues((current) => ({ ...current, [field.key]: value }))} />
-            : field.kind === 'datetime'
-              ? <NDate key={field.key} label={field.label} mode="datetime" value={String(sectionValues[field.key] || '')} onChange={(value) => setSectionValues((current) => ({ ...current, [field.key]: value }))} />
-              : <NText key={field.key} label={field.label} value={String(sectionValues[field.key] ?? '')} onChange={(value) => setSectionValues((current) => ({ ...current, [field.key]: value }))} number={field.kind === 'number'} decimal={field.kind === 'decimal'} required={field.required} />)}
-          <Button onPress={() => void saveSectionRow()}><Text>Guardar sección</Text></Button>
-          <Button variant="outline" onPress={() => setActiveSection(null)}><Text>Cancelar</Text></Button>
+          <View className="flex-row justify-end gap-3 border-t border-border pt-3">
+            <Button variant="outline" onPress={() => setActiveSection(null)}><Text>Cancelar</Text></Button>
+            <Button onPress={() => void saveSectionRow()}><Save size={16} className="text-primary-foreground" /><Text>Guardar sección</Text></Button>
+          </View>
         </ScrollView>
+        </View>
       </Modal>
-      <Card className="p-4">
-        <Text className="text-sm text-muted-foreground">El borrador y sus secciones viajan juntos en una sola operación de sincronización. El número de documento se asigna en el servidor.</Text>
-      </Card>
     </ScrollView>
   );
+}
+
+function VisitValue({ label, value, boxed = false }: { label: string; value: unknown; boxed?: boolean }) {
+  return <View className="min-w-[100px] flex-1 gap-1.5">
+    <Text className="text-[10px] font-poppins-semibold uppercase tracking-wider text-muted-foreground">{label}</Text>
+    <View className={boxed ? 'min-h-10 justify-center rounded-md border border-border px-3 py-2' : ''}>
+      <Text className="text-sm">{value == null || value === '' ? '—' : String(value)}</Text>
+    </View>
+  </View>;
+}
+
+function LotHeading({ title, icon: Icon }: { title: string; icon: typeof Sprout }) {
+  return <View className="mb-1 flex-row items-center gap-2"><View className="rounded-lg bg-primary/10 p-2"><Icon size={17} className="text-primary" /></View><Text className="text-[11px] font-poppins-semibold uppercase tracking-wide text-muted-foreground">{title}</Text></View>;
+}
+
+function LotValue({ label, value }: { label: string; value: unknown }) {
+  return <View className="flex-row items-start justify-between gap-3"><Text className="text-sm text-muted-foreground">{label}</Text><Text className="min-w-0 flex-1 text-right text-sm">{value == null || value === '' ? '—' : String(value)}</Text></View>;
 }

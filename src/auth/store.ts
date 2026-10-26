@@ -11,6 +11,7 @@ import {
   logoutSession,
   refreshSession,
 } from '@/auth/service';
+import { getAccessToken } from '@/sync/config';
 
 interface AuthState {
   Session: AuthSession | null;
@@ -19,6 +20,7 @@ interface AuthState {
   IsReady: boolean;
   Error: string | null;
   initialize: () => Promise<void>;
+  ensureOnlineSession: () => Promise<string | null>;
   signIn: (user: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -53,6 +55,21 @@ export const useAuthStore = create<AuthState>((set) => ({
       await initCsrf();
     }
     set({ IsReady: true });
+  },
+
+  ensureOnlineSession: async () => {
+    const session = await getStoredSession();
+    if (!session) throw new Error('Debe iniciar sesión antes de sincronizar.');
+    if (isSessionExpired(session)) {
+      try {
+        const Session = await refreshSession();
+        set({ Session, IsAuthenticated: true });
+      } catch (error) {
+        if (!isTransientAuthFailure(error)) await useAuthStore.getState().signOut();
+        throw error;
+      }
+    }
+    return getAccessToken();
   },
 
   signIn: async (user, password) => {

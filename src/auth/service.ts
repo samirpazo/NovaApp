@@ -9,7 +9,6 @@ import { storage } from '@/lib/storage';
 import {
   clearAccessToken,
   clearRefreshToken,
-  getAccessToken,
   getRefreshToken,
   saveAccessToken,
   saveRefreshToken,
@@ -18,6 +17,7 @@ import { isAxiosError, type AxiosResponse } from 'axios';
 import { Platform } from 'react-native';
 
 const SESSION_KEY = 'nova.auth.session';
+let refreshInFlight: Promise<AuthSession> | null = null;
 
 function cookieValue(response: AxiosResponse, name: string): string | null {
   const header = response.headers['set-cookie'];
@@ -67,7 +67,16 @@ export async function login(
   }
 }
 
-export async function refreshSession(): Promise<AuthSession> {
+export function refreshSession(): Promise<AuthSession> {
+  if (!refreshInFlight) {
+    refreshInFlight = performRefreshSession().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+async function performRefreshSession(): Promise<AuthSession> {
   const refreshToken = await getRefreshToken();
   const response = await api.post(
     '/Token/Refresh',
@@ -144,9 +153,3 @@ export function isSessionExpired(
   );
 }
 
-export async function ensureOnlineSession(): Promise<string | null> {
-  const session = await getStoredSession();
-  if (!session) throw new Error('Debe iniciar sesión antes de sincronizar.');
-  if (isSessionExpired(session)) await refreshSession();
-  return getAccessToken();
-}

@@ -1,17 +1,7 @@
-import { GuidSchema } from '@/contracts/common';
+import { EntityBaseContractSchema } from '@/contracts/entities/EntityBaseContract';
 import { z } from 'zod';
 
-export const EntityBaseSchema = z.object({
-  SyncId: GuidSchema,
-  SyncVersion: z.string(),
-  SecStatus: z.boolean(),
-  CreateUserId: z.number().int(),
-  UpdateUserId: z.number().int().nullable(),
-  DeleteUserId: z.number().int().nullable(),
-  CreateDate: z.string(),
-  UpdateDate: z.string().nullable(),
-  DeleteDate: z.string().nullable(),
-});
+export const EntityBaseSchema = EntityBaseContractSchema;
 
 export const EntityBaseFormSchema = EntityBaseSchema.partial({
   SyncId: true,

@@ -88,13 +88,14 @@ Todos los clientes creados por `createApiClient` comparten dos interceptores de 
 
 1. **CSRF (web)**: las mutaciones envían `X-CSRF-TOKEN` con el request token en memoria. Si el
    servidor responde 400 por CSRF, se reinicializa el token y se reintenta una vez.
-2. **Refresh en 401**: ante un 401 no autenticado se ejecuta un único refresh compartido
-   (single-flight). Si el refresh funciona, se reintenta la petición original una vez con el token
-   rotado (nativo) o las cookies nuevas (web). Si falla:
+2. **Refresh**: el arranque, la sincronización previa y los 401 comparten una única renovación
+   concurrente (single-flight). Si funciona, se guarda la nueva expiración y la petición original
+   se reintenta una vez con el token rotado (nativo) o las cookies nuevas (web). Si falla:
    - Falla transitoria (sin respuesta de red, 5xx, 429): se conserva la sesión local
      (offline-first) y la siguiente petición en línea reintenta el refresh.
-   - Falla permanente (400/401/403 o token inválido): se revoca la sesión local y la app vuelve al
-     login.
+   - Falla permanente (400/401/403 o sesión revocada/refresh inválido): se limpia la sesión local
+     y la app vuelve al login. La sincronización no conserva una sesión visualmente activa que el
+     servidor ya rechazó.
 
 Al cerrar o invalidar una sesión también se elimina el token CSRF mantenido en memoria. Durante el
 arranque, un refresh rechazado permanentemente elimina el acceso local; solo los fallos transitorios
@@ -277,3 +278,15 @@ de sucursal pueden quedar vacíos según las reglas del backend.
 Cuando se implemente selección de sucursal, cambiar el alcance provoca un
 `unsafeResetDatabase()`. Esto evita mezclar datos locales de dos alcances. Debe diseñarse además qué
 hacer si existen cambios pendientes antes de permitir el cambio.
+
+## Presentación de visitas técnicas
+
+El detalle conserva el orden del formulario Web: documento y lote, aplicaciones con sus productos,
+fenología y evaluación fitosanitaria, labores realizadas, instalaciones, recomendaciones y su
+seguimiento, actividades culturales y su seguimiento, evidencias y visita realizada con firma.
+`src/components/operationsagr/TechnicalVisitSections.tsx` presenta los datos del snapshot mediante
+tablas en escritorio y tarjetas en móvil; recibe callbacks y no consulta la red ni escribe en la base.
+Las aplicaciones con productos se muestran primero; las cabeceras sin productos permanecen accesibles
+con una acción explícita. La ruta conserva los formularios y reglas de persistencia local.
+Al finalizar una sincronización, el detalle relee el registro y conserva los campos de cabecera que
+el usuario aún está editando.

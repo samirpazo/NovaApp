@@ -8,7 +8,6 @@ import {
 import { CryptoDigestAlgorithm, digestStringAsync } from 'expo-crypto';
 import { isAxiosError } from 'axios';
 
-import { ensureOnlineSession } from '@/auth/service';
 import { useAuthStore } from '@/auth/store';
 import { createResponseApiSchema } from '@/contracts/api';
 import {
@@ -44,6 +43,9 @@ import { prepareTechnicalVisitMedia } from '@/sync/technical-visit-media';
 
 const ACTIVE_SCOPE_KEY = localStorageKey<string>('nova.sync.activeScope');
 const LAST_PULL_KEY = localStorageKey<PullResult>('nova.sync.lastPull');
+const TECHNICAL_VISIT_BOOTSTRAP_SCOPE_KEY = localStorageKey<string>(
+  'nova.sync.technicalVisitBootstrapScope.v2',
+);
 const MAX_PULL_PAGES = 10_000;
 
 type MutableChangeSet = Record<SyncResource, SyncTableChangeSet>;
@@ -231,7 +233,7 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
         'Debe configurar el servidor y la sucursal antes de sincronizar.',
       );
     const connection = SyncConnectionSchema.parse(storedConnection);
-    await ensureOnlineSession();
+    await useAuthStore.getState().ensureOnlineSession();
 
     // User appearance is a last-value singleton, not a WatermelonDB journal entity.
     // Flush its offline queue alongside the regular manual synchronization.
@@ -239,12 +241,17 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
 
     const personId = useAuthStore.getState().Session?.User.PrsID ?? 0;
     await prepareScope(connection, personId);
+    const currentScope = scopeFor(connection, personId);
+    const bootstrapScope = await database.localStorage.get(
+      TECHNICAL_VISIT_BOOTSTRAP_SCOPE_KEY,
+    );
+    const bootstrapTechnicalVisits = bootstrapScope !== currentScope;
     const limit = Math.min(500, Math.max(1, options.limit ?? 250));
     let downloaded = 0;
     let uploaded = 0;
     let pages = 0;
     let finalCursor = 0;
-    let bootstrapRequested = options.forceBootstrap ?? false;
+    let bootstrapRequested = (options.forceBootstrap ?? false) || bootstrapTechnicalVisits;
 
     const pullChanges = async ({ lastPulledAt }: { lastPulledAt?: number }) => {
       const changes = createChangeSet();
@@ -401,6 +408,10 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
       pullChanges,
       pushChanges,
     });
+    await database.localStorage.set(
+      TECHNICAL_VISIT_BOOTSTRAP_SCOPE_KEY,
+      currentScope,
+    );
 
     // The server owns numeric IDs and rowversions. A second Pull reconciles those
     // fields after WatermelonDB has marked the accepted local batch as synced.

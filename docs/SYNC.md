@@ -177,6 +177,11 @@ la validación de runtime continúa haciéndose con Zod antes de tocar Watermelo
 Las visitas técnicas usan dos recursos. `OagTechnicalVisitSchedule` se sincroniza como registro
 editable y queda limitado al `PrsID` autenticado. `OagTechnicalVisit` es el recurso agregado:
 su fila local conserva el encabezado y un `Snapshot` JSON con todas las secciones de la visita.
+Los tokens web incluyen el claim `PrsID` cuando la cuenta está vinculada a una persona; para tokens
+web anteriores, NovaApi resuelve la relación desde la cuenta autenticada. Como los recursos OAG se
+incorporan después de otros catálogos al esquema local, NovaApp solicita una descarga completa una
+vez por alcance para incluir programaciones y visitas ya existentes que no tengan cambios recientes
+en el journal.
 El backend ordena primero las programaciones, remapea sus IDs temporales y después guarda cada
 visita mediante `SaveAggregate`. El permiso requerido en Push es `OAG_TECHNICAL_VISIT`.
 El cambio del encabezado registra el agregado en el journal, por lo que el Pull móvil recibe un
@@ -189,6 +194,12 @@ Firmas y evidencias conservan sus URI locales pendientes mientras el dispositivo
 del Push, la app los carga con `POST /GenFiles/upload` y `ROUTE_TECHNICAL_VISIT_FILES`, reemplaza la
 URI por el `FileId` administrado en el snapshot y envía la visita como agregado. Las cargas de archivo
 son llamadas separadas al Push JSON del agregado.
+
+La firma existente se obtiene mediante una petición autenticada de `api` y se conserva como imagen
+en `database.localStorage`, identificada por `FilID`. La caché pertenece al alcance de la base local
+y se elimina con su reinicio; los archivos son inmutables. Después de abrir y descargar una firma
+en línea, su vista previa puede reutilizarse sin red. Esto no implica que todas las evidencias
+binarias se descarguen durante el Pull JSON. El helper es `src/lib/managed-image.ts`.
 
 El detalle de definición sincroniza la referencia inmutable `DedImageFilID`, no una ruta local ni
 `DedImagePath`. La versión 2 del esquema de WatermelonDB agrega esa columna y conserva la columna
@@ -395,3 +406,12 @@ preferencia en el dispositivo y reemplaza cualquier pendiente anterior. Al recup
 envía `Theme`, `PrimaryColor` y `HeaderColor` a `SecUserPreference/Save`; solo después se elimina la
 cola. Antes de consultar `MyPreferences` al autenticar se intenta vaciarla, para no sobrescribir una
 decisión offline reciente con una versión antigua del servidor.
+
+### Recuperación de snapshots de visitas existentes
+
+La marca local `nova.sync.technicalVisitBootstrapScope.v2` fuerza un bootstrap una sola vez por
+alcance para recuperar snapshots que pudieron quedar incompletos en instalaciones anteriores.
+La descarga fusiona datos y conserva los cambios offline pendientes con el mecanismo normal de
+WatermelonDB. No reinicia la base local. El listado abre la visita mediante el `TviID` de su
+programación y vuelve a consultar el almacenamiento al pulsar el ojo de esa fila. Si esa visita
+registrada todavía no está descargada, no crea un borrador vacío en su lugar.

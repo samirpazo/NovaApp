@@ -55,7 +55,11 @@ describe('contratos de sincronización', () => {
 
   test('acepta la programación y el snapshot de una visita técnica', () => {
     const schedule = OagTechnicalVisitScheduleSchema.parse({
-      ...entityBase,
+      ...Object.fromEntries(
+        Object.entries(entityBase).filter(
+          ([key]) => key !== 'DeleteUserId' && key !== 'DeleteDate',
+        ),
+      ),
       TvsID: -1,
       PlfID: 10,
       CmpID: 2,
@@ -81,6 +85,8 @@ describe('contratos de sincronización', () => {
     });
 
     expect(schedule.PlfName).toBe('Lote Norte');
+    expect(schedule.DeleteUserId).toBeNull();
+    expect(schedule.DeleteDate).toBeNull();
     expect(JSON.parse(visit.Snapshot)).toMatchObject({ Applications: [] });
   });
 

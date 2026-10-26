@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import { X } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 import * as React from 'react';
 import { Pressable, View } from 'react-native';
 
@@ -12,7 +13,7 @@ const toInputValue = (
 ) => {
   if (!value) return '';
   if (mode === 'time') return value.slice(0, 5);
-  const date = DateTime.fromISO(value, { setZone: true });
+  const date = DateTime.fromISO(value);
   if (!date.isValid) return '';
   return mode === 'datetime'
     ? date.toFormat("yyyy-LL-dd'T'HH:mm")
@@ -35,6 +36,7 @@ export function NDate({
   hint,
   containerClassName,
 }: NDateProps) {
+  const { colorScheme } = useColorScheme();
   const controlled = value !== undefined;
   const [internalValue, setInternalValue] = React.useState<string | null>(
     defaultValue,
@@ -72,13 +74,14 @@ export function NDate({
           placeholder,
           required,
           style: {
-            background: 'transparent',
-            border: `1px solid ${errorMessage ? 'hsl(0 72% 51%)' : 'hsl(214 18% 84%)'}`,
+            background: 'hsl(var(--background))',
+            border: `1px solid ${errorMessage ? 'hsl(var(--destructive))' : 'hsl(var(--input))'}`,
             borderRadius: 6,
             boxSizing: 'border-box',
-            color: 'inherit',
-            fontFamily: 'inherit',
-            fontSize: 14,
+            color: 'hsl(var(--foreground))',
+            colorScheme,
+            fontFamily: 'Poppins, sans-serif',
+            fontSize: 12,
             height: 40,
             opacity: disabled ? 0.5 : 1,
             padding: clearable && activeValue ? '0 40px 0 12px' : '0 12px',
