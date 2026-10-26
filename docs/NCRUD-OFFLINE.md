@@ -48,8 +48,6 @@ adicionales de toolbar, fila o selección masiva.
 
 - Definiciones (`GenDefinition`).
 - Valores de definición (`GenDefinitionDetail`), filtrados por `DefID`.
-- Sucursales (`RstBranch`).
-- Mesas (`RstTable`, solo lectura).
 
 Todas consumen `dataSource`; ninguna carga la colección completa en estado React
 ni entrega `rows` manualmente. Los selectores auxiliares pueden mantener sus

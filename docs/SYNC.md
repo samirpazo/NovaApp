@@ -166,13 +166,29 @@ El cliente limita el lote a 500 cambios. `RstTable` no puede aparecer en Push.
 
 Pull, Push, los resultados del Push y los conflictos se validan mediante una unión discriminada
 por `Resource`. Por tanto, un cambio de `GenDefinition` solo admite los campos de esa entidad, y
-lo mismo aplica a `GenDefinitionDetail` y `RstBranch`. Las operaciones `C` y `U` exigen `Data`; la
+lo mismo aplica a `GenDefinitionDetail`, `RstBranch` y los recursos de visitas técnicas. Las operaciones `C` y `U` exigen `Data`; la
 operación `D` exige `Data: null`. `RstTable` queda fuera del contrato de Push y de conflictos por
 ser un recurso de solo lectura.
 
 Los schemas `SyncJsonSchemas` exponen las formas JSON Schema Draft 2020-12 de Pull, Push, resultados
 de Push y decisiones de conflicto. Son una representación para documentación o validadores externos;
 la validación de runtime continúa haciéndose con Zod antes de tocar WatermelonDB.
+
+Las visitas técnicas usan dos recursos. `OagTechnicalVisitSchedule` se sincroniza como registro
+editable y queda limitado al `PrsID` autenticado. `OagTechnicalVisit` es el recurso agregado:
+su fila local conserva el encabezado y un `Snapshot` JSON con todas las secciones de la visita.
+El backend ordena primero las programaciones, remapea sus IDs temporales y después guarda cada
+visita mediante `SaveAggregate`. El permiso requerido en Push es `OAG_TECHNICAL_VISIT`.
+El cambio del encabezado registra el agregado en el journal, por lo que el Pull móvil recibe un
+snapshot completo; los endpoints antiguos de edición puntual de secciones no notifican el agregado.
+La pantalla móvil consume las programaciones asignadas desde NovaWeb; su administración y creación
+offline no están disponibles porque los catálogos de lotes, campañas y supervisores no forman parte
+de la caché móvil.
+
+Firmas y evidencias conservan sus URI locales pendientes mientras el dispositivo está offline. Antes
+del Push, la app los carga con `POST /GenFiles/upload` y `ROUTE_TECHNICAL_VISIT_FILES`, reemplaza la
+URI por el `FileId` administrado en el snapshot y envía la visita como agregado. Las cargas de archivo
+son llamadas separadas al Push JSON del agregado.
 
 El detalle de definición sincroniza la referencia inmutable `DedImageFilID`, no una ruta local ni
 `DedImagePath`. La versión 2 del esquema de WatermelonDB agrega esa columna y conserva la columna

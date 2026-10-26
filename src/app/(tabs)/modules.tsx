@@ -13,62 +13,14 @@ import { cn } from '@/lib/utils';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import {
-  Building2,
-  CalendarDays,
   ChevronRight,
-  Database,
-  FileText,
-  Folder,
   LayoutGrid,
-  ListTree,
   RefreshCw,
   Search,
-  Settings,
-  Shield,
-  SlidersHorizontal,
-  TableProperties,
-  Users,
-  Wrench,
-  type LucideIcon,
 } from 'lucide-react-native';
+import { optionIcon } from '@/lib/optionIcon';
 import * as React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-
-const OPTION_ICONS: Record<string, LucideIcon> = {
-  building: Building2,
-  'building-2': Building2,
-  calendar: CalendarDays,
-  'calendar-days': CalendarDays,
-  database: Database,
-  file: FileText,
-  'file-text': FileText,
-  folder: Folder,
-  grid: LayoutGrid,
-  'layout-grid': LayoutGrid,
-  list: ListTree,
-  'list-tree': ListTree,
-  settings: Settings,
-  shield: Shield,
-  sliders: SlidersHorizontal,
-  'sliders-horizontal': SlidersHorizontal,
-  table: TableProperties,
-  users: Users,
-  wrench: Wrench,
-};
-
-function normalizeIconName(value: string): string {
-  return value
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-    .replace(/_/g, '-')
-    .toLowerCase();
-}
-
-function optionIcon(option: SecOption): LucideIcon {
-  return (
-    OPTION_ICONS[normalizeIconName(option.OptIcon)] ??
-    (option.TypeOption === 1 ? Folder : FileText)
-  );
-}
 
 function flattenTree(nodes: SecOption[]): SecOption[] {
   return nodes.flatMap((node) => [node, ...flattenTree(node.Children)]);
@@ -108,7 +60,8 @@ function OptionTreeRow({
   const hasChildren = item.Children.length > 0;
   const isOpen = forceOpen || openIds.has(item.OptID);
   const route = getRouteByCode(item.OptCode);
-  const Icon = optionIcon(item);
+  const Icon = optionIcon(item.OptIcon, item.TypeOption === 1);
+  if (item.OptCode === 'RST_BRANCH' || item.OptCode === 'RST_TABLE') return null;
 
   const activate = () => {
     if (hasChildren || item.TypeOption === 1) {

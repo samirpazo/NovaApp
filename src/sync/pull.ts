@@ -9,6 +9,7 @@ import { CryptoDigestAlgorithm, digestStringAsync } from 'expo-crypto';
 import { isAxiosError } from 'axios';
 
 import { ensureOnlineSession } from '@/auth/service';
+import { useAuthStore } from '@/auth/store';
 import { createResponseApiSchema } from '@/contracts/api';
 import {
   SYNC_RESOURCES,
@@ -39,6 +40,7 @@ import {
 import { type PullResult, useSyncState } from '@/sync/state';
 import { classifySyncFailure, reportSyncTelemetry } from '@/sync/telemetry';
 import { initialPullCursor } from '@/sync/pull-options';
+import { prepareTechnicalVisitMedia } from '@/sync/technical-visit-media';
 
 const ACTIVE_SCOPE_KEY = localStorageKey<string>('nova.sync.activeScope');
 const LAST_PULL_KEY = localStorageKey<PullResult>('nova.sync.lastPull');
@@ -58,6 +60,8 @@ function createChangeSet(): MutableChangeSet {
     [SYNC_RESOURCES.GenDefinitionDetail]: emptyTableChanges(),
     [SYNC_RESOURCES.RstBranch]: emptyTableChanges(),
     [SYNC_RESOURCES.RstTable]: emptyTableChanges(),
+    [SYNC_RESOURCES.OagTechnicalVisit]: emptyTableChanges(),
+    [SYNC_RESOURCES.OagTechnicalVisitSchedule]: emptyTableChanges(),
   };
 }
 
@@ -85,8 +89,8 @@ function applyLatestChange(
   table.updated.push(toRemoteRaw(change.Data));
 }
 
-function scopeFor(connection: SyncConnection): string {
-  return `${connection.BaseUrl.replace(/\/+$/, '').toLowerCase()}|${connection.BranchId ?? 'general'}`;
+function scopeFor(connection: SyncConnection, personId: number): string {
+  return `${connection.BaseUrl.replace(/\/+$/, '').toLowerCase()}|${connection.BranchId ?? 'general'}|${personId}`;
 }
 
 function rawData(raw: DirtyRaw): Record<string, unknown> {
@@ -157,8 +161,8 @@ function pushChangesFrom({ changes }: SyncPushArgs): SyncPushChange[] {
   return result;
 }
 
-async function prepareScope(connection: SyncConnection): Promise<void> {
-  const nextScope = scopeFor(connection);
+async function prepareScope(connection: SyncConnection, personId: number): Promise<void> {
+  const nextScope = scopeFor(connection, personId);
   const activeScope = await database.localStorage.get(ACTIVE_SCOPE_KEY);
   if (activeScope && activeScope !== nextScope) {
     await database.write(
@@ -233,7 +237,8 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
     // Flush its offline queue alongside the regular manual synchronization.
     await flushPendingAppearance();
 
-    await prepareScope(connection);
+    const personId = useAuthStore.getState().Session?.User.PrsID ?? 0;
+    await prepareScope(connection, personId);
     const limit = Math.min(500, Math.max(1, options.limit ?? 250));
     let downloaded = 0;
     let uploaded = 0;
@@ -305,6 +310,7 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
         throw new Error(
           'Hay más de 500 cambios pendientes. Sincronice en lotes más pequeños.',
         );
+      await prepareTechnicalVisitMedia(changes);
       const serialized = JSON.stringify(changes);
       const idempotencyKey = `nova-sync-${await digestStringAsync(CryptoDigestAlgorithm.SHA256, serialized)}`;
       try {

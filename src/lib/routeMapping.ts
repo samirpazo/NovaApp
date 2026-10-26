@@ -1,11 +1,11 @@
 import type { Href } from 'expo-router';
 
 import { generalRoutes } from '@/lib/routes/general';
-import { restaurantRoutes } from '@/lib/routes/restaurant';
+import { operationsAgrRoutes } from '@/lib/routes/operationsagr';
 
 export const ROUTE_MAP = {
   ...generalRoutes,
-  ...restaurantRoutes,
+  ...operationsAgrRoutes,
 } satisfies Record<string, Href>;
 
 export const STATIC_PAGES = [

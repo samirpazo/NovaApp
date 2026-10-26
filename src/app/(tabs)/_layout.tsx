@@ -105,10 +105,6 @@ export default function TabLayout() {
         options={{ href: null }}
       />
       <Tabs.Screen
-        name="branches"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
         name="conflict-resolution"
         options={{ href: null }}
       />
@@ -125,7 +121,11 @@ export default function TabLayout() {
         options={{ href: null }}
       />
       <Tabs.Screen
-        name="tables"
+        name="technical-visits"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="technical-visit-detail"
         options={{ href: null }}
       />
     </Tabs>

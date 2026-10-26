@@ -21,8 +21,6 @@ describe('NCrud screen migration', () => {
   const screens = [
     'src/app/(tabs)/definitions.tsx',
     'src/app/(tabs)/definition-details.tsx',
-    'src/app/(tabs)/branches.tsx',
-    'src/app/(tabs)/tables.tsx',
   ];
 
   it.each(screens)('%s consumes an NCrudDataSource', (screen) => {

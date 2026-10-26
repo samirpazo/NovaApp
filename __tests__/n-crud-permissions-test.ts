@@ -41,7 +41,7 @@ describe('permisos NCrud', () => {
   });
 
   it('deniega todo si la opción no está en la caché autorizada', () => {
-    expect(permissionsForOption([], 'RST_BRANCH')).toEqual({
+    expect(permissionsForOption([], 'UNAVAILABLE_OPTION')).toEqual({
       access: false,
       add: false,
       edit: false,

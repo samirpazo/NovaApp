@@ -35,6 +35,8 @@ const emptyCounts: LocalCounts = {
   GenDefinitionDetail: 0,
   RstBranch: 0,
   RstTable: 0,
+  OagTechnicalVisit: 0,
+  OagTechnicalVisitSchedule: 0,
 };
 
 const resourceLabels: Record<keyof LocalCounts, string> = {
@@ -42,6 +44,8 @@ const resourceLabels: Record<keyof LocalCounts, string> = {
   GenDefinitionDetail: 'Valores de definiciones',
   RstBranch: 'Sucursales',
   RstTable: 'Mesas',
+  OagTechnicalVisit: 'Visitas técnicas',
+  OagTechnicalVisitSchedule: 'Programaciones de visitas',
 };
 
 async function readLocalCounts(): Promise<LocalCounts> {
@@ -264,7 +268,7 @@ export default function SyncScreen() {
           >
             Registros locales
           </Text>
-          {Object.entries(counts).map(([resource, count]) => (
+          {Object.entries(counts).filter(([resource]) => resource !== 'RstBranch' && resource !== 'RstTable').map(([resource, count]) => (
             <View
               key={resource}
               className="flex-row items-center justify-between border-b border-border py-2 last:border-b-0 last:pb-0"

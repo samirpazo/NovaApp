@@ -55,8 +55,6 @@ src/
 | `/conflicts`          | Resolución de conflictos                  |
 | `/definitions`        | CRUD local de `GenDefinition`             |
 | `/definition-details` | CRUD local de `GenDefinitionDetail`       |
-| `/branches`           | CRUD local de `RstBranch`                 |
-| `/tables`             | Consulta local de `RstTable`              |
 
 `AuthGate` protege todas las rutas. Una sesión almacenada permite abrir la app sin red. Para hacer
 Pull o Push se exige una sesión en línea válida y se intenta renovar cuando expiró.
@@ -202,14 +200,15 @@ de la librería en modo oscuro.
 
 La identidad visual no debe teñir toda la interfaz. Fondos, tarjetas, campos, bordes y tipografía
 usan la escala neutral de Nova Web; `PrimaryColor` se reserva para foco, selección, acciones
-principales e indicadores. El login es independiente de la preferencia autenticada: tarjeta
-`neutral-100/80`, campos blancos translúcidos, textos neutral-800/500 y botón neutral-900. Esto
-evita mostrar el tema o color privado del usuario anterior antes de autenticar.
+principales e indicadores. El login es independiente de la preferencia autenticada: fondo grafito con
+degradado radial, tarjeta ahumada con degradado sutil, campos blancos y botón azul Nova. Esto evita
+mostrar el tema o color privado del usuario anterior antes de autenticar.
 
-El login reutiliza los mismos assets responsive que Nova Web: `logo-nova_b.svg` a 32 px desde el
-breakpoint de escritorio y `logo-nova.svg` a 40 px en móvil. El fondo `bg-nova.webp` es el mismo
-archivo en ambos proyectos. En web se conserva el desenfoque de 2 px del fondo y el desenfoque 2xl
-de la tarjeta; la estructura mide 440 px de ancho, con campos de 48 px y radio exterior de 40 px.
+El login sigue la composición actual de Nova Web en escritorio: marca y mensaje de producto a la
+izquierda, formulario a la derecha y geometría NOVA decorativa. En móvil mantiene la marca arriba y
+centra el formulario, sin la ilustración lateral. Usa `logo-nova_b.svg`, campos de 51 px en escritorio
+y 52 px en móvil, tarjeta con radio de 23 px en escritorio y 20 px en móvil, y el botón de acción
+principal azul Nova.
 
 La pantalla `appearance` administra `Theme`, `PrimaryColor` y `HeaderColor`. Mantiene una vista
 previa separada de la última preferencia confirmada: salir sin guardar restaura los colores previos.

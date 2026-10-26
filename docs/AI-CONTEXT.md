@@ -9,8 +9,8 @@ Nova App es el cliente offline-first del sistema Nova. Cada empresa instala su p
 Nova y Nova App se conecta a esa instancia. No diseñar suponiendo una única base compartida por
 múltiples empresas.
 
-Restaurante sí puede tener varias sucursales. Por el momento no se obliga al usuario a seleccionar
-una sucursal en Nova App. `BranchId` está preparado como opcional para una fase posterior.
+Restaurante sí puede tener varias sucursales. Nova App no expone pantallas de administración de
+sucursales ni mesas. `BranchId` permanece opcional para una fase posterior.
 
 ## Tecnologías fijadas
 
@@ -102,14 +102,19 @@ una variante mayor por una razón concreta, como el login, pero no debe cambiar 
 | `GenDefinitionDetail` | Lectura/escritura | `DedID`   | General                         |
 | `RstBranch`           | Lectura/escritura | `BrhID`   | Restaurante                     |
 | `RstTable`            | Solo lectura      | `TabID`   | Sucursal cuando haya `BranchId` |
+| `OagTechnicalVisitSchedule` | Lectura/escritura | `TvsID` | Supervisor autenticado (`PrsID`) |
+| `OagTechnicalVisit`   | Lectura/escritura | `TviID`   | Aggregate de su programación asignada |
 
 `RstTable` no debe volverse editable en móvil: el diseñador de restaurante está reservado para
 Nova Web y requiere una pantalla grande.
+Los contratos y modelos `RstBranch`/`RstTable` permanecen en el protocolo para mantener compatibilidad
+con los datos sincronizables que ya existan; Nova App no ofrece pantallas CRUD para esos recursos.
 
 ## Archivos clave
 
 - `src/contracts/sync.ts`: recursos, acceso y esquemas Pull/Push/conflicto.
 - `src/contracts/entities/`: un contrato Zod por entidad.
+- `src/contracts/entities/operationsagr/`: contratos de la visita y sus secciones.
 - `src/database/schema.ts`: esquema local.
 - `src/database/models/`: modelos WatermelonDB.
 - `src/sync/pull.ts`: orquestación Pull + Push + reconciliación.
@@ -121,8 +126,10 @@ Nova Web y requiere una pantalla grande.
   versión del servidor.
 - `src/app/(tabs)/_layout.tsx`: shell autenticado con header y cinco tabs.
 - `src/features/security/options/`: consulta y caché local del menú móvil autorizado.
+- `src/lib/optionIcon.ts`: resuelve dinámicamente `OptIcon` usando las exportaciones Lucide de Nova App.
 - `src/app/(tabs)/sync-details.tsx`: pantalla técnica de sincronización.
 - `src/app/(tabs)/conflict-resolution.tsx`: resolución manual.
+- `src/app/(tabs)/technical-visits.tsx` y `technical-visit-detail.tsx`: visitas técnicas offline.
 
 Todas las pantallas autenticadas deben vivir dentro de `src/app/(tabs)/`, incluso cuando no sean
 una de las cinco pestañas principales. Las rutas secundarias se registran con `href: null` en el

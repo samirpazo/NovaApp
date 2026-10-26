@@ -8,6 +8,12 @@ import {
   type RstBranch,
   type RstTable,
 } from '@/contracts/entities';
+import {
+  OagTechnicalVisitSchema,
+  OagTechnicalVisitScheduleSchema,
+  type OagTechnicalVisit,
+  type OagTechnicalVisitSchedule,
+} from '@/contracts/entities/operationsagr';
 import { GuidSchema } from '@/contracts/common';
 import { z } from 'zod';
 
@@ -16,6 +22,8 @@ export const SYNC_RESOURCES = {
   GenDefinitionDetail: 'GenDefinitionDetail',
   RstBranch: 'RstBranch',
   RstTable: 'RstTable',
+  OagTechnicalVisit: 'OagTechnicalVisit',
+  OagTechnicalVisitSchedule: 'OagTechnicalVisitSchedule',
 } as const;
 
 export const SyncResourceSchema = z.enum([
@@ -23,6 +31,8 @@ export const SyncResourceSchema = z.enum([
   SYNC_RESOURCES.GenDefinitionDetail,
   SYNC_RESOURCES.RstBranch,
   SYNC_RESOURCES.RstTable,
+  SYNC_RESOURCES.OagTechnicalVisit,
+  SYNC_RESOURCES.OagTechnicalVisitSchedule,
 ]);
 export const SyncOperationSchema = z.enum(['C', 'U', 'D']);
 
@@ -36,6 +46,8 @@ export interface SyncEntityMap {
   GenDefinitionDetail: GenDefinitionDetail;
   RstBranch: RstBranch;
   RstTable: RstTable;
+  OagTechnicalVisit: OagTechnicalVisit;
+  OagTechnicalVisitSchedule: OagTechnicalVisitSchedule;
 }
 
 export const SYNC_ACCESS: Record<SyncResource, SyncAccess> = {
@@ -43,6 +55,8 @@ export const SYNC_ACCESS: Record<SyncResource, SyncAccess> = {
   GenDefinitionDetail: 'ReadWrite',
   RstBranch: 'ReadWrite',
   RstTable: 'ReadOnly',
+  OagTechnicalVisit: 'ReadWrite',
+  OagTechnicalVisitSchedule: 'ReadWrite',
 };
 
 export interface SyncPullChange<TResource extends SyncResource = SyncResource> {
@@ -83,6 +97,18 @@ export const SyncPullChangeSchema = z.discriminatedUnion('Resource', [
     ...syncChangeBase,
     Resource: z.literal(SYNC_RESOURCES.RstTable),
     Data: RstTableSchema.nullish().transform((value) => value ?? null),
+  }),
+  z.object({
+    ...syncChangeBase,
+    Resource: z.literal(SYNC_RESOURCES.OagTechnicalVisit),
+    Data: OagTechnicalVisitSchema.nullish().transform((value) => value ?? null),
+  }),
+  z.object({
+    ...syncChangeBase,
+    Resource: z.literal(SYNC_RESOURCES.OagTechnicalVisitSchedule),
+    Data: OagTechnicalVisitScheduleSchema.nullish().transform(
+      (value) => value ?? null,
+    ),
   }),
 ]);
 
@@ -138,6 +164,14 @@ export const SyncPushChangeSchema = z.discriminatedUnion('Resource', [
     GenDefinitionDetailSchema,
   ),
   pushChangeForResource(SYNC_RESOURCES.RstBranch, RstBranchSchema),
+  pushChangeForResource(
+    SYNC_RESOURCES.OagTechnicalVisit,
+    OagTechnicalVisitSchema,
+  ),
+  pushChangeForResource(
+    SYNC_RESOURCES.OagTechnicalVisitSchedule,
+    OagTechnicalVisitScheduleSchema,
+  ),
 ]);
 
 export const SyncPushResultSchema = z.discriminatedUnion('Resource', [
@@ -168,6 +202,20 @@ export const SyncPushResultSchema = z.discriminatedUnion('Resource', [
     Status: z.enum(['Applied', 'Conflict', 'Rejected']),
     Message: z.string().nullish(),
     Data: RstTableSchema.nullish(),
+  }),
+  z.object({
+    Resource: z.literal(SYNC_RESOURCES.OagTechnicalVisit),
+    SyncId: GuidSchema,
+    Status: z.enum(['Applied', 'Conflict', 'Rejected']),
+    Message: z.string().nullish(),
+    Data: OagTechnicalVisitSchema.nullish(),
+  }),
+  z.object({
+    Resource: z.literal(SYNC_RESOURCES.OagTechnicalVisitSchedule),
+    SyncId: GuidSchema,
+    Status: z.enum(['Applied', 'Conflict', 'Rejected']),
+    Message: z.string().nullish(),
+    Data: OagTechnicalVisitScheduleSchema.nullish(),
   }),
 ]);
 
@@ -208,6 +256,26 @@ export const SyncConflictSchema = z.discriminatedUnion('Resource', [
     KeepLocal: z.boolean().default(false),
     DetectedAt: z.string(),
   }),
+  z.object({
+    Resource: z.literal(SYNC_RESOURCES.OagTechnicalVisit),
+    SyncId: GuidSchema,
+    Operation: SyncOperationSchema,
+    Message: z.string(),
+    LocalData: OagTechnicalVisitSchema.nullable(),
+    ServerData: OagTechnicalVisitSchema,
+    KeepLocal: z.boolean().default(false),
+    DetectedAt: z.string(),
+  }),
+  z.object({
+    Resource: z.literal(SYNC_RESOURCES.OagTechnicalVisitSchedule),
+    SyncId: GuidSchema,
+    Operation: SyncOperationSchema,
+    Message: z.string(),
+    LocalData: OagTechnicalVisitScheduleSchema.nullable(),
+    ServerData: OagTechnicalVisitScheduleSchema,
+    KeepLocal: z.boolean().default(false),
+    DetectedAt: z.string(),
+  }),
 ]);
 
 export type SyncConflict = z.infer<typeof SyncConflictSchema>;
@@ -219,6 +287,8 @@ export const SyncConflictResolutionSchema = z.discriminatedUnion('Decision', [
       SYNC_RESOURCES.GenDefinition,
       SYNC_RESOURCES.GenDefinitionDetail,
       SYNC_RESOURCES.RstBranch,
+      SYNC_RESOURCES.OagTechnicalVisit,
+      SYNC_RESOURCES.OagTechnicalVisitSchedule,
     ]),
     SyncId: GuidSchema,
   }),
@@ -228,6 +298,8 @@ export const SyncConflictResolutionSchema = z.discriminatedUnion('Decision', [
       SYNC_RESOURCES.GenDefinition,
       SYNC_RESOURCES.GenDefinitionDetail,
       SYNC_RESOURCES.RstBranch,
+      SYNC_RESOURCES.OagTechnicalVisit,
+      SYNC_RESOURCES.OagTechnicalVisitSchedule,
     ]),
     SyncId: GuidSchema,
   }),
