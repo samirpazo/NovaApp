@@ -21,6 +21,7 @@ import { Platform } from 'react-native';
 import { AuthGate } from '@/auth';
 import {
   hexToHslChannels,
+  headerUsesDarkForeground,
   resolveThemeMode,
   useAppearanceStore,
 } from '@/theme/appearance';
@@ -77,7 +78,13 @@ export default function RootLayout() {
       ]}
     >
       <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <StatusBar
+          style={
+            headerUsesDarkForeground(appearance.HeaderColor || '#002aff')
+              ? 'dark'
+              : 'light'
+          }
+        />
         <AuthGate>
           <Stack screenOptions={{ headerShown: false }} />
         </AuthGate>

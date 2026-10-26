@@ -1,8 +1,9 @@
 import { NField } from '@/components/forms/NField';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { cn } from '@/lib/utils';
+import { resolveThemeMode, useAppearanceStore } from '@/theme/appearance';
 import { Check, ChevronDown, Search, X } from 'lucide-react-native';
 import * as React from 'react';
 import { FlatList, Modal, Pressable, SafeAreaView, View } from 'react-native';
@@ -58,6 +59,12 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
   hint,
   containerClassName,
 }: NSelectProps<TItem>) {
+  const preferences = useAppearanceStore((state) => state.preferences);
+  const systemColorScheme = useColorScheme();
+  const themeMode = resolveThemeMode(preferences.Theme);
+  const dark =
+    themeMode === 'dark' ||
+    (themeMode === 'system' && systemColorScheme === 'dark');
   const controlled = value !== undefined;
   const [internalValue, setInternalValue] = React.useState<unknown>(
     defaultValue ?? (multiple ? [] : null),
@@ -194,19 +201,29 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
         presentationStyle="pageSheet"
         onRequestClose={() => setOpen(false)}
       >
-        <SafeAreaView className="flex-1 bg-background">
-          <View className="flex-row items-center border-b border-border px-4 py-3">
-            <Text className="flex-1 text-base font-semibold">
+        <SafeAreaView
+          className="flex-1"
+          style={{ backgroundColor: dark ? '#171717' : '#ffffff' }}
+        >
+          <View
+            className="flex-row items-center border-b px-4 py-3"
+            style={{ borderColor: dark ? '#383838' : '#e5e5e5' }}
+          >
+            <Text
+              className={`flex-1 text-base font-semibold ${dark ? 'text-zinc-50' : 'text-zinc-900'}`}
+            >
               {label ?? 'Seleccionar'}
             </Text>
-            <Button
-              variant="ghost"
-              size="icon"
+            <Pressable
+              className="h-9 w-9 items-center justify-center"
               onPress={() => setOpen(false)}
               accessibilityLabel="Cerrar"
             >
-              <X size={20} />
-            </Button>
+              <X
+                size={20}
+                color={dark ? '#fafafa' : '#171717'}
+              />
+            </Pressable>
           </View>
           {searchable ? (
             <View className="relative mx-4 my-3 justify-center">
@@ -220,6 +237,10 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
                 placeholder={searchPlaceholder}
                 className="pl-10"
                 autoFocus
+                style={{
+                  color: dark ? '#fafafa' : '#171717',
+                  backgroundColor: dark ? '#090909' : '#ffffff',
+                }}
               />
             </View>
           ) : null}
@@ -229,7 +250,9 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
             keyboardShouldPersistTaps="handled"
             contentContainerClassName="px-4 py-2"
             ListEmptyComponent={
-              <Text className="py-10 text-center text-muted-foreground">
+              <Text
+                className={`py-10 text-center ${dark ? 'text-zinc-400' : 'text-zinc-500'}`}
+              >
                 {noResultsText}
               </Text>
             }
@@ -240,9 +263,14 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
               return (
                 <Pressable
                   onPress={() => select(item)}
-                  className="min-h-12 flex-row items-center border-b border-border py-3"
+                  className="min-h-12 flex-row items-center border-b py-3"
+                  style={{ borderColor: dark ? '#383838' : '#e5e5e5' }}
                 >
-                  <Text className="flex-1 text-sm">{textOf(item)}</Text>
+                  <Text
+                    className={`flex-1 text-sm ${dark ? 'text-zinc-50' : 'text-zinc-900'}`}
+                  >
+                    {textOf(item)}
+                  </Text>
                   {selected ? (
                     <Check
                       size={19}

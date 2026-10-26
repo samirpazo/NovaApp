@@ -188,3 +188,14 @@ export function hexToHslChannels(hex: string): string {
   const saturation = delta ? delta / (1 - Math.abs(2 * lightness - 1)) : 0;
   return `${hue} ${Math.round(saturation * 100)}% ${Math.round(lightness * 100)}%`;
 }
+
+export function headerUsesDarkForeground(color: string): boolean {
+  if (!/^#[\da-f]{6}$/i.test(color)) return false;
+  const channels = [1, 3, 5].map(
+    (index) => Number.parseInt(color.slice(index, index + 2), 16) / 255,
+  );
+  const [red, green, blue] = channels.map((channel) =>
+    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+  );
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue > 0.179;
+}

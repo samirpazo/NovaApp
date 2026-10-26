@@ -114,11 +114,6 @@ function OptionTreeRow({
               className="text-muted-foreground"
               style={{ transform: [{ rotate: isOpen ? '90deg' : '0deg' }] }}
             />
-          ) : route ? (
-            <ChevronRight
-              size={14}
-              className="text-muted-foreground"
-            />
           ) : null}
         </Pressable>
       </View>

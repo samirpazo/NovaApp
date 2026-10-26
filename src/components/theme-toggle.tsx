@@ -9,7 +9,11 @@ import {
   useAppearanceStore,
 } from '@/theme/appearance';
 
-export function ThemeToggle() {
+export function ThemeToggle({
+  darkForeground = false,
+}: {
+  darkForeground?: boolean;
+}) {
   const preferences = useAppearanceStore((state) => state.preferences);
   const previewChanges = useAppearanceStore((state) => state.previewChanges);
   const commit = useAppearanceStore((state) => state.commit);
@@ -22,6 +26,7 @@ export function ThemeToggle() {
       : nextTheme === 'dark'
         ? 'oscuro'
         : 'del sistema';
+  const foregroundClass = darkForeground ? 'text-zinc-950' : 'text-white';
 
   const toggle = async () => {
     const nextPreferences = { ...preferences, Theme: nextTheme };
@@ -39,7 +44,7 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon"
-      className="h-8 w-8"
+      className={`h-8 w-8 ${darkForeground ? 'active:bg-black/10' : 'active:bg-white/15'}`}
       disabled={saving}
       onPress={() => void toggle()}
       accessibilityLabel={`Cambiar tema a ${nextLabel}`}
@@ -47,22 +52,22 @@ export function ThemeToggle() {
       {saving ? (
         <LoaderCircle
           size={17}
-          className="animate-spin text-foreground"
+          className={`animate-spin ${foregroundClass}`}
         />
       ) : currentTheme === 'light' ? (
         <Sun
           size={17}
-          className="text-foreground"
+          className={foregroundClass}
         />
       ) : currentTheme === 'dark' ? (
         <Moon
           size={17}
-          className="text-foreground"
+          className={foregroundClass}
         />
       ) : (
         <Monitor
           size={17}
-          className="text-foreground"
+          className={foregroundClass}
         />
       )}
     </Button>

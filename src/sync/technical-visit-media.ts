@@ -1,4 +1,5 @@
 import { Q } from '@nozbe/watermelondb';
+import { Platform } from 'react-native';
 
 import { SYNC_RESOURCES, type SyncPushChange } from '@/contracts/sync';
 import type { OagTechnicalVisit } from '@/contracts/entities/operationsagr';
@@ -20,7 +21,8 @@ export async function prepareTechnicalVisitMedia(
     if (
       change.Resource !== SYNC_RESOURCES.OagTechnicalVisit ||
       change.Operation === 'D'
-    ) continue;
+    )
+      continue;
     if (!change.Data) continue;
     const data = change.Data as OagTechnicalVisit;
     const raw = data.Snapshot;
@@ -28,8 +30,21 @@ export async function prepareTechnicalVisitMedia(
     let changed = false;
 
     if (snapshot.PendingSignatureFile) {
+      const pendingSignature = snapshot.PendingSignatureFile;
+      const signatureFile =
+        Platform.OS === 'web' &&
+        pendingSignature.uri.startsWith('data:image/png;base64,')
+          ? {
+              ...pendingSignature,
+              file: new File(
+                [await (await fetch(pendingSignature.uri)).blob()],
+                pendingSignature.name,
+                { type: pendingSignature.mimeType ?? 'image/png' },
+              ),
+            }
+          : pendingSignature;
       const file = await uploadManagedFile(
-        snapshot.PendingSignatureFile,
+        signatureFile,
         'ROUTE_TECHNICAL_VISIT_FILES',
       );
       snapshot.Visit.TviSignatureFilID = file.FileId;
@@ -57,11 +72,15 @@ export async function prepareTechnicalVisitMedia(
       .query(Q.where('SyncId', change.SyncId))
       .fetch();
     const record = records[0];
-    if (!record) throw new Error('No se encontró la visita local para guardar sus archivos.');
+    if (!record)
+      throw new Error(
+        'No se encontró la visita local para guardar sus archivos.',
+      );
     await database.write(() =>
       record.update((model) => {
         model.Snapshot = data.Snapshot;
-        model.TviSignatureFilID = snapshot.Visit.TviSignatureFilID as number | null;
+        model.TviSignatureFilID = snapshot.Visit.TviSignatureFilID as
+          number | null;
       }),
     );
   }

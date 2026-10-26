@@ -29,15 +29,17 @@ export interface NCrudTableProps<T extends NCrudRow> {
 function Cell<T extends NCrudRow>({
   row,
   column,
+  align = column.align,
 }: {
   row: T;
   column: NCrudColumn<T>;
+  align?: NCrudColumn<T>['align'];
 }) {
   const value = column.format ? column.format(row) : row[column.key];
   const alignment =
-    column.align === 'right'
+    align === 'right'
       ? 'text-right'
-      : column.align === 'center'
+      : align === 'center'
         ? 'text-center'
         : 'text-left';
   if (React.isValidElement(value)) return value;
@@ -209,6 +211,7 @@ export function NCrudTable<T extends NCrudRow>({
                   <Cell
                     row={row}
                     column={column}
+                    align={column.align ?? 'right'}
                   />
                 </View>
               </View>
@@ -261,7 +264,7 @@ export function NCrudTable<T extends NCrudRow>({
                 flexBasis: column.width ?? 160,
               }}
               className={cn(
-                'flex-row items-center gap-1 px-2',
+                'h-full flex-row items-center gap-1 bg-muted/30 px-2',
                 column.align === 'right' && 'justify-end',
                 column.align === 'center' && 'justify-center',
               )}

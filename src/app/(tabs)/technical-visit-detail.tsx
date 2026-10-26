@@ -1,13 +1,15 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { DateTime } from 'luxon';
 import * as React from 'react';
-import { Alert, Modal, ScrollView, View } from 'react-native';
+import { Alert, Modal, Platform, ScrollView, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import { File, Paths } from 'expo-file-system';
 
 import { useAuthStore } from '@/auth/store';
 import { Button } from '@/components/ui/button';
 import { NText } from '@/components/forms/NText';
 import { NDate } from '@/components/forms/NDate';
+import { NSignature } from '@/components/forms/NSignature';
 import { Text } from '@/components/ui/text';
 import { NSwitch } from '@/components/forms/NSwitch';
 import { NSelect } from '@/components/forms/NSelect';
@@ -16,7 +18,7 @@ import { SYNC_RESOURCES } from '@/contracts/sync';
 import { database, GenDefinitionDetailModel, GenDefinitionModel, OagTechnicalVisitModel, OagTechnicalVisitScheduleModel } from '@/database';
 import { randomUUID } from 'expo-crypto';
 import { formatters } from '@/lib/formatter';
-import { Building2, ClipboardCheck, ClipboardList, MapPin, MapPinned, Pencil, Save, Sprout, ArrowLeft, X } from 'lucide-react-native';
+import { Building2, ClipboardCheck, ClipboardList, MapPin, MapPinned, Save, Sprout, ArrowLeft, X } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { loadManagedImage } from '@/lib/managed-image';
 import { useSyncState } from '@/sync/state';
@@ -183,10 +185,18 @@ export default function TechnicalVisitDetailScreen() {
   const [longitude, setLongitude] = React.useState('');
   const [observation, setObservation] = React.useState('');
   const [saving, setSaving] = React.useState(false);
+  const [draftDirty, setDraftDirty] = React.useState(false);
+  const draftDirtyRef = React.useRef(false);
+  const [saveFeedback, setSaveFeedback] = React.useState<{ message: string; error: boolean } | null>(null);
   const [activeSection, setActiveSection] = React.useState<SectionDefinition | null>(null);
   const [editingRow, setEditingRow] = React.useState<TechnicalVisitSnapshotRow | null>(null);
   const [sectionValues, setSectionValues] = React.useState<Record<string, string | boolean>>({});
   const [definitionOptions, setDefinitionOptions] = React.useState<Record<string, { label: string; value: number }[]>>({});
+  const markDraftDirty = () => {
+    draftDirtyRef.current = true;
+    setDraftDirty(true);
+    setSaveFeedback(null);
+  };
   const applicationOptions = React.useMemo(() => (snapshot?.Applications ?? [])
     .filter((row) => row.SecStatus !== false)
     .map((row) => ({
@@ -251,9 +261,10 @@ export default function TechnicalVisitDetailScreen() {
       );
       const schedules = await database.get<OagTechnicalVisitScheduleModel>(SYNC_RESOURCES.OagTechnicalVisitSchedule)
         .query(Q.where('TvsID', record.TvsID), Q.where('SecStatus', true)).fetch();
-      if (isCancelled()) return;
+      if (isCancelled() || draftDirtyRef.current) return;
       setModel(record);
       setSnapshot(normalized);
+      setDraftDirty(false);
       setSchedule(schedules[0] ?? null);
       const nextFields = {
         id: record.id,
@@ -289,12 +300,13 @@ export default function TechnicalVisitDetailScreen() {
 
   const save = async () => {
     if (!model || !snapshot) return;
+    setSaveFeedback(null);
     const parsedDate = DateTime.fromISO(date.trim(), { setZone: true });
     const lat = latitude.trim() ? Number(latitude) : null;
     const lon = longitude.trim() ? Number(longitude) : null;
     if (!parsedDate.isValid || (lat !== null && (!Number.isFinite(lat) || lat < -90 || lat > 90)) ||
       (lon !== null && (!Number.isFinite(lon) || lon < -180 || lon > 180))) {
-      Alert.alert('Revisa los datos', 'La fecha y las coordenadas deben ser válidas.');
+      setSaveFeedback({ message: 'Revisa la fecha y las coordenadas.', error: true });
       return;
     }
     const now = DateTime.utc().toISO() ?? '';
@@ -312,11 +324,23 @@ export default function TechnicalVisitDetailScreen() {
     };
     const validationError = validateTechnicalVisitSnapshot(next);
     if (validationError) {
-      Alert.alert('Revisa la visita', validationError);
+      setSaveFeedback({ message: validationError, error: true });
       return;
     }
     setSaving(true);
+    let signatureFile: File | null = null;
     try {
+      let snapshotToSave = next;
+      const pendingSignature = next.PendingSignatureFile;
+      if (Platform.OS !== 'web' && pendingSignature?.uri.startsWith('data:image/png;base64,')) {
+        signatureFile = new File(Paths.document, `technical-visit-signature-${randomUUID()}.png`);
+        signatureFile.create({ intermediates: true });
+        signatureFile.write(pendingSignature.uri.slice('data:image/png;base64,'.length), { encoding: 'base64' });
+        snapshotToSave = {
+          ...next,
+          PendingSignatureFile: { ...pendingSignature, uri: signatureFile.uri },
+        };
+      }
       await database.write(() => model.update((record) => {
         record.TviPerformedDate = String(next.Visit.TviPerformedDate);
         record.TviLatitude = lat;
@@ -324,10 +348,18 @@ export default function TechnicalVisitDetailScreen() {
         record.TviObservation = observation.trim() || null;
         record.UpdateUserId = userId;
         record.UpdateDate = now;
-        record.Snapshot = JSON.stringify(next);
+        record.Snapshot = JSON.stringify(snapshotToSave);
       }));
-      setSnapshot(next);
-      Alert.alert('Guardado en el dispositivo', 'La visita se sincronizará al recuperar conexión.');
+      setSnapshot(snapshotToSave);
+      draftDirtyRef.current = false;
+      setDraftDirty(false);
+      setSaveFeedback({ message: 'Cambios guardados en este dispositivo. Presiona Sincronizar para enviarlos.', error: false });
+    } catch (error) {
+      try { signatureFile?.delete(); } catch { /* File may not have been created. */ }
+      setSaveFeedback({
+        message: error instanceof Error ? error.message : 'No se pudieron guardar los cambios.',
+        error: true,
+      });
     } finally {
       setSaving(false);
     }
@@ -344,17 +376,12 @@ export default function TechnicalVisitDetailScreen() {
     return { uri: asset.uri, name: asset.name, mimeType: asset.mimeType };
   };
 
-  const attachSignature = async () => {
+  const saveSignature = async (file: { uri: string; name: string; mimeType?: string | null }) => {
     if (!model || !snapshot) return;
-    const file = await chooseImage();
-    if (!file) return;
     const next = { ...snapshot, PendingSignatureFile: file };
-    await database.write(() => model.update((record) => {
-      record.Snapshot = JSON.stringify(next);
-      record.UpdateUserId = userId;
-      record.UpdateDate = DateTime.utc().toISO() ?? '';
-    }));
     setSnapshot(next);
+    markDraftDirty();
+    setSaveFeedback({ message: 'Firma lista. Se guardará junto con la visita al presionar Guardar cambios.', error: false });
   };
 
   const attachEvidence = async () => {
@@ -381,12 +408,9 @@ export default function TechnicalVisitDetailScreen() {
       PendingFile: file,
     };
     const next = { ...snapshot, Evidences: [...snapshot.Evidences, evidence] };
-    await database.write(() => model.update((record) => {
-      record.Snapshot = JSON.stringify(next);
-      record.UpdateUserId = ownerId;
-      record.UpdateDate = now;
-    }));
     setSnapshot(next);
+    markDraftDirty();
+    setSaveFeedback({ message: 'Evidencia agregada al borrador. Presiona Guardar cambios para conservar la visita.', error: false });
   };
 
   const openSectionRow = (
@@ -504,17 +528,13 @@ export default function TechnicalVisitDetailScreen() {
       Alert.alert('Revisa la sección', validationError);
       return;
     }
-    await database.write(() => model.update((record) => {
-      record.Snapshot = JSON.stringify(next);
-      record.UpdateUserId = userId;
-      record.UpdateDate = now;
-    }));
     setSnapshot(next);
+    markDraftDirty();
     setActiveSection(null);
     setEditingRow(null);
   };
 
-  const removeSectionRow = async (
+  const removeSectionRow = (
     definition: SectionDefinition,
     row: Record<string, unknown>,
   ) => {
@@ -554,15 +574,11 @@ export default function TechnicalVisitDetailScreen() {
         ),
       };
     }
-    await database.write(() => model.update((record) => {
-      record.Snapshot = JSON.stringify(next);
-      record.UpdateUserId = userId;
-      record.UpdateDate = now;
-    }));
     setSnapshot(next);
+    markDraftDirty();
   };
 
-  const saveCatalogValue = async (
+  const saveCatalogValue = (
     key: 'Phenology' | 'Installations',
     option: { label: string; value: number },
     field: 'TphPercentage' | 'TinIsAvailable',
@@ -595,12 +611,8 @@ export default function TechnicalVisitDetailScreen() {
         ? rows.map((row) => row === existing ? updated : row)
         : [...rows, updated],
     };
-    await database.write(() => model.update((record) => {
-      record.Snapshot = JSON.stringify(next);
-      record.UpdateUserId = userId;
-      record.UpdateDate = now;
-    }));
     setSnapshot(next);
+    markDraftDirty();
   };
 
   const updatePhenology = (option: { label: string; value: number }, value: string) => {
@@ -635,7 +647,7 @@ export default function TechnicalVisitDetailScreen() {
       <View className="gap-3 rounded-xl border border-border p-3 md:gap-4 md:p-5">
         <VisitSectionHeading title="Información del documento" subtitle="Datos de identificación de la visita técnica" icon={ClipboardList} />
         <View className="flex-row flex-wrap gap-3 md:gap-4">
-          <NDate label="Fecha y hora" mode="datetime" value={date} onChange={setDate} required containerClassName="min-w-[180px] flex-1" />
+          <NDate label="Fecha y hora" mode="datetime" value={date} onChange={(value) => { setDate(value); markDraftDirty(); }} required containerClassName="min-w-[180px] flex-1" />
           <VisitValue label="Supervisor" value={schedule?.ResponsibleName} boxed />
           <VisitValue label="ID Prog." value={model.TvsID} boxed />
           <VisitValue label="Serie" value={snapshot.Visit.TviDocumentSeries ?? 'Al sincronizar'} boxed />
@@ -684,22 +696,22 @@ export default function TechnicalVisitDetailScreen() {
       <View className="gap-3 md:gap-4">
         <VisitSectionHeading title="Visita realizada" subtitle="Completa ubicación, observaciones generales y firma del productor" icon={ClipboardCheck} />
         <View className="flex-row flex-wrap gap-3 md:gap-4">
-          <NText label="Latitud GPS" value={latitude} onChange={setLatitude} placeholder="Latitud" containerClassName="min-w-[140px] flex-1" />
-          <NText label="Longitud GPS" value={longitude} onChange={setLongitude} placeholder="Longitud" containerClassName="min-w-[140px] flex-1" />
+          <NText label="Latitud GPS" value={latitude} onChange={(value) => { setLatitude(value); markDraftDirty(); }} placeholder="Latitud" containerClassName="min-w-[140px] flex-1" />
+          <NText label="Longitud GPS" value={longitude} onChange={(value) => { setLongitude(value); markDraftDirty(); }} placeholder="Longitud" containerClassName="min-w-[140px] flex-1" />
         </View>
         <View className="gap-3 md:flex-row md:gap-4">
-          <NText multiline numberOfLines={6} className="min-h-40 py-3" label="Observaciones generales" value={observation} onChange={setObservation} placeholder="Describe los hallazgos del recorrido" containerClassName="min-w-0 flex-1" />
+          <NText multiline numberOfLines={6} className="min-h-40 py-3" label="Observaciones generales" value={observation} onChange={(value) => { setObservation(value); markDraftDirty(); }} placeholder="Describe los hallazgos del recorrido" containerClassName="min-w-0 flex-1" />
           <View className="min-w-0 flex-1 gap-3">
             <View className={`h-40 items-center justify-center overflow-hidden rounded-xl border border-border ${signatureUri ? 'bg-white' : 'bg-muted/40'}`}>
               {signatureUri ? <Image source={{ uri: signatureUri }} contentFit="contain" style={{ width: '100%', height: '100%' }} accessibilityLabel="Firma del productor" />
                 : <Text className="text-sm text-muted-foreground">{signatureFileId > 0 ? 'Firma registrada · vista previa no disponible' : 'Firma del productor'}</Text>}
             </View>
-            <Button variant="outline" className="self-start" onPress={() => void attachSignature()}><Pencil size={15} className="text-foreground" /><Text>{signatureUri || signatureFileId > 0 ? 'Reemplazar firma' : 'Adjuntar firma del productor'}</Text></Button>
+            <NSignature onSave={saveSignature} disabled={saving} hasSignature={Boolean(signatureUri || signatureFileId > 0)} />
           </View>
         </View>
         <View className="items-end border-t border-border pt-4">
           <Button disabled={saving} onPress={() => void save()}><Save size={16} className="text-primary-foreground" /><Text>{saving ? 'Guardando…' : 'Guardar cambios'}</Text></Button>
-          <Text className="mt-2 text-xs text-muted-foreground">Guardado en este dispositivo. Se envía al sincronizar.</Text>
+          <Text role={saveFeedback?.error ? 'alert' : undefined} className={`mt-2 text-xs ${saveFeedback?.error ? 'text-destructive' : 'text-muted-foreground'}`}>{saveFeedback?.message ?? (draftDirty ? 'Hay cambios sin guardar. Presiona Guardar cambios para conservar la visita.' : 'Guardado en este dispositivo. Se envía al sincronizar.')}</Text>
         </View>
       </View>
       <Modal visible={activeSection !== null} transparent animationType="fade" onRequestClose={() => setActiveSection(null)}>
@@ -730,7 +742,7 @@ export default function TechnicalVisitDetailScreen() {
           })}
           <View className="flex-row justify-end gap-3 border-t border-border pt-3">
             <Button variant="outline" onPress={() => setActiveSection(null)}><Text>Cancelar</Text></Button>
-            <Button onPress={() => void saveSectionRow()}><Save size={16} className="text-primary-foreground" /><Text>Guardar sección</Text></Button>
+            <Button onPress={() => void saveSectionRow()}><Save size={16} className="text-primary-foreground" /><Text>{editingRow ? 'Aplicar cambios' : 'Agregar al borrador'}</Text></Button>
           </View>
         </ScrollView>
         </View>

@@ -1,6 +1,8 @@
 import {
   ArrowLeft,
   Check,
+  CircleAlert,
+  CircleCheck,
   Monitor,
   Moon,
   Palette,
@@ -40,7 +42,13 @@ export default function AppearanceScreen() {
     stored.HeaderColor || '#002aff',
   );
   const [saving, setSaving] = React.useState(false);
-  const [message, setMessage] = React.useState<string | null>(null);
+  const [message, setMessage] = React.useState<{
+    text: string;
+    error: boolean;
+  } | null>(null);
+  const messageTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const isLeavingRef = React.useRef(false);
 
   React.useEffect(() => {
@@ -85,6 +93,7 @@ export default function AppearanceScreen() {
   };
 
   const save = async () => {
+    if (messageTimeout.current) clearTimeout(messageTimeout.current);
     setSaving(true);
     setMessage(null);
     const next = {
@@ -96,15 +105,34 @@ export default function AppearanceScreen() {
     try {
       await commit(next);
       const status = await saveOrQueueAppearance(next);
-      setMessage(
-        status === 'synced'
-          ? 'Preferencias guardadas y sincronizadas.'
-          : 'Preferencias guardadas localmente y pendientes de sincronización.',
-      );
+      setMessage({
+        text:
+          status === 'synced'
+            ? 'Preferencias guardadas y sincronizadas.'
+            : 'Preferencias guardadas en este dispositivo; pendientes de sincronización.',
+        error: false,
+      });
+      messageTimeout.current = setTimeout(() => setMessage(null), 3500);
+    } catch (error) {
+      setMessage({
+        text:
+          error instanceof Error
+            ? error.message
+            : 'No se pudieron guardar las preferencias.',
+        error: true,
+      });
+      messageTimeout.current = setTimeout(() => setMessage(null), 5000);
     } finally {
       setSaving(false);
     }
   };
+
+  React.useEffect(
+    () => () => {
+      if (messageTimeout.current) clearTimeout(messageTimeout.current);
+    },
+    [],
+  );
 
   const ColorChoices = ({
     value,
@@ -251,9 +279,6 @@ export default function AppearanceScreen() {
             onChange={setHeaderColor}
           />
         </View>
-        {message ? (
-          <Text className="text-xs text-muted-foreground">{message}</Text>
-        ) : null}
         <View className="items-end">
           <Button
             onPress={save}
@@ -267,6 +292,31 @@ export default function AppearanceScreen() {
           </Button>
         </View>
       </ScrollView>
+      {message ? (
+        <View
+          pointerEvents="none"
+          accessibilityRole={message.error ? 'alert' : 'none'}
+          accessibilityLiveRegion={message.error ? 'assertive' : 'polite'}
+          className={`absolute left-4 right-4 top-3 z-50 mx-auto max-w-5xl flex-row items-center gap-2 rounded-lg border bg-card px-4 py-3 shadow-lg ${message.error ? 'border-destructive/50' : 'border-success/50'}`}
+        >
+          {message.error ? (
+            <CircleAlert
+              size={18}
+              className="text-destructive"
+            />
+          ) : (
+            <CircleCheck
+              size={18}
+              className="text-success"
+            />
+          )}
+          <Text
+            className={`flex-1 text-sm ${message.error ? 'text-destructive' : 'text-foreground'}`}
+          >
+            {message.text}
+          </Text>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
