@@ -3,16 +3,26 @@ import {
   GenDefinitionSchema,
   RstBranchSchema,
   RstTableSchema,
+  GenCampaignSchema,
   type GenDefinition,
   type GenDefinitionDetail,
   type RstBranch,
   type RstTable,
+  type GenCampaign,
 } from '@/contracts/entities';
 import {
   OagTechnicalVisitSchema,
   OagTechnicalVisitScheduleSchema,
+  OagFruitFarmSchema, OagPlotFarmSchema, OagFruitFarmSupervisorSchema,
+  OagCultiveSchema, OagVarietySchema, OagFarmSuppliesSchema,
+  OagFarmSuppliesTargetSchema, OagPlagueSchema, OagPlagueCultiveSchema,
+  OagWaterSourceSchema,
   type OagTechnicalVisit,
   type OagTechnicalVisitSchedule,
+  type OagFruitFarm, type OagPlotFarm, type OagFruitFarmSupervisor,
+  type OagCultive, type OagVariety, type OagFarmSupplies,
+  type OagFarmSuppliesTarget, type OagPlague, type OagPlagueCultive,
+  type OagWaterSource,
 } from '@/contracts/entities/operationsagr';
 import { GuidSchema } from '@/contracts/common';
 import { z } from 'zod';
@@ -24,6 +34,17 @@ export const SYNC_RESOURCES = {
   RstTable: 'RstTable',
   OagTechnicalVisit: 'OagTechnicalVisit',
   OagTechnicalVisitSchedule: 'OagTechnicalVisitSchedule',
+  GenCampaign: 'GenCampaign',
+  OagFruitFarm: 'OagFruitFarm',
+  OagPlotFarm: 'OagPlotFarm',
+  OagFruitFarmSupervisor: 'OagFruitFarmSupervisor',
+  OagCultive: 'OagCultive',
+  OagVariety: 'OagVariety',
+  OagFarmSupplies: 'OagFarmSupplies',
+  OagFarmSuppliesTarget: 'OagFarmSuppliesTarget',
+  OagPlague: 'OagPlague',
+  OagPlagueCultive: 'OagPlagueCultive',
+  OagWaterSource: 'OagWaterSource',
 } as const;
 
 export const SyncResourceSchema = z.enum([
@@ -33,13 +54,29 @@ export const SyncResourceSchema = z.enum([
   SYNC_RESOURCES.RstTable,
   SYNC_RESOURCES.OagTechnicalVisit,
   SYNC_RESOURCES.OagTechnicalVisitSchedule,
+  SYNC_RESOURCES.GenCampaign,
+  SYNC_RESOURCES.OagFruitFarm,
+  SYNC_RESOURCES.OagPlotFarm,
+  SYNC_RESOURCES.OagFruitFarmSupervisor,
+  SYNC_RESOURCES.OagCultive,
+  SYNC_RESOURCES.OagVariety,
+  SYNC_RESOURCES.OagFarmSupplies,
+  SYNC_RESOURCES.OagFarmSuppliesTarget,
+  SYNC_RESOURCES.OagPlague,
+  SYNC_RESOURCES.OagPlagueCultive,
+  SYNC_RESOURCES.OagWaterSource,
 ]);
 export const SyncOperationSchema = z.enum(['C', 'U', 'D']);
 
 export type SyncResource = z.infer<typeof SyncResourceSchema>;
 export type SyncOperation = z.infer<typeof SyncOperationSchema>;
 export type SyncAccess = 'ReadOnly' | 'ReadWrite';
-export type WritableSyncResource = Exclude<SyncResource, 'RstTable'>;
+export type WritableSyncResource = Exclude<SyncResource,
+  | 'RstTable' | 'GenCampaign' | 'OagFruitFarm' | 'OagPlotFarm'
+  | 'OagFruitFarmSupervisor' | 'OagCultive' | 'OagVariety'
+  | 'OagFarmSupplies' | 'OagFarmSuppliesTarget' | 'OagPlague'
+  | 'OagPlagueCultive' | 'OagWaterSource'
+>;
 
 export interface SyncEntityMap {
   GenDefinition: GenDefinition;
@@ -48,6 +85,17 @@ export interface SyncEntityMap {
   RstTable: RstTable;
   OagTechnicalVisit: OagTechnicalVisit;
   OagTechnicalVisitSchedule: OagTechnicalVisitSchedule;
+  GenCampaign: GenCampaign;
+  OagFruitFarm: OagFruitFarm;
+  OagPlotFarm: OagPlotFarm;
+  OagFruitFarmSupervisor: OagFruitFarmSupervisor;
+  OagCultive: OagCultive;
+  OagVariety: OagVariety;
+  OagFarmSupplies: OagFarmSupplies;
+  OagFarmSuppliesTarget: OagFarmSuppliesTarget;
+  OagPlague: OagPlague;
+  OagPlagueCultive: OagPlagueCultive;
+  OagWaterSource: OagWaterSource;
 }
 
 export const SYNC_ACCESS: Record<SyncResource, SyncAccess> = {
@@ -57,6 +105,17 @@ export const SYNC_ACCESS: Record<SyncResource, SyncAccess> = {
   RstTable: 'ReadOnly',
   OagTechnicalVisit: 'ReadWrite',
   OagTechnicalVisitSchedule: 'ReadWrite',
+  GenCampaign: 'ReadOnly',
+  OagFruitFarm: 'ReadOnly',
+  OagPlotFarm: 'ReadOnly',
+  OagFruitFarmSupervisor: 'ReadOnly',
+  OagCultive: 'ReadOnly',
+  OagVariety: 'ReadOnly',
+  OagFarmSupplies: 'ReadOnly',
+  OagFarmSuppliesTarget: 'ReadOnly',
+  OagPlague: 'ReadOnly',
+  OagPlagueCultive: 'ReadOnly',
+  OagWaterSource: 'ReadOnly',
 };
 
 export interface SyncPullChange<TResource extends SyncResource = SyncResource> {
@@ -110,6 +169,17 @@ export const SyncPullChangeSchema = z.discriminatedUnion('Resource', [
       (value) => value ?? null,
     ),
   }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.GenCampaign), Data: GenCampaignSchema.nullish().transform((value) => value ?? null) }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagFruitFarm), Data: OagFruitFarmSchema.nullish().transform((value) => value ?? null) }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagPlotFarm), Data: OagPlotFarmSchema.nullish().transform((value) => value ?? null) }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagFruitFarmSupervisor), Data: OagFruitFarmSupervisorSchema.nullish().transform((value) => value ?? null) }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagCultive), Data: OagCultiveSchema.nullish().transform((value) => value ?? null) }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagVariety), Data: OagVarietySchema.nullish().transform((value) => value ?? null) }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagFarmSupplies), Data: OagFarmSuppliesSchema.nullish().transform((value) => value ?? null) }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagFarmSuppliesTarget), Data: OagFarmSuppliesTargetSchema.nullish().transform((value) => value ?? null) }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagPlague), Data: OagPlagueSchema.nullish().transform((value) => value ?? null) }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagPlagueCultive), Data: OagPlagueCultiveSchema.nullish().transform((value) => value ?? null) }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagWaterSource), Data: OagWaterSourceSchema.nullish().transform((value) => value ?? null) }),
 ]);
 
 export const SyncPullResponseSchema = z.object({

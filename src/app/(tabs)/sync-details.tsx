@@ -37,6 +37,17 @@ const emptyCounts: LocalCounts = {
   RstTable: 0,
   OagTechnicalVisit: 0,
   OagTechnicalVisitSchedule: 0,
+  GenCampaign: 0,
+  OagFruitFarm: 0,
+  OagPlotFarm: 0,
+  OagFruitFarmSupervisor: 0,
+  OagCultive: 0,
+  OagVariety: 0,
+  OagFarmSupplies: 0,
+  OagFarmSuppliesTarget: 0,
+  OagPlague: 0,
+  OagPlagueCultive: 0,
+  OagWaterSource: 0,
 };
 
 const resourceLabels: Record<keyof LocalCounts, string> = {
@@ -46,6 +57,17 @@ const resourceLabels: Record<keyof LocalCounts, string> = {
   RstTable: 'Mesas',
   OagTechnicalVisit: 'Visitas técnicas',
   OagTechnicalVisitSchedule: 'Programaciones de visitas',
+  GenCampaign: 'Campañas',
+  OagFruitFarm: 'Fundos asignados',
+  OagPlotFarm: 'Lotes asignados',
+  OagFruitFarmSupervisor: 'Asignaciones de supervisor',
+  OagCultive: 'Cultivos',
+  OagVariety: 'Variedades',
+  OagFarmSupplies: 'Insumos agrícolas',
+  OagFarmSuppliesTarget: 'Objetivos de insumos',
+  OagPlague: 'Plagas',
+  OagPlagueCultive: 'Plagas por cultivo',
+  OagWaterSource: 'Fuentes de agua',
 };
 
 async function readLocalCounts(): Promise<LocalCounts> {

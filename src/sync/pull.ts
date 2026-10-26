@@ -12,6 +12,7 @@ import { useAuthStore } from '@/auth/store';
 import { createResponseApiSchema } from '@/contracts/api';
 import {
   SYNC_RESOURCES,
+  SYNC_ACCESS,
   SyncPullResponseSchema,
   SyncPushChangeSchema,
   SyncConflictSchema,
@@ -44,7 +45,7 @@ import { prepareTechnicalVisitMedia } from '@/sync/technical-visit-media';
 const ACTIVE_SCOPE_KEY = localStorageKey<string>('nova.sync.activeScope');
 const LAST_PULL_KEY = localStorageKey<PullResult>('nova.sync.lastPull');
 const TECHNICAL_VISIT_BOOTSTRAP_SCOPE_KEY = localStorageKey<string>(
-  'nova.sync.technicalVisitBootstrapScope.v2',
+  'nova.sync.technicalVisitBootstrapScope.v3',
 );
 const MAX_PULL_PAGES = 10_000;
 
@@ -64,6 +65,17 @@ function createChangeSet(): MutableChangeSet {
     [SYNC_RESOURCES.RstTable]: emptyTableChanges(),
     [SYNC_RESOURCES.OagTechnicalVisit]: emptyTableChanges(),
     [SYNC_RESOURCES.OagTechnicalVisitSchedule]: emptyTableChanges(),
+    [SYNC_RESOURCES.GenCampaign]: emptyTableChanges(),
+    [SYNC_RESOURCES.OagFruitFarm]: emptyTableChanges(),
+    [SYNC_RESOURCES.OagPlotFarm]: emptyTableChanges(),
+    [SYNC_RESOURCES.OagFruitFarmSupervisor]: emptyTableChanges(),
+    [SYNC_RESOURCES.OagCultive]: emptyTableChanges(),
+    [SYNC_RESOURCES.OagVariety]: emptyTableChanges(),
+    [SYNC_RESOURCES.OagFarmSupplies]: emptyTableChanges(),
+    [SYNC_RESOURCES.OagFarmSuppliesTarget]: emptyTableChanges(),
+    [SYNC_RESOURCES.OagPlague]: emptyTableChanges(),
+    [SYNC_RESOURCES.OagPlagueCultive]: emptyTableChanges(),
+    [SYNC_RESOURCES.OagWaterSource]: emptyTableChanges(),
   };
 }
 
@@ -117,7 +129,7 @@ function pushChangesFrom({ changes }: SyncPushArgs): SyncPushChange[] {
       changes as Partial<Record<SyncResource, SyncTableChangeSet>>
     )[resource];
     if (!table) continue;
-    if (resource === SYNC_RESOURCES.RstTable) {
+    if (SYNC_ACCESS[resource] === 'ReadOnly') {
       if (
         table.created.length ||
         table.updated.length ||

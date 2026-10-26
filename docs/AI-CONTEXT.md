@@ -104,6 +104,15 @@ una variante mayor por una razón concreta, como el login, pero no debe cambiar 
 | `RstTable`            | Solo lectura      | `TabID`   | Sucursal cuando haya `BranchId` |
 | `OagTechnicalVisitSchedule` | Lectura/escritura | `TvsID` | Supervisor autenticado (`PrsID`) |
 | `OagTechnicalVisit`   | Lectura/escritura | `TviID`   | Aggregate de su programación asignada |
+| `GenCampaign` | Solo lectura | `CmpID` | Campañas de la instalación |
+| `OagFruitFarm` | Solo lectura | `FrfID` | Fundos asignados al supervisor |
+| `OagPlotFarm` | Solo lectura | `PlfID` | Lotes de fundos asignados |
+| `OagFruitFarmSupervisor` | Solo lectura | `FfsID` | Asignaciones vigentes del supervisor |
+| `OagCultive`, `OagVariety` | Solo lectura | `CltID`, `VrtID` | Cultivos/variedades de los lotes asignados |
+| `OagFarmSupplies` | Solo lectura | `FrsID` | Insumos de objetivos asociados a cultivos asignados |
+| `OagFarmSuppliesTarget` | Solo lectura | `FstID` | Objetivos de insumos para cultivos asignados |
+| `OagPlague`, `OagPlagueCultive` | Solo lectura | `PlgID`, `PgcID` | Plagas y relaciones con cultivos asignados |
+| `OagWaterSource` | Solo lectura | `OwsID` | Fuentes de agua de lotes asignados |
 
 `RstTable` no debe volverse editable en móvil: el diseñador de restaurante está reservado para
 Nova Web y requiere una pantalla grande.
@@ -130,6 +139,8 @@ con los datos sincronizables que ya existan; Nova App no ofrece pantallas CRUD p
 - `src/app/(tabs)/sync-details.tsx`: pantalla técnica de sincronización.
 - `src/app/(tabs)/conflict-resolution.tsx`: resolución manual.
 - `src/app/(tabs)/technical-visits.tsx` y `technical-visit-detail.tsx`: visitas técnicas offline.
+- `docs/TECHNICAL-VISITS-OFFLINE-READINESS.md`: inventario de tablas/catálogos y fases para
+  completar visitas técnicas offline con paridad funcional con Nova Web.
 
 Todas las pantallas autenticadas deben vivir dentro de `src/app/(tabs)/`, incluso cuando no sean
 una de las cinco pestañas principales. Las rutas secundarias se registran con `href: null` en el

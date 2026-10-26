@@ -1,21 +1,13 @@
-import { appSchema, tableSchema, type ColumnSchema } from '@nozbe/watermelondb';
+import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 import { SYNC_RESOURCES } from '@/contracts/sync';
+import { entityBaseColumns } from '@/database/schema-base-columns';
+import { technicalVisitCatalogColumns } from '@/database/technical-visit-catalog-columns';
 
-export const entityBaseColumns: ColumnSchema[] = [
-  { name: 'SyncId', type: 'string', isIndexed: true },
-  { name: 'SyncVersion', type: 'string' },
-  { name: 'SecStatus', type: 'boolean' },
-  { name: 'CreateUserId', type: 'number' },
-  { name: 'UpdateUserId', type: 'number', isOptional: true },
-  { name: 'DeleteUserId', type: 'number', isOptional: true },
-  { name: 'CreateDate', type: 'string' },
-  { name: 'UpdateDate', type: 'string', isOptional: true },
-  { name: 'DeleteDate', type: 'string', isOptional: true },
-];
+export { entityBaseColumns } from '@/database/schema-base-columns';
 
 export const databaseSchema = appSchema({
-  version: 3,
+  version: 4,
   tables: [
     tableSchema({
       name: SYNC_RESOURCES.GenDefinition,
@@ -121,5 +113,8 @@ export const databaseSchema = appSchema({
         { name: 'Snapshot', type: 'string' },
       ],
     }),
+    ...Object.entries(technicalVisitCatalogColumns).map(([name, columns]) =>
+      tableSchema({ name, columns }),
+    ),
   ],
 });

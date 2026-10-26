@@ -4,6 +4,11 @@ import { RstBranchModel } from '@/database/models/RstBranch';
 import { RstTableModel } from '@/database/models/RstTable';
 import { OagTechnicalVisitModel } from '@/database/models/OagTechnicalVisit';
 import { OagTechnicalVisitScheduleModel } from '@/database/models/OagTechnicalVisitSchedule';
+import {
+  GenCampaignModel, OagFruitFarmModel, OagPlotFarmModel, OagFruitFarmSupervisorModel,
+  OagCultiveModel, OagVarietyModel, OagFarmSuppliesModel, OagFarmSuppliesTargetModel,
+  OagPlagueModel, OagPlagueCultiveModel, OagWaterSourceModel,
+} from '@/database/models/TechnicalVisitCatalogs';
 
 export * from '@/database/models/EntityBaseModel';
 export * from '@/database/models/GenDefinition';
@@ -12,6 +17,7 @@ export * from '@/database/models/RstBranch';
 export * from '@/database/models/RstTable';
 export * from '@/database/models/OagTechnicalVisit';
 export * from '@/database/models/OagTechnicalVisitSchedule';
+export * from '@/database/models/TechnicalVisitCatalogs';
 
 export const databaseModels = [
   GenDefinitionModel,
@@ -20,4 +26,15 @@ export const databaseModels = [
   RstTableModel,
   OagTechnicalVisitModel,
   OagTechnicalVisitScheduleModel,
+  GenCampaignModel,
+  OagFruitFarmModel,
+  OagPlotFarmModel,
+  OagFruitFarmSupervisorModel,
+  OagCultiveModel,
+  OagVarietyModel,
+  OagFarmSuppliesModel,
+  OagFarmSuppliesTargetModel,
+  OagPlagueModel,
+  OagPlagueCultiveModel,
+  OagWaterSourceModel,
 ];

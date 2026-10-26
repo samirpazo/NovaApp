@@ -3,7 +3,8 @@ import {
   createTable,
   schemaMigrations,
 } from '@nozbe/watermelondb/Schema/migrations';
-import { entityBaseColumns } from '@/database/schema';
+import { entityBaseColumns } from '@/database/schema-base-columns';
+import { technicalVisitCatalogColumns } from '@/database/technical-visit-catalog-columns';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 
 export const databaseMigrations = schemaMigrations({
@@ -64,6 +65,12 @@ export const databaseMigrations = schemaMigrations({
           ],
         }),
       ],
+    },
+    {
+      toVersion: 4,
+      steps: Object.entries(technicalVisitCatalogColumns).map(([name, columns]) =>
+        createTable({ name, columns }),
+      ),
     },
   ],
 });

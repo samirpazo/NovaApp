@@ -186,9 +186,18 @@ El backend ordena primero las programaciones, remapea sus IDs temporales y despu
 visita mediante `SaveAggregate`. El permiso requerido en Push es `OAG_TECHNICAL_VISIT`.
 El cambio del encabezado registra el agregado en el journal, por lo que el Pull móvil recibe un
 snapshot completo; los endpoints antiguos de edición puntual de secciones no notifican el agregado.
-La pantalla móvil consume las programaciones asignadas desde NovaWeb; su administración y creación
-offline no están disponibles porque los catálogos de lotes, campañas y supervisores no forman parte
-de la caché móvil.
+La caché también incluye los catálogos requeridos por visitas técnicas: campañas; fundos, lotes y
+asignaciones activas del supervisor autenticado; fuentes de agua de esos lotes; cultivos y variedades
+de esos lotes; insumos vinculados a objetivos activos de esos cultivos; plagas y relaciones con
+cultivos. Los catálogos se descargan como
+ReadOnly, y los lotes/fundos/fuentes/asignaciones se limitan en NovaApi al alcance actual del
+`PrsID`. Las relaciones de producto y plaga se limitan a los cultivos de esos lotes. Las definiciones
+y detalles ya se sincronizaban antes. No se replica `GenParameter`: los selectores web revisados no
+lo consumen. La caché migra a WatermelonDB schema v4 y solicita un bootstrap por alcance para traer
+los registros existentes.
+
+La administración y el formulario de programación offline aún no están disponibles; corresponden a
+la siguiente fase. Esta entrega deja sincronizados los datos base, no crea todavía sus selectores.
 
 Firmas y evidencias conservan sus URI locales pendientes mientras el dispositivo está offline. Antes
 del Push, la app los carga con `POST /GenFiles/upload` y `ROUTE_TECHNICAL_VISIT_FILES`, reemplaza la

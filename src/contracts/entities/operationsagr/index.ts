@@ -12,3 +12,4 @@ export * from './entities/OagTechnicalVisitRecommendationFollowUp';
 export * from './entities/OagTechnicalVisitSchedule';
 export * from './entities/TadTechnicalVisitApplicationDetail';
 export * from './customize/CEOagTechnicalVisitLoad';
+export * from './TechnicalVisitCatalogs';
