@@ -1,7 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 
 import { SYNC_RESOURCES } from '@/contracts/sync';
-import { database, GenDefinitionModel } from '@/database';
+import { getActiveDatabase, GenDefinitionModel } from '@/database';
 import { genDefinitionQueries } from '@/features/general/definitions/queries';
 import type { SaveGenDefinitionInput } from '@/features/general/definitions/types';
 
@@ -18,10 +18,11 @@ function normalizeInput(input: SaveGenDefinitionInput) {
 
 export const genDefinitionService = {
   async save(input: SaveGenDefinitionInput): Promise<void> {
+    const database = getActiveDatabase();
     const values = normalizeInput(input);
 
     if (input.LocalId) {
-      const model = await genDefinitionQueries.find(input.LocalId);
+      const model = await genDefinitionQueries.find(input.LocalId, database);
       await database.write(() =>
         model.update((record) => {
           record.DefCode = values.DefCode;
@@ -34,7 +35,7 @@ export const genDefinitionService = {
       return;
     }
 
-    const temporaryId = await genDefinitionQueries.nextTemporaryId();
+    const temporaryId = await genDefinitionQueries.nextTemporaryId(database);
     const syncId = randomUUID();
     const now = new Date().toISOString();
 
@@ -61,7 +62,8 @@ export const genDefinitionService = {
   },
 
   async remove(LocalId: string, UserId: number): Promise<void> {
-    const model = await genDefinitionQueries.find(LocalId);
+    const database = getActiveDatabase();
+    const model = await genDefinitionQueries.find(LocalId, database);
     await database.write(async () => {
       await model.update((record) => {
         record.DeleteUserId = UserId;

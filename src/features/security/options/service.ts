@@ -3,8 +3,8 @@ import {
   SecOptionSchema,
   type SecOption,
 } from '@/contracts/security/SecOption';
-import { database } from '@/database';
-import { api } from '@/lib/api';
+import { getActiveDatabase, getActiveIdentityKey } from '@/database';
+import { getForUser } from '@/lib/api';
 import { z } from 'zod';
 
 const CACHE_PREFIX = 'nova.security.mobile-options';
@@ -16,9 +16,11 @@ function cacheKey(userId: number): string {
 export async function refreshMobileOptions(
   userId: number,
 ): Promise<SecOption[]> {
-  const response = await api.get('/SecUser/MyOptions', {
+  const database = getActiveDatabase();
+  const identityKey = getActiveIdentityKey();
+  const response = await getForUser('/SecUser/MyOptions', userId, {
     params: { mobileOnly: true },
-  });
+  }, identityKey ?? undefined);
   const envelope = createResponseApiSchema(z.array(SecOptionSchema)).parse(
     response.data,
   );
@@ -34,6 +36,7 @@ export async function refreshMobileOptions(
 export async function getCachedMobileOptions(
   userId: number,
 ): Promise<SecOption[]> {
+  const database = getActiveDatabase();
   const userCached = await database.localStorage.get<unknown>(cacheKey(userId));
   const userParsed = z.array(SecOptionSchema).safeParse(userCached);
   return userParsed.success ? userParsed.data : [];

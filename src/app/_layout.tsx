@@ -19,6 +19,7 @@ import * as React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Platform } from 'react-native';
 import { AuthGate } from '@/auth';
+import { useAuthStore } from '@/auth/store';
 import {
   hexToHslChannels,
   headerUsesDarkForeground,
@@ -34,8 +35,14 @@ export default function RootLayout() {
   });
   const { colorScheme, setColorScheme } = useColorScheme();
   const appearance = useAppearanceStore((state) => state.preview);
+  const appearanceUserId = useAppearanceStore((state) => state.userId);
+  const sessionUserId = useAuthStore((state) => state.Session?.User.UsrID ?? null);
   const appearanceReady = useAppearanceStore((state) => state.ready);
   const hydrateAppearance = useAppearanceStore((state) => state.hydrate);
+  const safeAppearance =
+    appearanceUserId === sessionUserId
+      ? appearance
+      : { Theme: 'system' as const, PrimaryColor: '#002aff', HeaderColor: '#002aff' };
   const isDark = colorScheme === 'dark';
   const setColorSchemeRef = React.useRef(setColorScheme);
 
@@ -47,7 +54,7 @@ export default function RootLayout() {
 
   React.useEffect(() => {
     if (!appearanceReady) return;
-    const themeMode = resolveThemeMode(appearance.Theme);
+    const themeMode = resolveThemeMode(safeAppearance.Theme);
     if (Platform.OS !== 'web' || themeMode !== 'system') {
       setColorSchemeRef.current(themeMode);
       return;
@@ -61,7 +68,7 @@ export default function RootLayout() {
     syncSystemClass();
     mediaQuery.addEventListener('change', syncSystemClass);
     return () => mediaQuery.removeEventListener('change', syncSystemClass);
-  }, [appearance.Theme, appearanceReady]);
+  }, [safeAppearance.Theme, appearanceReady]);
 
   if (!fontsLoaded || !appearanceReady) return null;
 
@@ -71,16 +78,16 @@ export default function RootLayout() {
       style={[
         { flex: 1 },
         vars({
-          '--primary': hexToHslChannels(appearance.PrimaryColor || '#002aff'),
-          '--ring': hexToHslChannels(appearance.PrimaryColor || '#002aff'),
-          '--primary-selection': `${hexToHslChannels(appearance.PrimaryColor || '#002aff')} / 15%`,
+          '--primary': hexToHslChannels(safeAppearance.PrimaryColor || '#002aff'),
+          '--ring': hexToHslChannels(safeAppearance.PrimaryColor || '#002aff'),
+          '--primary-selection': `${hexToHslChannels(safeAppearance.PrimaryColor || '#002aff')} / 15%`,
         }),
       ]}
     >
       <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
         <StatusBar
           style={
-            headerUsesDarkForeground(appearance.HeaderColor || '#002aff')
+            headerUsesDarkForeground(safeAppearance.HeaderColor || '#002aff')
               ? 'dark'
               : 'light'
           }

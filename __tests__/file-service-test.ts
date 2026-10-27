@@ -4,6 +4,7 @@ jest.mock('@/lib/api', () => ({
     post: jest.fn(),
   },
 }));
+jest.mock('@/database', () => ({ getActiveIdentityKey: () => 'account-a' }));
 
 import { api } from '@/lib/api';
 import { uploadManagedFile } from '@/lib/fileService';
@@ -18,6 +19,8 @@ describe('uploadManagedFile', () => {
           mimeType: 'image/jpeg',
         },
         '   ',
+        undefined,
+        11,
       ),
     ).rejects.toThrow('genParameter es obligatorio');
     expect(api.post).not.toHaveBeenCalled();

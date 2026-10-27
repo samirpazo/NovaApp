@@ -13,11 +13,12 @@ import { Text } from '@/components/ui/text';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import {
   genDefinitionDetailQueries,
-  genDefinitionDetailDataSource,
+  createGenDefinitionDetailDataSource,
   genDefinitionDetailService,
   type GenDefinitionDetailListItem,
   type GenDefinitionOption,
 } from '@/features/general/definition-details';
+import { getActiveIdentityKey } from '@/database';
 import { uploadManagedFile } from '@/lib/fileService';
 
 interface DetailDraft {
@@ -75,6 +76,8 @@ const columns: NCrudColumn<GenDefinitionDetailListItem>[] = [
 ];
 
 export default function DefinitionDetailsScreen() {
+  const dataSource = React.useMemo(createGenDefinitionDetailDataSource, []);
+  const identityKey = getActiveIdentityKey();
   const router = useRouter();
   const { definitionId: routeDefinitionId } = useLocalSearchParams<{
     definitionId?: string | string[];
@@ -191,6 +194,9 @@ export default function DefinitionDetailsScreen() {
           file: asset.file,
         },
         'ROUTE_DEFINITION_IMGS',
+        undefined,
+        userId,
+        identityKey ?? undefined,
       );
       setDraft((state) => ({
         ...state,
@@ -430,7 +436,7 @@ export default function DefinitionDetailsScreen() {
               </>
             ),
           }}
-          dataSource={genDefinitionDetailDataSource}
+          dataSource={dataSource}
           columns={columns}
           searchPlaceholder="Descripción, abreviatura o auxiliar"
           selectionMode="single"

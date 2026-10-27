@@ -1,7 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 
 import { SYNC_RESOURCES } from '@/contracts/sync';
-import { database, GenDefinitionDetailModel } from '@/database';
+import { getActiveDatabase, GenDefinitionDetailModel } from '@/database';
 import { genDefinitionDetailQueries } from '@/features/general/definition-details/queries';
 import type { SaveGenDefinitionDetailInput } from '@/features/general/definition-details/types';
 
@@ -9,6 +9,7 @@ const nullable = (value: string) => value.trim() || null;
 
 export const genDefinitionDetailService = {
   async save(input: SaveGenDefinitionDetailInput): Promise<void> {
+    const database = getActiveDatabase();
     const description = input.DedDescription.trim();
     if (
       !Number.isInteger(input.DedValue) ||
@@ -22,6 +23,7 @@ export const genDefinitionDetailService = {
         input.Definition.DefID,
         input.DedValue,
         input.LocalId,
+        database,
       )
     ) {
       throw new Error(
@@ -46,7 +48,7 @@ export const genDefinitionDetailService = {
     };
 
     if (input.LocalId) {
-      const model = await genDefinitionDetailQueries.find(input.LocalId);
+      const model = await genDefinitionDetailQueries.find(input.LocalId, database);
       await database.write(() =>
         model.update((record) => {
           apply(record);
@@ -57,7 +59,7 @@ export const genDefinitionDetailService = {
       return;
     }
 
-    const temporaryId = await genDefinitionDetailQueries.nextTemporaryId();
+    const temporaryId = await genDefinitionDetailQueries.nextTemporaryId(database);
     const syncId = randomUUID();
     const now = new Date().toISOString();
     await database.write(() =>
@@ -81,7 +83,8 @@ export const genDefinitionDetailService = {
   },
 
   async remove(LocalId: string, UserId: number): Promise<void> {
-    const model = await genDefinitionDetailQueries.find(LocalId);
+    const database = getActiveDatabase();
+    const model = await genDefinitionDetailQueries.find(LocalId, database);
     await database.write(async () => {
       await model.update((record) => {
         record.DeleteUserId = UserId;

@@ -5,13 +5,15 @@ import { databaseMigrations } from '@/database/migrations';
 import { databaseModels } from '@/database/models';
 import { databaseSchema } from '@/database/schema';
 
-const adapter = new SQLiteAdapter({
-  dbName: 'nova-app',
-  schema: databaseSchema,
-  migrations: databaseMigrations,
-  jsi: true,
-  onSetUpError: (error) =>
-    console.error('No se pudo inicializar WatermelonDB.', error),
-});
+export function createDatabase(dbName: string): Database {
+  const adapter = new SQLiteAdapter({
+    dbName,
+    schema: databaseSchema,
+    migrations: databaseMigrations,
+    jsi: true,
+    onSetUpError: (error) =>
+      console.error('No se pudo inicializar WatermelonDB.', error),
+  });
 
-export const database = new Database({ adapter, modelClasses: databaseModels });
+  return new Database({ adapter, modelClasses: databaseModels });
+}

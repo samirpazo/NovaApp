@@ -6,6 +6,17 @@ const CONNECTION_KEY = 'nova.sync.connection';
 const ACCESS_TOKEN_KEY = 'nova.auth.accessToken';
 const REFRESH_TOKEN_KEY = 'nova.auth.refreshToken';
 
+function normalizeBaseUrl(value: string): string {
+  const url = new URL(value);
+  return `${url.origin}${url.pathname.replace(/\/+$/, '')}`;
+}
+
+export function isConfiguredApiConnection(connection: SyncConnection): boolean {
+  const configuredUrl = process.env.EXPO_PUBLIC_API_URL;
+  return !!configuredUrl &&
+    normalizeBaseUrl(connection.BaseUrl) === normalizeBaseUrl(configuredUrl);
+}
+
 export const SyncConnectionSchema = z.object({
   BaseUrl: z.string().url(),
   BranchId: z.number().int().positive().optional(),

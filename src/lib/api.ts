@@ -1,6 +1,12 @@
-import { AxiosError, type InternalAxiosRequestConfig, create } from 'axios';
+import {
+  AxiosError,
+  type AxiosRequestConfig,
+  type InternalAxiosRequestConfig,
+  create,
+} from 'axios';
 import { Platform } from 'react-native';
 
+import { getActiveIdentityKey } from '@/database';
 import { getAccessToken } from '@/sync/config';
 
 const MUTATING_METHODS = ['post', 'put', 'patch', 'delete'];
@@ -25,9 +31,12 @@ export function getCsrfToken(): string | null {
 interface NovaRequestConfig extends InternalAxiosRequestConfig {
   _novaRetry?: boolean;
   _csrfRetry?: boolean;
+  _novaUserId?: number;
+  _novaIdentityKey?: string;
+  _novaSessionId?: number;
 }
 
-let refreshingPromise: Promise<boolean> | null = null;
+const refreshingPromises = new Map<string, Promise<boolean>>();
 
 export const api = create({
   baseURL: API_URL,
@@ -43,9 +52,33 @@ export const api = create({
 
 function attachSecurityInterceptors(): void {
   api.interceptors.request.use(async (config) => {
+    const novaConfig = config as NovaRequestConfig;
     const method = config.method?.toLowerCase();
+    if (novaConfig._novaUserId !== undefined) {
+      const { useAuthStore } = await import('@/auth/store');
+      const auth = useAuthStore.getState();
+      if (
+        auth.IsLoading ||
+        auth.Session?.User.UsrID !== novaConfig._novaUserId ||
+        (novaConfig._novaIdentityKey &&
+          getActiveIdentityKey() !== novaConfig._novaIdentityKey)
+      )
+        throw new Error('La sesión cambió antes de enviar la solicitud.');
+      novaConfig._novaSessionId = auth.Session.SsnID;
+    }
     if (Platform.OS !== 'web') {
       const accessToken = await getAccessToken();
+      if (novaConfig._novaUserId !== undefined) {
+        const { useAuthStore } = await import('@/auth/store');
+        const auth = useAuthStore.getState();
+        if (
+          auth.IsLoading ||
+          auth.Session?.User.UsrID !== novaConfig._novaUserId ||
+          (novaConfig._novaIdentityKey &&
+            getActiveIdentityKey() !== novaConfig._novaIdentityKey)
+        )
+          throw new Error('La sesión cambió antes de enviar la solicitud.');
+      }
       if (accessToken)
         config.headers.set('Authorization', `Bearer ${accessToken}`);
       else config.headers.delete('Authorization');
@@ -66,6 +99,18 @@ function attachSecurityInterceptors(): void {
     async (error: unknown) => {
       if (!(error instanceof AxiosError) || !error.config) throw error;
       const originalRequest = error.config as NovaRequestConfig;
+      if (originalRequest._novaUserId !== undefined) {
+        const { useAuthStore } = await import('@/auth/store');
+        const auth = useAuthStore.getState();
+        if (
+          auth.IsLoading ||
+          auth.Session?.User.UsrID !== originalRequest._novaUserId ||
+          auth.Session?.SsnID !== originalRequest._novaSessionId ||
+          (originalRequest._novaIdentityKey &&
+            getActiveIdentityKey() !== originalRequest._novaIdentityKey)
+        )
+          throw error;
+      }
       const status = error.response?.status;
       const isAuthEndpoint = (originalRequest.url ?? '')
         .toLowerCase()
@@ -98,8 +143,22 @@ function attachSecurityInterceptors(): void {
       if (status === 401 && !originalRequest._novaRetry && !isAuthEndpoint) {
         originalRequest._novaRetry = true;
         try {
-          const refreshed = await refreshAccessToken();
-          if (refreshed) {
+          const refreshed = await refreshAccessToken(
+            originalRequest._novaUserId,
+            originalRequest._novaIdentityKey,
+            originalRequest._novaSessionId,
+          );
+          if (
+            refreshed &&
+            originalRequest._novaUserId !== undefined &&
+            originalRequest._novaIdentityKey &&
+            originalRequest._novaSessionId !== undefined &&
+            (await isRequestIdentityCurrent(
+              originalRequest._novaUserId,
+              originalRequest._novaIdentityKey,
+              originalRequest._novaSessionId,
+            ))
+          ) {
             if (Platform.OS !== 'web') {
               const accessToken = await getAccessToken();
               if (accessToken)
@@ -122,25 +181,86 @@ function attachSecurityInterceptors(): void {
 
 attachSecurityInterceptors();
 
-async function refreshAccessToken(): Promise<boolean> {
-  if (!refreshingPromise) {
-    refreshingPromise = performRefresh().finally(() => {
-      refreshingPromise = null;
-    });
-  }
-  return refreshingPromise;
+export function postForUser<T = unknown>(
+  url: string,
+  data: unknown,
+  userId: number,
+  requestConfig: AxiosRequestConfig = {},
+  identityKey = getActiveIdentityKey() ?? undefined,
+) {
+  return api.post<T>(url, data, {
+    ...requestConfig,
+    _novaUserId: userId,
+    _novaIdentityKey: identityKey,
+  } as NovaRequestConfig);
 }
 
-async function performRefresh(): Promise<boolean> {
+export function getForUser<T = unknown>(
+  url: string,
+  userId: number,
+  requestConfig: AxiosRequestConfig = {},
+  identityKey = getActiveIdentityKey() ?? undefined,
+) {
+  return api.get<T>(url, {
+    ...requestConfig,
+    _novaUserId: userId,
+    _novaIdentityKey: identityKey,
+  } as NovaRequestConfig);
+}
+
+async function refreshAccessToken(
+  userId: number | undefined,
+  identityKey: string | undefined,
+  sessionId: number | undefined,
+): Promise<boolean> {
+  if (userId === undefined || !identityKey || sessionId === undefined)
+    return false;
+  const refreshKey = `${identityKey}:${sessionId}`;
+  let promise = refreshingPromises.get(refreshKey);
+  if (!promise) {
+    promise = performRefresh(
+      () => isRequestIdentityCurrent(userId, identityKey, sessionId),
+      refreshKey,
+    ).finally(() => {
+      if (refreshingPromises.get(refreshKey) === promise)
+        refreshingPromises.delete(refreshKey);
+    });
+    refreshingPromises.set(refreshKey, promise);
+  }
+  return promise;
+}
+
+async function isRequestIdentityCurrent(
+  userId: number,
+  identityKey: string,
+  sessionId: number,
+): Promise<boolean> {
+  const { useAuthStore } = await import('@/auth/store');
+  const auth = useAuthStore.getState();
+  return (
+    !auth.IsLoading &&
+    auth.Session?.User.UsrID === userId &&
+    auth.Session.SsnID === sessionId &&
+    getActiveIdentityKey() === identityKey
+  );
+}
+
+async function performRefresh(
+  isCurrent: () => Promise<boolean>,
+  identityKeyForRefresh: string,
+): Promise<boolean> {
   try {
+    if (!(await isCurrent())) return false;
     const { refreshSession } = await import('@/auth/service');
-    await refreshSession();
-    return true;
+    await refreshSession(isCurrent, identityKeyForRefresh);
+    return isCurrent();
   } catch (error) {
+    if (!(await isCurrent())) return false;
     const { isTransientAuthFailure } = await import('@/auth/service');
     if (isTransientAuthFailure(error)) return false;
     // Permanent failure (400/401/403 or an invalid refresh token): revoke the local session.
     const { useAuthStore } = await import('@/auth/store');
+    if (!(await isCurrent())) return false;
     await useAuthStore.getState().signOut();
     return false;
   }

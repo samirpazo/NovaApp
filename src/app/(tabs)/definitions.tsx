@@ -9,7 +9,7 @@ import { NSwitch, NText } from '@/components/forms';
 import { Text } from '@/components/ui/text';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import {
-  genDefinitionDataSource,
+  createGenDefinitionDataSource,
   genDefinitionService,
 } from '@/features/general/definitions';
 
@@ -62,6 +62,7 @@ const columns: NCrudColumn<DefinitionRow>[] = [
 ];
 
 export default function DefinitionsScreen() {
+  const dataSource = React.useMemo(createGenDefinitionDataSource, []);
   const router = useRouter();
   const userId = useAuthStore((state) => state.Session?.User.UsrID ?? 0);
   const [editing, setEditing] = React.useState<DefinitionRow | null>(null);
@@ -151,7 +152,7 @@ export default function DefinitionsScreen() {
           title="Definiciones"
           authorization={{ optCode: 'GEN_DEFINITIONS' }}
           offline={{ resource: SYNC_RESOURCES.GenDefinition }}
-          config={{ dataSource: genDefinitionDataSource, columns }}
+          config={{ dataSource, columns }}
           form={{
             addTitle: 'Nueva definición',
             editTitle: 'Editar definición',

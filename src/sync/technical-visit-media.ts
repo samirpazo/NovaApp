@@ -1,22 +1,145 @@
 import { Q } from '@nozbe/watermelondb';
+import { randomUUID } from 'expo-crypto';
 import { Platform } from 'react-native';
 
 import { SYNC_RESOURCES, type SyncPushChange } from '@/contracts/sync';
 import type { OagTechnicalVisit } from '@/contracts/entities/operationsagr';
-import { database, OagTechnicalVisitModel } from '@/database';
+import {
+  getActiveDatabase,
+  OagTechnicalVisitModel,
+} from '@/database';
 import { uploadManagedFile, type PickedFile } from '@/lib/fileService';
 import { normalizeTechnicalVisitTemporaryIds } from '@/sync/technical-visit-temp-ids';
 
 type PendingFile = PickedFile;
+type CheckpointFile = PendingFile & {
+  UploadId?: string;
+  UploadedFileId?: number;
+};
 type VisitSnapshot = {
   Visit: Record<string, unknown>;
   Evidences: Record<string, unknown>[];
-  PendingSignatureFile?: PendingFile | null;
+  PendingSignatureFile?: CheckpointFile | null;
   [key: string]: unknown;
 };
 
+type FileLocation = { kind: 'signature' } | { kind: 'evidence'; index: number };
+
+function pendingFileAt(
+  snapshot: VisitSnapshot,
+  location: FileLocation,
+): CheckpointFile | undefined {
+  if (location.kind === 'signature') return snapshot.PendingSignatureFile ?? undefined;
+  return snapshot.Evidences[location.index]?.PendingFile as
+    | CheckpointFile
+    | undefined;
+}
+
+async function updateUploadCheckpoint(
+  syncId: string,
+  location: FileLocation,
+  file: CheckpointFile,
+  update: Partial<Pick<CheckpointFile, 'UploadId' | 'UploadedFileId'>>,
+  database = getActiveDatabase(),
+): Promise<CheckpointFile> {
+  let savedFile: CheckpointFile | null = null;
+  await database.write(async () => {
+    const records = await database
+      .get<OagTechnicalVisitModel>(SYNC_RESOURCES.OagTechnicalVisit)
+      .query(Q.where('SyncId', syncId))
+      .fetch();
+    const record = records[0];
+    if (!record)
+      throw new Error('No se pudo guardar el avance de los archivos locales.');
+    const latest = JSON.parse(record.Snapshot) as VisitSnapshot;
+    const latestFile = pendingFileAt(latest, location);
+    if (
+      !latestFile ||
+      latestFile.uri !== file.uri ||
+      latestFile.name !== file.name ||
+      (latestFile.mimeType ?? null) !== (file.mimeType ?? null)
+    )
+      throw new Error('El archivo local cambió durante la sincronización.');
+    Object.assign(latestFile, update);
+    const checkpoint = record.prepareUpdate((model) => {
+      model.Snapshot = JSON.stringify(latest);
+    });
+    await database.batch(checkpoint);
+    savedFile = latestFile;
+  }, 'save technical visit media upload checkpoint');
+  if (!savedFile)
+    throw new Error('No se pudo guardar el avance de los archivos locales.');
+  return savedFile;
+}
+
+async function loadVisitRecord(
+  syncId: string,
+  database = getActiveDatabase(),
+): Promise<OagTechnicalVisitModel> {
+  const records = await database
+    .get<OagTechnicalVisitModel>(SYNC_RESOURCES.OagTechnicalVisit)
+    .query(Q.where('SyncId', syncId))
+    .fetch();
+  if (!records[0])
+    throw new Error('No se encontró la visita local durante la sincronización.');
+  return records[0];
+}
+
+async function uploadPendingFile(
+  file: CheckpointFile,
+  route: string,
+  syncId: string,
+  location: FileLocation,
+  userId: number,
+  database = getActiveDatabase(),
+  identityKey?: string,
+): Promise<number> {
+  if (file.UploadedFileId) return file.UploadedFileId;
+  const initialCheckpoint = await updateUploadCheckpoint(
+    syncId,
+    location,
+    file,
+    { UploadId: file.UploadId ?? randomUUID() },
+    database,
+  );
+  Object.assign(file, initialCheckpoint);
+  if (file.UploadedFileId) return file.UploadedFileId;
+  let uploadFile: PickedFile = file;
+  if (Platform.OS === 'web' && file.uri.startsWith('data:')) {
+    const blob = await (await fetch(file.uri)).blob();
+    uploadFile = {
+      ...file,
+      file: new File([blob], file.name, {
+        type: file.mimeType || blob.type || 'application/octet-stream',
+      }),
+    };
+  }
+  const uploaded = await uploadManagedFile(
+    uploadFile,
+    route,
+    `nova-media-${file.UploadId}`,
+    userId,
+    identityKey,
+  );
+  const checkpointed = await updateUploadCheckpoint(
+    syncId,
+    location,
+    file,
+    { UploadedFileId: uploaded.FileId },
+    database,
+  );
+  Object.assign(file, checkpointed);
+  return checkpointed.UploadedFileId!;
+}
+
+const cloneSnapshot = (snapshot: VisitSnapshot): VisitSnapshot =>
+  JSON.parse(JSON.stringify(snapshot)) as VisitSnapshot;
+
 export async function prepareTechnicalVisitMedia(
   changes: SyncPushChange[],
+  userId: number,
+  database = getActiveDatabase(),
+  identityKey?: string,
 ): Promise<void> {
   for (const change of changes) {
     if (
@@ -29,46 +152,81 @@ export async function prepareTechnicalVisitMedia(
     const ids = new Map<number, number>();
     let changed = normalizeTechnicalVisitTemporaryIds(data, ids);
     const raw = data.Snapshot;
-    const snapshot = JSON.parse(raw) as VisitSnapshot;
-    changed = normalizeTechnicalVisitTemporaryIds(snapshot, ids) || changed;
+    const checkpointSnapshot = JSON.parse(raw) as VisitSnapshot;
+    changed =
+      normalizeTechnicalVisitTemporaryIds(checkpointSnapshot, ids) || changed;
 
-    if (snapshot.PendingSignatureFile) {
-      const pendingSignature = snapshot.PendingSignatureFile;
-      const signatureFile =
-        Platform.OS === 'web' &&
-        pendingSignature.uri.startsWith('data:image/png;base64,')
-          ? {
-              ...pendingSignature,
-              file: new File(
-                [await (await fetch(pendingSignature.uri)).blob()],
-                pendingSignature.name,
-                { type: pendingSignature.mimeType ?? 'image/png' },
-              ),
-            }
-          : pendingSignature;
-      const file = await uploadManagedFile(
-        signatureFile,
+    const pendingSignature = checkpointSnapshot.PendingSignatureFile;
+    if (pendingSignature) {
+      await uploadPendingFile(
+        pendingSignature,
         'ROUTE_TECHNICAL_VISIT_FILES',
+        change.SyncId,
+        { kind: 'signature' },
+        userId,
+        database,
+        identityKey,
       );
-      snapshot.Visit.TviSignatureFilID = file.FileId;
-      data.TviSignatureFilID = file.FileId;
-      delete snapshot.PendingSignatureFile;
       changed = true;
     }
 
-    for (const evidence of snapshot.Evidences) {
-      const pendingFile = evidence.PendingFile as PendingFile | undefined;
+    const checkpointEvidence = checkpointSnapshot.Evidences;
+    for (let index = 0; index < checkpointEvidence.length; index++) {
+      const evidence = checkpointEvidence[index];
+      const pendingFile = evidence.PendingFile as CheckpointFile | undefined;
       if (!pendingFile) continue;
-      const file = await uploadManagedFile(
+      await uploadPendingFile(
         pendingFile,
         'ROUTE_TECHNICAL_VISIT_FILES',
+        change.SyncId,
+        { kind: 'evidence', index },
+        userId,
+        database,
+        identityKey,
       );
-      evidence.TveFilID = file.FileId;
-      delete evidence.PendingFile;
       changed = true;
     }
 
-    if (changed) data.Snapshot = JSON.stringify(snapshot);
+    if (!changed) continue;
+    const latestRecord = await loadVisitRecord(change.SyncId, database);
+    const latest = JSON.parse(latestRecord.Snapshot) as VisitSnapshot;
+    if (
+      (latest.PendingSignatureFile &&
+        !latest.PendingSignatureFile.UploadedFileId) ||
+      latest.Evidences.some(({ PendingFile }) => {
+        const file = PendingFile as CheckpointFile | undefined;
+        return file && !file.UploadedFileId;
+      })
+    )
+      throw new Error(
+        'La visita cambió mientras se cargaban archivos; vuelve a sincronizar.',
+      );
+    const pushSnapshot = cloneSnapshot(latest);
+    normalizeTechnicalVisitTemporaryIds(pushSnapshot, ids);
+    data.TviSignatureFilID =
+      (pushSnapshot.Visit.TviSignatureFilID as number | null | undefined) ??
+      null;
+    data.TviID = latestRecord.TviID;
+    data.TvsID = latestRecord.TvsID;
+    data.TviPerformedDate = latestRecord.TviPerformedDate;
+    data.TviDocumentSeries = latestRecord.TviDocumentSeries;
+    data.TviDocumentNumber = latestRecord.TviDocumentNumber;
+    data.TviLatitude = latestRecord.TviLatitude;
+    data.TviLongitude = latestRecord.TviLongitude;
+    data.TviObservation = latestRecord.TviObservation;
+    if (pushSnapshot.PendingSignatureFile?.UploadedFileId) {
+      pushSnapshot.Visit.TviSignatureFilID =
+        pushSnapshot.PendingSignatureFile.UploadedFileId;
+      data.TviSignatureFilID = pushSnapshot.Visit.TviSignatureFilID as number;
+      delete pushSnapshot.PendingSignatureFile;
+    }
+    for (const evidence of pushSnapshot.Evidences) {
+      const file = evidence.PendingFile as CheckpointFile | undefined;
+      if (!file?.UploadedFileId) continue;
+      evidence.TveFilID = file.UploadedFileId;
+      delete evidence.PendingFile;
+    }
+    data.Snapshot = JSON.stringify(pushSnapshot);
   }
 }
 
@@ -78,6 +236,7 @@ export async function applyTechnicalVisitAcknowledgements(
     ExpectedSyncVersion: string;
     Data: OagTechnicalVisit;
   }[],
+  database = getActiveDatabase(),
 ): Promise<void> {
   for (const acknowledgement of acknowledgements) {
     const records = await database

@@ -17,7 +17,7 @@ import { isAxiosError, type AxiosResponse } from 'axios';
 import { Platform } from 'react-native';
 
 const SESSION_KEY = 'nova.auth.session';
-let refreshInFlight: Promise<AuthSession> | null = null;
+const refreshInFlight = new Map<string, Promise<AuthSession>>();
 
 function cookieValue(response: AxiosResponse, name: string): string | null {
   const header = response.headers['set-cookie'];
@@ -67,26 +67,39 @@ export async function login(
   }
 }
 
-export function refreshSession(): Promise<AuthSession> {
-  if (!refreshInFlight) {
-    refreshInFlight = performRefreshSession().finally(() => {
-      refreshInFlight = null;
+export function refreshSession(
+  isCurrent: () => Promise<boolean> = async () => true,
+  refreshKey = 'default',
+): Promise<AuthSession> {
+  let pending = refreshInFlight.get(refreshKey);
+  if (!pending) {
+    pending = performRefreshSession(isCurrent).finally(() => {
+      if (refreshInFlight.get(refreshKey) === pending)
+        refreshInFlight.delete(refreshKey);
     });
+    refreshInFlight.set(refreshKey, pending);
   }
-  return refreshInFlight;
+  return pending;
 }
 
-async function performRefreshSession(): Promise<AuthSession> {
+async function performRefreshSession(
+  isCurrent: () => Promise<boolean>,
+): Promise<AuthSession> {
+  if (!(await isCurrent())) throw new Error('La sesión cambió durante la renovación.');
   const refreshToken = await getRefreshToken();
+  if (!(await isCurrent())) throw new Error('La sesión cambió durante la renovación.');
   const response = await api.post(
     '/Token/Refresh',
     Platform.OS === 'web' ? {} : { RefreshToken: refreshToken },
   );
+  if (!(await isCurrent())) throw new Error('La sesión cambió durante la renovación.');
   const envelope = AuthResponseSchema.parse(response.data);
   if (!envelope.Succeeded || !envelope.Data)
     throw new Error(envelope.Message || 'No se pudo renovar la sesión.');
   await persistTokens(response);
+  if (!(await isCurrent())) throw new Error('La sesión cambió durante la renovación.');
   await persistSession(envelope.Data);
+  if (!(await isCurrent())) throw new Error('La sesión cambió durante la renovación.');
   await initCsrf();
   return envelope.Data;
 }

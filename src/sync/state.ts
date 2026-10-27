@@ -18,6 +18,7 @@ interface SyncState {
   startPull: () => void;
   completePull: (result: PullResult) => void;
   failPull: (message: string) => void;
+  reset: () => void;
 }
 
 export const useSyncState = create<SyncState>((set) => ({
@@ -27,4 +28,5 @@ export const useSyncState = create<SyncState>((set) => ({
   startPull: () => set({ Status: 'syncing', Error: null }),
   completePull: (LastPull) => set({ Status: 'success', Error: null, LastPull }),
   failPull: (Error) => set({ Status: 'error', Error }),
+  reset: () => set({ Status: 'idle', Error: null, LastPull: null }),
 }));

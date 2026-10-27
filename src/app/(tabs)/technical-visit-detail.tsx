@@ -3,7 +3,6 @@ import { DateTime } from 'luxon';
 import * as React from 'react';
 import { Alert, Modal, Platform, ScrollView, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import { File, Paths } from 'expo-file-system';
 
 import { useAuthStore } from '@/auth/store';
 import { NButton } from '@/components/forms/NButton';
@@ -16,7 +15,8 @@ import { NSelect } from '@/components/forms/NSelect';
 import { Q } from '@nozbe/watermelondb';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import {
-  database,
+  getActiveDatabase,
+  getActiveIdentityKey,
   GenDefinitionDetailModel,
   GenDefinitionModel,
   OagFarmSuppliesModel,
@@ -28,6 +28,7 @@ import {
   OagTechnicalVisitScheduleModel,
   OagWaterSourceModel,
 } from '@/database';
+import { persistAccountFile } from '@/lib/account-files';
 import { randomUUID } from 'expo-crypto';
 import { formatters } from '@/lib/formatter';
 import {
@@ -426,6 +427,8 @@ const editableSections: SectionDefinition[] = [
 ];
 
 export default function TechnicalVisitDetailScreen() {
+  const database = getActiveDatabase();
+  const accountIdentityKey = getActiveIdentityKey();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const userId = useAuthStore((state) => state.Session?.User.UsrID ?? 0);
@@ -791,29 +794,18 @@ export default function TechnicalVisitDetailScreen() {
       return;
     }
     setSaving(true);
-    let signatureFile: File | null = null;
     let saved = false;
     try {
       let snapshotToSave = next;
       const pendingSignature = next.PendingSignatureFile;
-      if (
-        Platform.OS !== 'web' &&
-        pendingSignature?.uri.startsWith('data:image/png;base64,')
-      ) {
-        signatureFile = new File(
-          Paths.document,
-          `technical-visit-signature-${randomUUID()}.png`,
-        );
-        signatureFile.create({ intermediates: true });
-        signatureFile.write(
-          pendingSignature.uri.slice('data:image/png;base64,'.length),
-          { encoding: 'base64' },
-        );
+      if (pendingSignature)
         snapshotToSave = {
           ...next,
-          PendingSignatureFile: { ...pendingSignature, uri: signatureFile.uri },
+          PendingSignatureFile: await persistAccountFile(
+            pendingSignature,
+            accountIdentityKey,
+          ),
         };
-      }
       await database.write(() =>
         model.update((record) => {
           record.TviPerformedDate = String(next.Visit.TviPerformedDate);
@@ -829,11 +821,6 @@ export default function TechnicalVisitDetailScreen() {
       setDraftDirty(false);
       saved = true;
     } catch (error) {
-      try {
-        signatureFile?.delete();
-      } catch {
-        /* File may not have been created. */
-      }
       setSaveFeedback({
         message:
           error instanceof Error
@@ -855,7 +842,12 @@ export default function TechnicalVisitDetailScreen() {
     });
     if (result.canceled) return null;
     const asset = result.assets[0];
-    return { uri: asset.uri, name: asset.name, mimeType: asset.mimeType };
+    return {
+      uri: asset.uri,
+      name: asset.name,
+      mimeType: asset.mimeType,
+      file: asset.file,
+    };
   };
 
   const saveSignature = async (file: {
@@ -864,7 +856,10 @@ export default function TechnicalVisitDetailScreen() {
     mimeType?: string | null;
   }) => {
     if (!model || !snapshot) return;
-    const next = { ...snapshot, PendingSignatureFile: file };
+    const next = {
+      ...snapshot,
+      PendingSignatureFile: await persistAccountFile(file, accountIdentityKey),
+    };
     setSnapshot(next);
     markDraftDirty();
     setSaveFeedback({
@@ -878,6 +873,7 @@ export default function TechnicalVisitDetailScreen() {
     if (!model || !snapshot) return;
     const file = await chooseImage();
     if (!file) return;
+    const accountFile = await persistAccountFile(file, accountIdentityKey);
     const now = DateTime.utc().toISO() ?? '';
     const ownerId = userId;
     const primaryId = createTechnicalVisitTemporaryId();
@@ -895,7 +891,7 @@ export default function TechnicalVisitDetailScreen() {
       TviID: model.TviID,
       TveFilID: 0,
       TveDescription: file.name,
-      PendingFile: file,
+      PendingFile: accountFile,
     };
     const next = { ...snapshot, Evidences: [...snapshot.Evidences, evidence] };
     setSnapshot(next);

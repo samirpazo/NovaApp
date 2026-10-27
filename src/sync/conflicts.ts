@@ -1,6 +1,7 @@
 import { localStorageKey, type DirtyRaw } from '@nozbe/watermelondb';
 import { create } from 'zustand';
 
+import { useAuthStore } from '@/auth/store';
 import {
   SyncConflictSchema,
   SyncConflictResolutionSchema,
@@ -10,29 +11,59 @@ import {
   type SyncPushChange,
   type SyncResource,
 } from '@/contracts/sync';
-import { database, type EntityBaseModel } from '@/database';
+import { getActiveDatabase, type EntityBaseModel } from '@/database';
 
-const CONFLICTS_KEY = localStorageKey<SyncConflict[]>('nova.sync.conflicts');
+const conflictStorageKey = (userId: number) =>
+  localStorageKey<SyncConflict[]>(`nova.sync.conflicts.user.${userId}`);
 
 const conflictKey = (resource: SyncResource, syncId: string) =>
   `${resource}:${syncId}`;
 
-async function writeConflicts(conflicts: SyncConflict[]): Promise<void> {
-  await database.localStorage.set(CONFLICTS_KEY, conflicts);
-  useSyncConflictState.getState().setConflicts(conflicts);
+function currentUserId(): number | null {
+  return useAuthStore.getState().Session?.User.UsrID ?? null;
 }
 
-export async function getSyncConflicts(): Promise<SyncConflict[]> {
-  const stored = (await database.localStorage.get(CONFLICTS_KEY)) ?? [];
+function isActive(database: ReturnType<typeof getActiveDatabase>): boolean {
+  try {
+    return getActiveDatabase() === database;
+  } catch {
+    return false;
+  }
+}
+
+async function writeConflicts(
+  userId: number,
+  conflicts: SyncConflict[],
+  database = getActiveDatabase(),
+): Promise<void> {
+  await database.localStorage.set(conflictStorageKey(userId), conflicts);
+  if (currentUserId() === userId && isActive(database))
+    useSyncConflictState.getState().setConflicts(conflicts);
+}
+
+export async function getSyncConflicts(
+  database = getActiveDatabase(),
+): Promise<SyncConflict[]> {
+  const userId = currentUserId();
+  if (!userId) {
+    useSyncConflictState.getState().setConflicts([]);
+    return [];
+  }
+  const stored =
+    (await database.localStorage.get(conflictStorageKey(userId))) ?? [];
   const conflicts = SyncConflictSchema.array().parse(stored);
-  useSyncConflictState.getState().setConflicts(conflicts);
+  if (currentUserId() === userId && isActive(database))
+    useSyncConflictState.getState().setConflicts(conflicts);
   return conflicts;
 }
 
 export async function saveSyncConflicts(
   conflicts: SyncConflict[],
+  database = getActiveDatabase(),
 ): Promise<void> {
-  const current = await getSyncConflicts();
+  const userId = currentUserId();
+  if (!userId) throw new Error('No se puede guardar un conflicto sin sesión.');
+  const current = await getSyncConflicts(database);
   const merged = new Map(
     current.map((conflict) => [
       conflictKey(conflict.Resource, conflict.SyncId),
@@ -44,38 +75,48 @@ export async function saveSyncConflicts(
       conflictKey(conflict.Resource, conflict.SyncId),
       SyncConflictSchema.parse(conflict),
     );
-  await writeConflicts([...merged.values()]);
+  await writeConflicts(userId, [...merged.values()], database);
 }
 
 export async function removeSyncConflict(
   resource: SyncResource,
   syncId: string,
+  database = getActiveDatabase(),
 ): Promise<void> {
+  const userId = currentUserId();
+  if (!userId) throw new Error('No se puede resolver un conflicto sin sesión.');
   await writeConflicts(
-    (await getSyncConflicts()).filter(
+    userId,
+    (await getSyncConflicts(database)).filter(
       (item) =>
         conflictKey(item.Resource, item.SyncId) !==
         conflictKey(resource, syncId),
     ),
+    database,
   );
 }
 
 export async function keepLocalConflict(
   resource: SyncResource,
   syncId: string,
+  database = getActiveDatabase(),
 ): Promise<void> {
-  const conflicts = await getSyncConflicts();
-  await writeConflicts(
+  const userId = currentUserId();
+  if (!userId) throw new Error('No se puede resolver un conflicto sin sesión.');
+  const conflicts = await getSyncConflicts(database);
+  await writeConflicts(userId,
     conflicts.map((item) =>
       conflictKey(item.Resource, item.SyncId) === conflictKey(resource, syncId)
         ? { ...item, KeepLocal: true }
         : item,
     ),
+    database,
   );
 }
 
 export async function applyServerConflict(
   conflict: SyncConflict,
+  database = getActiveDatabase(),
 ): Promise<void> {
   const change = SyncPullChangeSchema.parse({
     Resource: conflict.Resource,
@@ -104,12 +145,13 @@ export async function applyServerConflict(
     });
     await database.batch(prepared);
   }, 'resolve sync conflict with server version');
-  await removeSyncConflict(conflict.Resource, conflict.SyncId);
+  await removeSyncConflict(conflict.Resource, conflict.SyncId, database);
 }
 
 export async function resolveSyncConflict(
   conflict: SyncConflict,
   decision: SyncConflictResolution,
+  database = getActiveDatabase(),
 ): Promise<void> {
   const parsedDecision = SyncConflictResolutionSchema.parse(decision);
   if (
@@ -119,10 +161,10 @@ export async function resolveSyncConflict(
     throw new Error('La decisión no corresponde al conflicto seleccionado.');
   }
   if (parsedDecision.Decision === 'KeepLocal') {
-    await keepLocalConflict(parsedDecision.Resource, parsedDecision.SyncId);
+    await keepLocalConflict(parsedDecision.Resource, parsedDecision.SyncId, database);
     return;
   }
-  await applyServerConflict(conflict);
+  await applyServerConflict(conflict, database);
 }
 
 export function conflictForChange(

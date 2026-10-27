@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NButton } from '@/components/forms/NButton';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
+import { useAuthStore } from '@/auth/store';
 import {
   NOVA_COLORS,
   resolveThemeMode,
@@ -93,6 +94,7 @@ export default function AppearanceScreen() {
   };
 
   const save = async () => {
+    const userId = useAuthStore.getState().Session?.User.UsrID;
     if (messageTimeout.current) clearTimeout(messageTimeout.current);
     setSaving(true);
     setMessage(null);
@@ -104,7 +106,7 @@ export default function AppearanceScreen() {
     };
     try {
       await commit(next);
-      const status = await saveOrQueueAppearance(next);
+      const status = await saveOrQueueAppearance(next, userId);
       setMessage({
         text:
           status === 'synced'

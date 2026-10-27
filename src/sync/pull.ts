@@ -23,11 +23,17 @@ import {
   type SyncConflict,
   type SyncResource,
 } from '@/contracts/sync';
-import { database, type EntityBaseModel } from '@/database';
-import { api, getApiErrorMessage } from '@/lib/api';
+import {
+  getActiveDatabase,
+  getActiveIdentityKey,
+  isActiveIdentity,
+  type EntityBaseModel,
+} from '@/database';
+import { getApiErrorMessage, getForUser, postForUser } from '@/lib/api';
 import { flushPendingAppearance } from '@/theme/appearance';
 import {
   getSyncConnection,
+  isConfiguredApiConnection,
   SyncConnectionSchema,
   type SyncConnection,
 } from '@/sync/config';
@@ -40,12 +46,13 @@ import {
 import { type PullResult, useSyncState } from '@/sync/state';
 import { classifySyncFailure, reportSyncTelemetry } from '@/sync/telemetry';
 import { initialPullCursor } from '@/sync/pull-options';
+import { activateSyncScope } from '@/sync/scope';
+import { classifyPushResults, pushSequentially } from '@/sync/push-batches';
 import {
   applyTechnicalVisitAcknowledgements,
   prepareTechnicalVisitMedia,
 } from '@/sync/technical-visit-media';
 
-const ACTIVE_SCOPE_KEY = localStorageKey<string>('nova.sync.activeScope');
 const LAST_PULL_KEY = localStorageKey<PullResult>('nova.sync.lastPull');
 const TECHNICAL_VISIT_BOOTSTRAP_SCOPE_KEY = localStorageKey<string>(
   'nova.sync.technicalVisitBootstrapScope.v4',
@@ -104,10 +111,6 @@ function applyLatestChange(
   // All remote records are sent as updated. WatermelonDB creates them when absent and
   // preserves locally changed columns when a future Pull meets pending local edits.
   table.updated.push(toRemoteRaw(change.Data));
-}
-
-function scopeFor(connection: SyncConnection, personId: number): string {
-  return `${connection.BaseUrl.replace(/\/+$/, '').toLowerCase()}|${connection.BranchId ?? 'general'}|${personId}`;
 }
 
 function rawData(raw: DirtyRaw): Record<string, unknown> {
@@ -178,22 +181,7 @@ function pushChangesFrom({ changes }: SyncPushArgs): SyncPushChange[] {
   return result;
 }
 
-async function prepareScope(
-  connection: SyncConnection,
-  personId: number,
-): Promise<void> {
-  const nextScope = scopeFor(connection, personId);
-  const activeScope = await database.localStorage.get(ACTIVE_SCOPE_KEY);
-  if (activeScope && activeScope !== nextScope) {
-    await database.write(
-      () => database.unsafeResetDatabase(),
-      'change sync scope',
-    );
-  }
-  await database.localStorage.set(ACTIVE_SCOPE_KEY, nextScope);
-}
-
-async function removeReconciledDuplicates(): Promise<void> {
+async function removeReconciledDuplicates(database: ReturnType<typeof getActiveDatabase>): Promise<void> {
   await database.write(async () => {
     const duplicates = [];
     for (const resource of Object.values(SYNC_RESOURCES)) {
@@ -229,20 +217,32 @@ export interface PullNovaOptions {
   forceBootstrap?: boolean;
 }
 
-let activePull: Promise<PullResult> | null = null;
+const activePulls = new Map<string, Promise<PullResult>>();
 
 export function pullNova(options: PullNovaOptions = {}): Promise<PullResult> {
+  const database = getActiveDatabase();
+  const identityKey = getActiveIdentityKey();
+  const expectedUserId = useAuthStore.getState().Session?.User.UsrID;
+  if (!identityKey) throw new Error('No hay una cuenta activa para sincronizar.');
+  if (!expectedUserId) throw new Error('Debe iniciar sesión antes de sincronizar.');
+  const activePull = activePulls.get(identityKey);
   if (activePull) return activePull;
-  activePull = executePull(options).finally(() => {
-    activePull = null;
+  const nextPull = executePull(options, database, identityKey, expectedUserId).finally(() => {
+    if (activePulls.get(identityKey) === nextPull) activePulls.delete(identityKey);
   });
-  return activePull;
+  activePulls.set(identityKey, nextPull);
+  return nextPull;
 }
 
-async function executePull(options: PullNovaOptions): Promise<PullResult> {
+async function executePull(
+  options: PullNovaOptions,
+  database: ReturnType<typeof getActiveDatabase>,
+  identityKey: string,
+  expectedUserId: number,
+): Promise<PullResult> {
   const startedAt = Date.now();
   const state = useSyncState.getState();
-  state.startPull();
+  if (isActiveIdentity(identityKey)) state.startPull();
 
   try {
     const storedConnection = options.connection ?? (await getSyncConnection());
@@ -251,15 +251,38 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
         'Debe configurar el servidor y la sucursal antes de sincronizar.',
       );
     const connection = SyncConnectionSchema.parse(storedConnection);
+    if (!isConfiguredApiConnection(connection))
+      throw new Error(
+        'La conexión guardada no coincide con el servidor configurado en esta app.',
+      );
     await useAuthStore.getState().ensureOnlineSession();
+    const session = useAuthStore.getState().Session;
+    const userId = session?.User.UsrID;
+    if (!userId || userId !== expectedUserId || !isActiveIdentity(identityKey))
+      throw new Error('La sesión cambió antes de iniciar la sincronización.');
+    const personId = session.User.PrsID ?? 0;
+    const activeScope = await activateSyncScope(
+      database,
+      connection,
+      userId,
+      personId,
+      () =>
+        useAuthStore.getState().Session?.User.UsrID === userId &&
+        isActiveIdentity(identityKey),
+    );
+    if (
+      !activeScope.ready ||
+      useAuthStore.getState().Session?.User.UsrID !== userId
+    )
+      throw new Error(
+        'No se pudo activar el alcance de sincronización de la cuenta.',
+      );
 
     // User appearance is a last-value singleton, not a WatermelonDB journal entity.
     // Flush its offline queue alongside the regular manual synchronization.
-    await flushPendingAppearance();
+    await flushPendingAppearance(userId, identityKey);
 
-    const personId = useAuthStore.getState().Session?.User.PrsID ?? 0;
-    await prepareScope(connection, personId);
-    const currentScope = scopeFor(connection, personId);
+    const currentScope = activeScope.scope;
     const bootstrapScope = await database.localStorage.get(
       TECHNICAL_VISIT_BOOTSTRAP_SCOPE_KEY,
     );
@@ -276,6 +299,7 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
       ExpectedSyncVersion: string;
       Data: SyncEntityMap['OagTechnicalVisit'];
     }[] = [];
+    let pushFailure: unknown | null = null;
 
     const pullChanges = async ({ lastPulledAt }: { lastPulledAt?: number }) => {
       const changes = createChangeSet();
@@ -284,11 +308,16 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
       let hasMore: boolean;
 
       do {
+        if (
+          !isActiveIdentity(identityKey) ||
+          useAuthStore.getState().Session?.User.UsrID !== userId
+        )
+          throw new Error('La cuenta cambió durante la sincronización.');
         if (++pages > MAX_PULL_PAGES)
           throw new Error(
             'Nova devolvió demasiadas páginas de sincronización.',
           );
-        const response = await api.get('/sync/pull', {
+        const response = await getForUser('/sync/pull', userId, {
           params: {
             limit,
             ...(connection.BranchId === undefined
@@ -297,10 +326,15 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
             ...(cursor === undefined ? {} : { cursor }),
           },
           signal: options.signal,
-        });
+        }, identityKey);
         const envelope = createResponseApiSchema(SyncPullResponseSchema).parse(
           response.data,
         );
+        if (
+          !isActiveIdentity(identityKey) ||
+          useAuthStore.getState().Session?.User.UsrID !== userId
+        )
+          throw new Error('La cuenta cambió durante la sincronización.');
         if (!envelope.Succeeded || !envelope.Data) {
           throw new Error(
             envelope.Message || 'Nova no devolvió datos de sincronización.',
@@ -323,8 +357,13 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
     };
 
     const pushChanges = async (args: SyncPushArgs) => {
+      if (
+        !isActiveIdentity(identityKey) ||
+        useAuthStore.getState().Session?.User.UsrID !== userId
+      )
+        throw new Error('La cuenta cambió durante la sincronización.');
       const pendingChanges = pushChangesFrom(args);
-      const storedConflicts = await getSyncConflicts();
+      const storedConflicts = await getSyncConflicts(database);
       const rejectedIds: Partial<Record<SyncResource, string[]>> = {};
       const changes = pendingChanges.flatMap((change) => {
         const conflict = conflictForChange(storedConflicts, change);
@@ -337,111 +376,117 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
         return Object.keys(rejectedIds).length
           ? { experimentalRejectedIds: rejectedIds }
           : undefined;
-      if (changes.length > 500)
-        throw new Error(
-          'Hay más de 500 cambios pendientes. Sincronice en lotes más pequeños.',
-        );
-      await prepareTechnicalVisitMedia(changes);
-      const serialized = JSON.stringify(changes);
-      const idempotencyKey = `nova-sync-${await digestStringAsync(CryptoDigestAlgorithm.SHA256, serialized)}`;
-      try {
-        const response = await api.post(
-          '/sync/push',
-          { BranchId: connection.BranchId, Changes: changes },
-          {
-            headers: {
-              'Idempotency-Key': idempotencyKey,
+      const result = await pushSequentially(changes, async (batch) => {
+          await prepareTechnicalVisitMedia(batch, userId, database, identityKey);
+        const serialized = JSON.stringify(batch);
+        const idempotencyKey = `nova-sync-${await digestStringAsync(CryptoDigestAlgorithm.SHA256, serialized)}`;
+        try {
+          const response = await postForUser(
+            '/sync/push',
+            { BranchId: connection.BranchId, Changes: batch },
+            userId,
+            {
+              headers: { 'Idempotency-Key': idempotencyKey },
+              signal: options.signal,
             },
-            signal: options.signal,
-          },
-        );
-        const envelope = createResponseApiSchema(SyncPushResponseSchema).parse(
-          response.data,
-        );
-        if (!envelope.Succeeded || !envelope.Data)
-          throw new Error(envelope.Message || 'Nova no confirmó el Push.');
-        const failed = envelope.Data.Results.find(
-          (result) => result.Status !== 'Applied',
-        );
-        if (failed)
-          throw new Error(
-            failed.Message || `No se pudo sincronizar ${failed.Resource}.`,
+            identityKey,
           );
-        for (const result of envelope.Data.Results) {
-          if (
-            result.Resource !== SYNC_RESOURCES.OagTechnicalVisit ||
-            result.Status !== 'Applied' ||
-            !result.Data
-          )
-            continue;
-          const pushedChange = changes.find(
-            (change) =>
-              change.Resource === result.Resource &&
-              change.SyncId === result.SyncId,
-          );
-          if (!pushedChange) continue;
-          acknowledgedTechnicalVisits.push({
-            SyncId: result.SyncId,
-            ExpectedSyncVersion: pushedChange.SyncVersion ?? '',
-            Data: result.Data,
-          });
-        }
-        for (const result of envelope.Data.Results) {
-          const conflict = conflictForChange(storedConflicts, {
-            Resource: result.Resource,
-            SyncId: result.SyncId,
-          } as SyncPushChange);
-          if (conflict?.KeepLocal)
-            await removeSyncConflict(result.Resource, result.SyncId);
-        }
-        uploaded += changes.length;
-        return Object.keys(rejectedIds).length
-          ? { experimentalRejectedIds: rejectedIds }
-          : undefined;
-      } catch (error) {
-        if (isAxiosError(error) && error.response?.status === 409) {
           const envelope = createResponseApiSchema(
             SyncPushResponseSchema,
-          ).safeParse(error.response.data);
-          if (envelope.success && envelope.data.Data) {
-            const detected = envelope.data.Data.Results.flatMap<SyncConflict>(
-              (result) => {
-                if (
-                  result.Status !== 'Conflict' ||
-                  !result.Data ||
-                  result.Resource === SYNC_RESOURCES.RstTable
-                )
-                  return [];
-                const local = changes.find(
-                  (change) =>
-                    change.Resource === result.Resource &&
-                    change.SyncId === result.SyncId,
-                );
-                const conflict = SyncConflictSchema.safeParse({
-                  Resource: result.Resource,
-                  SyncId: result.SyncId,
-                  Operation: local?.Operation ?? 'U',
-                  Message:
-                    result.Message ||
-                    'El registro cambió también en el servidor.',
-                  LocalData: local?.Data ?? null,
-                  ServerData: result.Data,
-                  KeepLocal: false,
-                  DetectedAt: new Date().toISOString(),
-                });
-                return conflict.success ? [conflict.data] : [];
-              },
+          ).parse(response.data);
+          if (
+            !isActiveIdentity(identityKey) ||
+            useAuthStore.getState().Session?.User.UsrID !== userId
+          )
+            throw new Error('La cuenta cambió durante la sincronización.');
+          if (!envelope.Succeeded || !envelope.Data)
+            throw new Error(envelope.Message || 'Nova no confirmó el Push.');
+          const classified = classifyPushResults(batch, envelope.Data.Results);
+
+          for (const responseResult of classified.appliedResults) {
+            if (responseResult.Resource !== SYNC_RESOURCES.OagTechnicalVisit)
+              continue;
+            const pushedChange = batch.find(
+              (change) =>
+                change.Resource === responseResult.Resource &&
+                change.SyncId === responseResult.SyncId,
             );
-            if (detected.length) {
-              await saveSyncConflicts(detected);
-              throw new Error(
-                `Se detectaron ${detected.length} conflicto${detected.length === 1 ? '' : 's'} pendiente${detected.length === 1 ? '' : 's'} de resolución.`,
+            if (!pushedChange || !responseResult.Data) continue;
+            acknowledgedTechnicalVisits.push({
+              SyncId: responseResult.SyncId,
+              ExpectedSyncVersion: pushedChange.SyncVersion ?? '',
+              Data: responseResult.Data,
+            });
+          }
+          for (const acceptedChange of classified.accepted) {
+            const conflict = conflictForChange(storedConflicts, {
+              Resource: acceptedChange.Resource,
+              SyncId: acceptedChange.SyncId,
+            } as SyncPushChange);
+            if (conflict?.KeepLocal)
+              await removeSyncConflict(
+                acceptedChange.Resource,
+                acceptedChange.SyncId,
+                database,
               );
+          }
+          return {
+            accepted: classified.accepted,
+            rejected: classified.rejected,
+          };
+        } catch (error) {
+          if (isAxiosError(error) && error.response?.status === 409) {
+            const envelope = createResponseApiSchema(
+              SyncPushResponseSchema,
+            ).safeParse(error.response.data);
+            if (envelope.success && envelope.data.Data) {
+              const detected = envelope.data.Data.Results.flatMap<SyncConflict>(
+                (responseResult) => {
+                  if (
+                    responseResult.Status !== 'Conflict' ||
+                    !responseResult.Data ||
+                    responseResult.Resource === SYNC_RESOURCES.RstTable
+                  )
+                    return [];
+                  const local = batch.find(
+                    (change) =>
+                      change.Resource === responseResult.Resource &&
+                      change.SyncId === responseResult.SyncId,
+                  );
+                  const conflict = SyncConflictSchema.safeParse({
+                    Resource: responseResult.Resource,
+                    SyncId: responseResult.SyncId,
+                    Operation: local?.Operation ?? 'U',
+                    Message:
+                      responseResult.Message ||
+                      'El registro cambió también en el servidor.',
+                    LocalData: local?.Data ?? null,
+                    ServerData: responseResult.Data,
+                    KeepLocal: false,
+                    DetectedAt: new Date().toISOString(),
+                  });
+                  return conflict.success ? [conflict.data] : [];
+                },
+              );
+              if (detected.length) {
+                await saveSyncConflicts(detected, database);
+                throw new Error(
+                  `Se detectaron ${detected.length} conflicto${detected.length === 1 ? '' : 's'} pendiente${detected.length === 1 ? '' : 's'} de resolución.`,
+                );
+              }
             }
           }
+          throw error;
         }
-        throw error;
-      }
+      });
+
+      uploaded += result.accepted.length;
+      pushFailure = result.error;
+      for (const change of result.rejected)
+        (rejectedIds[change.Resource] ??= []).push(change.SyncId);
+      if (Object.keys(rejectedIds).length)
+        return { experimentalRejectedIds: rejectedIds };
+      return undefined;
     };
 
     await synchronize({
@@ -451,7 +496,7 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
       pullChanges,
       pushChanges,
     });
-    await applyTechnicalVisitAcknowledgements(acknowledgedTechnicalVisits);
+    await applyTechnicalVisitAcknowledgements(acknowledgedTechnicalVisits, database);
     await database.localStorage.set(
       TECHNICAL_VISIT_BOOTSTRAP_SCOPE_KEY,
       currentScope,
@@ -467,7 +512,8 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
         pullChanges,
       });
     }
-    await removeReconciledDuplicates();
+    await removeReconciledDuplicates(database);
+    if (pushFailure) throw pushFailure;
 
     const result: PullResult = {
       Cursor: finalCursor,
@@ -478,7 +524,7 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
       FinishedAt: new Date().toISOString(),
     };
     await database.localStorage.set(LAST_PULL_KEY, result);
-    useSyncState.getState().completePull(result);
+    if (isActiveIdentity(identityKey)) useSyncState.getState().completePull(result);
     reportSyncTelemetry({
       event: 'sync_completed',
       durationMs: result.DurationMs,
@@ -489,7 +535,7 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
     return result;
   } catch (error) {
     const message = getApiErrorMessage(error);
-    useSyncState.getState().failPull(message);
+    if (isActiveIdentity(identityKey)) useSyncState.getState().failPull(message);
     reportSyncTelemetry({
       event: 'sync_failed',
       durationMs: Date.now() - startedAt,
@@ -500,5 +546,5 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
 }
 
 export async function getLastPull(): Promise<PullResult | null> {
-  return (await database.localStorage.get(LAST_PULL_KEY)) ?? null;
+  return (await getActiveDatabase().localStorage.get(LAST_PULL_KEY)) ?? null;
 }

@@ -16,7 +16,7 @@ import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { formatters } from '@/lib/formatter';
 import { SYNC_RESOURCES } from '@/contracts/sync';
-import { database } from '@/database';
+import { getActiveDatabase } from '@/database';
 import {
   getLastPull,
   getSyncConflicts,
@@ -71,6 +71,7 @@ const resourceLabels: Record<keyof LocalCounts, string> = {
 };
 
 async function readLocalCounts(): Promise<LocalCounts> {
+  const database = getActiveDatabase();
   const entries = await Promise.all(
     Object.values(SYNC_RESOURCES).map(
       async (resource) =>
@@ -81,6 +82,7 @@ async function readLocalCounts(): Promise<LocalCounts> {
 }
 
 export default function SyncScreen() {
+  const database = getActiveDatabase();
   const router = useRouter();
   const sync = useSyncState();
   const user = useAuthStore((state) => state.Session?.User);

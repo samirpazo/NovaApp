@@ -1,6 +1,7 @@
 import { createResponseApiSchema } from '@/contracts/api';
-import { api, getApiErrorMessage } from '@/lib/api';
+import { getForUser, getApiErrorMessage, postForUser } from '@/lib/api';
 import { storage } from '@/lib/storage';
+import { getActiveIdentityKey } from '@/database';
 import { z } from 'zod';
 import { create } from 'zustand';
 
@@ -29,6 +30,10 @@ export type AppearancePreferences = z.infer<typeof AppearancePreferencesSchema>;
 
 const STORAGE_KEY = 'nova.appearance';
 const PENDING_STORAGE_KEY = 'nova.appearance.pending';
+const userStorageKey = (key: string, identityKey: string | null) =>
+  identityKey ? `${key}.account.${identityKey}` : key;
+let hydrateGeneration = 0;
+const appearanceSaveQueues = new Map<string, Promise<void>>();
 const DEFAULTS: Required<
   Pick<AppearancePreferences, 'Theme' | 'PrimaryColor' | 'HeaderColor'>
 > = {
@@ -62,9 +67,11 @@ function normalizeAppearance(
 interface AppearanceState {
   preferences: AppearancePreferences;
   preview: AppearancePreferences;
+  userId: number | null;
+  identityKey: string | null;
   revision: number;
   ready: boolean;
-  hydrate: () => Promise<void>;
+  hydrate: (userId?: number | null, identityKey?: string | null) => Promise<void>;
   previewChanges: (preferences: AppearancePreferences) => void;
   discardPreview: () => void;
   commit: (preferences: AppearancePreferences) => Promise<void>;
@@ -73,10 +80,15 @@ interface AppearanceState {
 export const useAppearanceStore = create<AppearanceState>((set) => ({
   preferences: DEFAULTS,
   preview: DEFAULTS,
+  userId: null,
+  identityKey: null,
   revision: 0,
   ready: false,
-  hydrate: async () => {
-    const raw = await storage.getItem(STORAGE_KEY);
+  hydrate: async (userId = null, identityKey = null) => {
+    const generation = ++hydrateGeneration;
+    const raw = userId
+      ? await storage.getItem(userStorageKey(STORAGE_KEY, identityKey))
+      : null;
     let parsed: ReturnType<
       typeof AppearancePreferencesSchema.safeParse
     > | null = null;
@@ -90,7 +102,8 @@ export const useAppearanceStore = create<AppearanceState>((set) => ({
     const preferences = parsed?.success
       ? normalizeAppearance(parsed.data)
       : DEFAULTS;
-    set({ preferences, preview: preferences, ready: true });
+    if (generation === hydrateGeneration)
+      set({ preferences, preview: preferences, userId, identityKey, ready: true });
   },
   previewChanges: (preferences) =>
     set((state) => ({
@@ -100,18 +113,37 @@ export const useAppearanceStore = create<AppearanceState>((set) => ({
   discardPreview: () => set((state) => ({ preview: state.preferences })),
   commit: async (preferences) => {
     const next = normalizeAppearance(preferences);
-    await storage.setItem(STORAGE_KEY, JSON.stringify(next));
-    set((state) => ({
-      preferences: next,
-      preview: next,
-      revision: state.revision + 1,
-    }));
+    const userId = useAppearanceStore.getState().userId;
+    const identityKey = useAppearanceStore.getState().identityKey;
+    if (!userId)
+      throw new Error('No se pueden guardar preferencias sin una sesión activa.');
+    await storage.setItem(
+      userStorageKey(STORAGE_KEY, identityKey),
+      JSON.stringify(next),
+    );
+    set((state) =>
+      state.userId === userId && state.identityKey === identityKey
+        ? {
+            preferences: next,
+            preview: next,
+            revision: state.revision + 1,
+          }
+        : state,
+    );
   },
 }));
 
-export async function loadServerAppearance(): Promise<AppearancePreferences | null> {
+export async function loadServerAppearance(
+  userId: number,
+  identityKey = getActiveIdentityKey() ?? undefined,
+): Promise<AppearancePreferences | null> {
   try {
-    const response = await api.get('/SecUserPreference/MyPreferences');
+    const response = await getForUser(
+      '/SecUserPreference/MyPreferences',
+      userId,
+      {},
+      identityKey,
+    );
     return (
       createResponseApiSchema(AppearancePreferencesSchema.nullish()).parse(
         response.data,
@@ -124,9 +156,17 @@ export async function loadServerAppearance(): Promise<AppearancePreferences | nu
 
 export async function saveServerAppearance(
   preferences: AppearancePreferences,
+  userId: number,
+  identityKey = getActiveIdentityKey() ?? undefined,
 ): Promise<AppearancePreferences> {
   try {
-    const response = await api.post('/SecUserPreference/Save', preferences);
+    const response = await postForUser(
+      '/SecUserPreference/Save',
+      preferences,
+      userId,
+      {},
+      identityKey,
+    );
     return (
       createResponseApiSchema(AppearancePreferencesSchema).parse(response.data)
         .Data ?? preferences
@@ -136,32 +176,93 @@ export async function saveServerAppearance(
   }
 }
 
+function saveServerAppearanceInOrder(
+  preferences: AppearancePreferences,
+  userId: number,
+  identityKey: string,
+): Promise<AppearancePreferences> {
+  const previous = appearanceSaveQueues.get(identityKey) ?? Promise.resolve();
+  const save = previous
+    .catch(() => undefined)
+    .then(() => saveServerAppearance(preferences, userId, identityKey));
+  const tail = save.then(
+    () => undefined,
+    () => undefined,
+  );
+  appearanceSaveQueues.set(identityKey, tail);
+  void tail.then(() => {
+    if (appearanceSaveQueues.get(identityKey) === tail)
+      appearanceSaveQueues.delete(identityKey);
+  });
+  return save;
+}
+
 export async function queueAppearanceSync(
   preferences: AppearancePreferences,
+  userId = useAppearanceStore.getState().userId,
+  identityKey = useAppearanceStore.getState().identityKey,
 ): Promise<void> {
-  await storage.setItem(PENDING_STORAGE_KEY, JSON.stringify(preferences));
+  if (!userId || !identityKey)
+    throw new Error('No se pueden encolar preferencias sin una sesión activa.');
+  await storage.setItem(
+    userStorageKey(PENDING_STORAGE_KEY, identityKey),
+    JSON.stringify(preferences),
+  );
 }
 
 export async function saveOrQueueAppearance(
   preferences: AppearancePreferences,
+  userId = useAppearanceStore.getState().userId,
+  identityKey = useAppearanceStore.getState().identityKey,
 ): Promise<'synced' | 'pending'> {
+  if (!userId || !identityKey)
+    throw new Error('No se pueden sincronizar preferencias sin una sesión activa.');
+  const queueKey = userStorageKey(PENDING_STORAGE_KEY, identityKey);
+  const queued = JSON.stringify(preferences);
+  await storage.setItem(queueKey, queued);
+  if (
+    useAppearanceStore.getState().userId !== userId ||
+    useAppearanceStore.getState().identityKey !== identityKey
+  ) return 'pending';
   try {
-    await saveServerAppearance(preferences);
-    await storage.removeItem(PENDING_STORAGE_KEY);
+    await saveServerAppearanceInOrder(preferences, userId, identityKey);
+    if (
+      useAppearanceStore.getState().userId !== userId ||
+      useAppearanceStore.getState().identityKey !== identityKey
+    ) return 'pending';
+    if ((await storage.getItem(queueKey)) === queued)
+      await storage.removeItem(queueKey);
     return 'synced';
   } catch {
-    await queueAppearanceSync(preferences);
     return 'pending';
   }
 }
 
-export async function flushPendingAppearance(): Promise<boolean> {
-  const raw = await storage.getItem(PENDING_STORAGE_KEY);
+export async function flushPendingAppearance(
+  userId = useAppearanceStore.getState().userId,
+  identityKey = useAppearanceStore.getState().identityKey,
+): Promise<boolean> {
+  if (
+    !userId || !identityKey ||
+    useAppearanceStore.getState().userId !== userId ||
+    useAppearanceStore.getState().identityKey !== identityKey
+  ) return false;
+  const queueKey = userStorageKey(PENDING_STORAGE_KEY, identityKey);
+  const raw = await storage.getItem(queueKey);
   if (!raw) return true;
+  if (
+    useAppearanceStore.getState().userId !== userId ||
+    useAppearanceStore.getState().identityKey !== identityKey
+  ) return false;
   try {
     const parsed = AppearancePreferencesSchema.parse(JSON.parse(raw));
-    await saveServerAppearance(parsed);
-    await storage.removeItem(PENDING_STORAGE_KEY);
+    await saveServerAppearanceInOrder(parsed, userId, identityKey);
+    if (
+      useAppearanceStore.getState().userId !== userId ||
+      useAppearanceStore.getState().identityKey !== identityKey
+    ) return false;
+    if ((await storage.getItem(queueKey)) === raw)
+      await storage.removeItem(queueKey);
     return true;
   } catch {
     return false;

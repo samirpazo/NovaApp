@@ -1,3 +1,3 @@
 import type { Database } from '@nozbe/watermelondb';
 
-export const database: Database;
+export function createDatabase(dbName: string): Database;

@@ -1,7 +1,7 @@
 import { Q } from '@nozbe/watermelondb';
 
 import { SYNC_RESOURCES } from '@/contracts/sync';
-import { database, GenDefinitionModel } from '@/database';
+import { getActiveDatabase, GenDefinitionModel } from '@/database';
 import { createLocalCrudDataSource } from '@/components/crud';
 import type { GenDefinitionListItem } from '@/features/general/definitions/types';
 
@@ -16,35 +16,39 @@ function toListItem(model: GenDefinitionModel): GenDefinitionListItem {
   };
 }
 
-export const genDefinitionDataSource = createLocalCrudDataSource({
-  collection: database.get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition),
-  map: toListItem,
-  activeColumn: 'SecStatus',
-  searchableColumns: ['DefCode', 'DefDescription'],
-  sortableColumns: {
-    DefID: 'DefID',
-    DefCode: 'DefCode',
-    DefDescription: 'DefDescription',
-    DefStated: 'DefStated',
-  },
-  observedColumns: [
-    'DefID',
-    'DefCode',
-    'DefDescription',
-    'DefStated',
-    'SecStatus',
-  ],
-  defaultOrder: { column: 'DefDescription', direction: 'asc' },
-});
+export function createGenDefinitionDataSource() {
+  return createLocalCrudDataSource({
+    collection: getActiveDatabase().get<GenDefinitionModel>(
+      SYNC_RESOURCES.GenDefinition,
+    ),
+    map: toListItem,
+    activeColumn: 'SecStatus',
+    searchableColumns: ['DefCode', 'DefDescription'],
+    sortableColumns: {
+      DefID: 'DefID',
+      DefCode: 'DefCode',
+      DefDescription: 'DefDescription',
+      DefStated: 'DefStated',
+    },
+    observedColumns: [
+      'DefID',
+      'DefCode',
+      'DefDescription',
+      'DefStated',
+      'SecStatus',
+    ],
+    defaultOrder: { column: 'DefDescription', direction: 'asc' },
+  });
+}
 
 export const genDefinitionQueries = {
-  find(LocalId: string) {
+  find(LocalId: string, database = getActiveDatabase()) {
     return database
       .get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition)
       .find(LocalId);
   },
 
-  async nextTemporaryId(): Promise<number> {
+  async nextTemporaryId(database = getActiveDatabase()): Promise<number> {
     const records = await database
       .get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition)
       .query(Q.where('DefID', Q.lt(0)))

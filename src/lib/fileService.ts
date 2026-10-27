@@ -2,7 +2,8 @@ import { Platform } from 'react-native';
 import { z } from 'zod';
 
 import { createResponseApiSchema } from '@/contracts/api';
-import { api } from '@/lib/api';
+import { API_URL, postForUser } from '@/lib/api';
+import { getActiveIdentityKey } from '@/database';
 
 const ManagedFileSchema = z.object({
   FileId: z.number().int(),
@@ -25,6 +26,9 @@ export interface PickedFile {
 export async function uploadManagedFile(
   file: PickedFile,
   genParameter: string,
+  idempotencyKey: string | undefined,
+  userId: number,
+  identityKey = getActiveIdentityKey() ?? undefined,
 ): Promise<ManagedFile> {
   if (!genParameter.trim()) throw new Error('genParameter es obligatorio.');
 
@@ -38,9 +42,19 @@ export async function uploadManagedFile(
       type: file.mimeType || 'application/octet-stream',
     } as never);
 
-  const response = await api.post('/GenFiles/upload', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const requestConfig = {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+    },
+  };
+  const response = await postForUser(
+    '/GenFiles/upload',
+    form,
+    userId,
+    requestConfig,
+    identityKey,
+  );
   const envelope = createResponseApiSchema(ManagedFileSchema).parse(
     response.data,
   );
@@ -52,5 +66,5 @@ export async function uploadManagedFile(
 }
 
 export function managedFilePreviewUrl(fileId: number): string {
-  return `${api.defaults.baseURL}/GenFiles/${fileId}/preview`;
+  return `${API_URL}/GenFiles/${fileId}/preview`;
 }

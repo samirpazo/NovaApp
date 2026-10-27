@@ -11,7 +11,7 @@ import { NDate, NSelect, NSelectDefinition, NText } from '@/components/forms';
 import { Text } from '@/components/ui/text';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import {
-  database,
+  getActiveDatabase,
   OagTechnicalVisitModel,
   OagTechnicalVisitScheduleModel,
   GenCampaignModel,
@@ -99,6 +99,7 @@ const columns: NCrudColumn<TechnicalVisitScheduleRow>[] = [
 ];
 
 export default function TechnicalVisitsScreen() {
+  const database = getActiveDatabase();
   const router = useRouter();
   const user = useAuthStore((state) => state.Session?.User);
   const [schedules, setSchedules] = React.useState<

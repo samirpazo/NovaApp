@@ -3,7 +3,7 @@ import type { SyncTableChangeSet } from '@nozbe/watermelondb/sync';
 import * as React from 'react';
 
 import { SYNC_RESOURCES } from '@/contracts/sync';
-import { database } from '@/database';
+import { getActiveDatabase } from '@/database';
 import { getSyncConflicts, useSyncConflictState } from '@/sync/conflicts';
 import { useSyncState } from '@/sync/state';
 
@@ -21,6 +21,7 @@ function countLocalChanges(
 }
 
 export function useSyncIndicators() {
+  const database = getActiveDatabase();
   const [pendingChanges, setPendingChanges] = React.useState(0);
   const conflicts = useSyncConflictState((state) => state.Conflicts.length);
   const syncStatus = useSyncState((state) => state.Status);
@@ -28,7 +29,7 @@ export function useSyncIndicators() {
   const refreshPendingChanges = React.useCallback(async () => {
     const localChanges = await fetchLocalChanges(database);
     setPendingChanges(countLocalChanges(localChanges.changes));
-  }, []);
+  }, [database]);
 
   React.useEffect(() => {
     void getSyncConflicts();
@@ -39,7 +40,7 @@ export function useSyncIndicators() {
       .subscribe(() => void refreshPendingChanges());
 
     return () => subscription.unsubscribe();
-  }, [refreshPendingChanges]);
+  }, [database, refreshPendingChanges]);
 
   React.useEffect(() => {
     if (syncStatus !== 'syncing') void refreshPendingChanges();

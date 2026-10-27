@@ -3,7 +3,7 @@ import { Q } from '@nozbe/watermelondb';
 import { createLocalCrudDataSource } from '@/components/crud';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import {
-  database,
+  getActiveDatabase,
   GenDefinitionDetailModel,
   GenDefinitionModel,
 } from '@/database';
@@ -45,59 +45,61 @@ export interface GenDefinitionDetailFilter {
   DefID: number | null;
 }
 
-export const genDefinitionDetailDataSource = createLocalCrudDataSource<
-  GenDefinitionDetailModel,
-  GenDefinitionDetailListItem,
-  GenDefinitionDetailFilter
->({
-  collection: database.get<GenDefinitionDetailModel>(
-    SYNC_RESOURCES.GenDefinitionDetail,
-  ),
-  map: toListItem,
-  activeColumn: 'SecStatus',
-  buildFilter: ({ DefID }) =>
-    DefID == null ? [Q.where('DefID', Q.lt(0))] : [Q.where('DefID', DefID)],
-  searchableColumns: [
-    'DedDescription',
-    'DedAbbreviation',
-    'DedHelper',
-    'DedHelper2',
-  ],
-  sortableColumns: {
-    DedID: 'DedID',
-    DedValue: 'DedValue',
-    DedDescription: 'DedDescription',
-    DedAbbreviation: 'DedAbbreviation',
-    DedHelper: 'DedHelper',
-    DedHelper2: 'DedHelper2',
-    DedStated: 'DedStated',
-  },
-  observedColumns: [
-    'DedID',
-    'DefID',
-    'DedCode',
-    'DedValue',
-    'DedDescription',
-    'DedAbbreviation',
-    'DedFormat',
-    'DedGroup',
-    'DedHelper',
-    'DedHelper2',
-    'DedIcon',
-    'DedColor',
-    'DedStated',
-    'DedImageFilID',
-    'SecStatus',
-  ],
-  defaultOrder: { column: 'DedValue', direction: 'asc' },
-});
+export function createGenDefinitionDetailDataSource() {
+  return createLocalCrudDataSource<
+    GenDefinitionDetailModel,
+    GenDefinitionDetailListItem,
+    GenDefinitionDetailFilter
+  >({
+    collection: getActiveDatabase().get<GenDefinitionDetailModel>(
+      SYNC_RESOURCES.GenDefinitionDetail,
+    ),
+    map: toListItem,
+    activeColumn: 'SecStatus',
+    buildFilter: ({ DefID }) =>
+      DefID == null ? [Q.where('DefID', Q.lt(0))] : [Q.where('DefID', DefID)],
+    searchableColumns: [
+      'DedDescription',
+      'DedAbbreviation',
+      'DedHelper',
+      'DedHelper2',
+    ],
+    sortableColumns: {
+      DedID: 'DedID',
+      DedValue: 'DedValue',
+      DedDescription: 'DedDescription',
+      DedAbbreviation: 'DedAbbreviation',
+      DedHelper: 'DedHelper',
+      DedHelper2: 'DedHelper2',
+      DedStated: 'DedStated',
+    },
+    observedColumns: [
+      'DedID',
+      'DefID',
+      'DedCode',
+      'DedValue',
+      'DedDescription',
+      'DedAbbreviation',
+      'DedFormat',
+      'DedGroup',
+      'DedHelper',
+      'DedHelper2',
+      'DedIcon',
+      'DedColor',
+      'DedStated',
+      'DedImageFilID',
+      'SecStatus',
+    ],
+    defaultOrder: { column: 'DedValue', direction: 'asc' },
+  });
+}
 
 export const genDefinitionDetailQueries = {
   observeDefinitions(
     onNext: (records: GenDefinitionOption[]) => void,
     onError: (error: unknown) => void,
   ) {
-    return database
+    return getActiveDatabase()
       .get<GenDefinitionModel>(SYNC_RESOURCES.GenDefinition)
       .query(Q.where('SecStatus', true), Q.sortBy('DefDescription', Q.asc))
       .observe()
@@ -107,7 +109,7 @@ export const genDefinitionDetailQueries = {
       });
   },
 
-  find(LocalId: string) {
+  find(LocalId: string, database = getActiveDatabase()) {
     return database
       .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
       .find(LocalId);
@@ -117,6 +119,7 @@ export const genDefinitionDetailQueries = {
     DefID: number,
     DedValue: number,
     excludeLocalId?: string,
+    database = getActiveDatabase(),
   ): Promise<boolean> {
     const records = await database
       .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
@@ -129,7 +132,7 @@ export const genDefinitionDetailQueries = {
     return records.some((record) => record.id !== excludeLocalId);
   },
 
-  async nextValue(DefID: number): Promise<number> {
+  async nextValue(DefID: number, database = getActiveDatabase()): Promise<number> {
     const records = await database
       .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
       .query(Q.where('SecStatus', true), Q.where('DefID', DefID))
@@ -137,7 +140,7 @@ export const genDefinitionDetailQueries = {
     return Math.max(0, ...records.map((record) => record.DedValue)) + 1;
   },
 
-  async nextTemporaryId(): Promise<number> {
+  async nextTemporaryId(database = getActiveDatabase()): Promise<number> {
     const records = await database
       .get<GenDefinitionDetailModel>(SYNC_RESOURCES.GenDefinitionDetail)
       .query(Q.where('DedID', Q.lt(0)))

@@ -25,6 +25,7 @@ import { refreshSession } from '@/auth/service';
 import { useAuthStore } from '@/auth/store';
 import { api } from '@/lib/api';
 import { storage } from '@/lib/storage';
+import { saveAccessToken, saveRefreshToken } from '@/sync/config';
 
 const session = {
   AccessTokenExpiration: '2026-10-26T10:15:00.000Z',
@@ -57,6 +58,31 @@ describe('renovación de sesión', () => {
     expect(first).toBe(second);
     await Promise.all([first, second]);
     expect(api.post).toHaveBeenCalledTimes(1);
+  });
+
+  test('no persiste tokens si la cuenta cambia mientras se renueva', async () => {
+    jest.mocked(api.post).mockResolvedValue({
+      data: { Succeeded: true, Message: null, Data: session },
+      headers: {
+        'set-cookie': [
+          'nova_app_access_token=access',
+          'nova_app_refresh_token=refresh',
+        ],
+      },
+    });
+    const isCurrent = jest
+      .fn<Promise<boolean>, []>()
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+
+    await expect(refreshSession(isCurrent, 'account-a')).rejects.toThrow(
+      'La sesión cambió durante la renovación.',
+    );
+
+    expect(saveAccessToken).not.toHaveBeenCalled();
+    expect(saveRefreshToken).not.toHaveBeenCalled();
+    expect(storage.setItem).not.toHaveBeenCalled();
   });
 
   test('guarda la sesión renovada en el estado autenticado antes del sync', async () => {

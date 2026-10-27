@@ -2,7 +2,7 @@ import { Q } from '@nozbe/watermelondb';
 import * as React from 'react';
 
 import { NSelect, type NSelectProps } from '@/components/forms/NSelect';
-import { database } from '@/database';
+import { getActiveDatabase } from '@/database';
 import { GenDefinitionDetailModel } from '@/database/models/GenDefinitionDetail';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 
@@ -32,6 +32,7 @@ export function NSelectDefinition({
 }: NSelectDefinitionProps) {
   const [items, setItems] = React.useState<DefinitionOption[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const database = getActiveDatabase();
   const query = React.useMemo(
     () =>
       database

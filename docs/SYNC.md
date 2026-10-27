@@ -9,7 +9,7 @@ El cliente es responsable de:
 - capturar cambios locales;
 - paginar Pull;
 - validar respuestas;
-- enviar Push idempotente;
+- enviar Push en lotes compatibles con el límite del servidor y conservar sus confirmaciones;
 - mantener pendientes los rechazos;
 - reconciliar IDs y versiones;
 - presentar conflictos.
@@ -164,7 +164,9 @@ Operaciones:
 - `U`: actualización; `Data` y `SyncVersion` obligatorios funcionalmente.
 - `D`: eliminación; `Data` es `null`.
 
-El cliente limita el lote a 500 cambios. `RstTable` no puede aparecer en Push.
+El cliente ordena las dependencias conocidas y divide Push en lotes secuenciales de hasta 500
+cambios. Solo marca como sincronizados los cambios identificados como `Applied`; los rechazados y
+los lotes posteriores continúan pendientes. `RstTable` no puede aparecer en Push.
 
 ### Contrato validado por recurso
 
@@ -213,12 +215,15 @@ guardar; el Push central conserva el flujo idempotente y de conflictos. El filtr
 porque el servidor ya limita las programaciones por `PrsID`.
 
 Firmas y evidencias conservan sus URI locales pendientes mientras el dispositivo está offline. Antes
-del Push, la app los carga con `POST /GenFiles/upload` y `ROUTE_TECHNICAL_VISIT_FILES`, reemplaza la
-URI por el `FileId` administrado solo en el payload enviado al servidor y envía la visita como agregado.
-No se modifica el registro WatermelonDB durante el callback: WatermelonDB compara el registro actual
-con la copia capturada antes del Push y solo limpia el estado local si ambos siguen iguales. Después
-de que el Push se confirma, la app aplica el agregado y la versión canónicos del servidor al registro
-local.
+del Push, la app las carga con `POST /GenFiles/upload` y `ROUTE_TECHNICAL_VISIT_FILES`, guarda en el
+snapshot local el identificador estable de intento y el `FileId` recibido, y envía la visita como
+agregado. Así, los archivos cuya respuesta de carga se confirmó no vuelven a solicitarse cuando falla
+un archivo posterior o el Push. El checkpoint fusiona esos recibos con el snapshot local más reciente.
+Nova debe soportar idempotencia durable por `Idempotency-Key` para cerrar el caso de respuesta de carga
+perdida: el middleware actual compara el hash del cuerpo HTTP multipart completo, incluidos bytes que
+pueden variar al reconstruir `FormData`. Sin una garantía del servidor o una prueba aislada que confirme
+replay idéntico, no se afirma entrega exactamente una vez tras una respuesta ambigua. Después de que el
+Push se confirma, la app aplica el agregado y la versión canónicos del servidor al registro local.
 
 La firma existente se obtiene mediante una petición autenticada de `api` y se conserva como imagen
 en `database.localStorage`, identificada por `FilID`. La caché pertenece al alcance de la base local
@@ -387,16 +392,55 @@ Resultado: la versión local coincide con NovaApi y no genera Push.
 `Force` no significa acceso irrestricto: siguen aplicando autenticación, recurso permitido, alcance,
 existencia y forma del payload.
 
-## Cambio de alcance
+## Almacenamiento offline multicuenta
 
-El alcance se identifica como:
+Cada almacenamiento local WatermelonDB pertenece a una identidad calculada con servidor normalizado,
+`PrsID` y `UsrID`. El nombre físico usa SHA-256 de esa identidad y no revela esos valores. Native
+usa SQLite; web crea un almacén Loki/IndexedDB con el mismo nombre aislado. La instancia activa se
+captura al comenzar una operación, de modo que una respuesta tardía no cambia a la base seleccionada
+después. Pull serializa operaciones por identidad, y las solicitudes con usuario esperado vuelven a
+validar la identidad antes de obtener el token y enviar.
 
-```text
-baseUrl normalizada | BranchId o general
-```
+`BranchId` no forma parte de la identidad global del almacenamiento: sucursales pertenecen al
+alcance Restaurant, no a General ni OAG. La configuración actual todavía envía el `BranchId`
+opcional por el contrato de sincronización; no se debe interpretar como filtro general del cliente.
 
-Si cambia, la base local se reinicia para no mezclar datos. Antes de habilitar selección visible de
-sucursal se debe bloquear el cambio cuando haya pendientes o pedir sincronizarlos/descartarlos.
+Conflictos, cursores, snapshots, checkpoints multimedia, opciones de menú y cachés Watermelon quedan
+aislados por base. Preferencias y su cola pendiente se guardan bajo el hash de identidad, además del
+usuario, para evitar colisiones si el mismo `UsrID` existe en dos servidores. El estado Zustand de
+conflictos y sincronización se limpia al cambiar de cuenta. Cerrar sesión revoca/borra la única sesión
+activa; volver a una cuenta requiere autenticarse de nuevo. Ningún token se copia entre identidades.
+
+Firmas y evidencias nativas nuevas se copian a `document/nova-app/{identityHash}`; la web persiste
+el contenido como data URI dentro del snapshot de la base IndexedDB de esa identidad. Los archivos
+pendientes no se borran al salir, cambiar de cuenta o fallar una subida. Solo el ACK confirmado retira
+la referencia local del snapshot. La limpieza física de archivos ya confirmados sigue siendo
+conservadora; puede dejar archivos huérfanos, pero no elimina evidencia offline.
+
+### Compatibilidad con `nova-app` legado
+
+La base única anterior se conserva sin reinicio ni copia. Solo se adopta cuando
+`nova.sync.activeScope` y `nova.sync.activeScopeUser` prueban que servidor, usuario y persona
+coinciden con la identidad autenticada; antes de usarla se persiste el hash propietario en
+`nova.storage.owner`. Los demás usuarios reciben una base nueva. Si faltan o no coinciden los
+metadatos, la base y sus archivos permanecen intactos y sin asignar: no se adjudican al primer usuario
+ni se ejecuta `unsafeResetDatabase()`. Los conflictos legados se migran al ámbito del usuario solo
+cuando el mismo alcance guardado acredita al propietario; de lo contrario se conservan en la clave de
+cuarentena `nova.sync.conflicts.unassignedLegacy` dentro del almacenamiento legado.
+
+La recuperación automática no puede inferir quién posee datos sin esos metadatos. Para esos casos se
+debe recuperar una copia desde respaldo o construir un flujo explícito de revisión/atribución que
+requiera verificación de identidad; no se deben fusionar snapshots ambiguos con una base activa.
+
+WatermelonDB 0.28 no expone una API pública `close/dispose` para Database/SQLiteAdapter. El gestor
+mantiene una instancia por identidad para evitar abrir dos objetos simultáneos con el mismo archivo al
+volver a una cuenta. Los observers de UI se desuscriben al desmontar las pantallas, pero la liberación
+de conexiones nativas de bases ya visitadas no está garantizada mediante API pública. Hay que validar
+el ciclo en dispositivos iOS/Android antes de aumentar el número esperado de cuentas por instalación.
+
+La sincronización usa el servidor fijado en `EXPO_PUBLIC_API_URL`. Si una conexión persistida apunta
+a otro host o ruta, Pull se detiene antes de enviar tokens o asociar respuestas a una base local;
+esta app todavía no admite cambiar de servidor en ejecución.
 
 ## Estado técnico
 
@@ -418,7 +462,7 @@ Un Push exitoso cuenta como sincronización aunque la última operación haya de
 
 `useSyncIndicators()` observa todas las tablas de `SYNC_RESOURCES` y cuenta los registros creados,
 editados y eliminados que WatermelonDB enviaría en el próximo Push. También hidrata y observa los
-conflictos guardados en `nova.sync.conflicts`. Estos datos son completamente locales: el badge de
+conflictos guardados por usuario. Estos datos son completamente locales: el badge de
 `Sincronizar` y el del icono del header muestran los cambios pendientes, mientras el badge de
 `Conflictos` muestra decisiones sin resolver. Los badges se ocultan en cero y presentan `99+` al
 superar 99 elementos.
@@ -426,11 +470,12 @@ superar 99 elementos.
 ## Preferencias de apariencia
 
 `SecUserPreference` no forma parte del journal de entidades WatermelonDB. Es un singleton por usuario
-y usa una cola local de último valor (`nova.appearance.pending`): un guardado offline confirma la
-preferencia en el dispositivo y reemplaza cualquier pendiente anterior. Al recuperar conectividad se
-envía `Theme`, `PrimaryColor` y `HeaderColor` a `SecUserPreference/Save`; solo después se elimina la
-cola. Antes de consultar `MyPreferences` al autenticar se intenta vaciarla, para no sobrescribir una
-decisión offline reciente con una versión antigua del servidor.
+y usa claves locales `nova.appearance.user.{UsrID}` y `nova.appearance.pending.user.{UsrID}`. Una
+preferencia offline reemplaza únicamente la cola de último valor de esa identidad. Tras el POST se
+elimina solo si la cola conserva el mismo valor que se envió, para no borrar una preferencia más nueva
+encolada durante la solicitud. Antes de consultar `MyPreferences` se vacía únicamente la cola de la
+sesión activa. No se migran claves legadas sin propietario porque no es posible atribuirlas con
+seguridad.
 
 ### Recuperación de snapshots de visitas existentes
 

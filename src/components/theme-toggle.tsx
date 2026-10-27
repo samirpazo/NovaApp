@@ -1,6 +1,7 @@
 import { LoaderCircle, Monitor, Moon, Sun } from 'lucide-react-native';
 import * as React from 'react';
 
+import { useAuthStore } from '@/auth/store';
 import { NButton } from '@/components/forms/NButton';
 import {
   getNextThemeMode,
@@ -29,12 +30,13 @@ export function ThemeToggle({
   const foregroundClass = darkForeground ? 'text-zinc-950' : 'text-white';
 
   const toggle = async () => {
+    const userId = useAuthStore.getState().Session?.User.UsrID;
     const nextPreferences = { ...preferences, Theme: nextTheme };
     previewChanges(nextPreferences);
     setSaving(true);
     try {
       await commit(nextPreferences);
-      await saveOrQueueAppearance(nextPreferences);
+      await saveOrQueueAppearance(nextPreferences, userId);
     } finally {
       setSaving(false);
     }

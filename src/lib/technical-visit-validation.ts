@@ -7,7 +7,7 @@ const PendingFileSchema = z.object({
   uri: z.string(),
   name: z.string(),
   mimeType: z.string().nullish(),
-});
+}).passthrough();
 
 const SnapshotRowSchema = z.record(z.string(), z.unknown());
 

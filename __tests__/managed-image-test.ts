@@ -1,30 +1,39 @@
-import { loadManagedImage } from '@/lib/managed-image';
-import { api } from '@/lib/api';
-import { database } from '@/database';
+const mockDatabase = { localStorage: { get: jest.fn(), set: jest.fn() } };
+const mockAuth = { Session: { User: { UsrID: 11 } } };
 
-jest.mock('@/lib/api', () => ({ api: { get: jest.fn() } }));
-jest.mock('@/database', () => ({ database: { localStorage: { get: jest.fn(), set: jest.fn() } } }));
+jest.mock('@/lib/api', () => ({ getForUser: jest.fn() }));
+jest.mock('@/auth/store', () => ({ useAuthStore: { getState: () => mockAuth } }));
+jest.mock('@/database', () => ({
+  getActiveDatabase: () => mockDatabase,
+  getActiveIdentityKey: () => 'account-a',
+}));
 jest.mock('@nozbe/watermelondb', () => ({ localStorageKey: (key: string) => key }));
+
+import { getForUser } from '@/lib/api';
+import { loadManagedImage } from '@/lib/managed-image';
 
 beforeEach(() => jest.clearAllMocks());
 
-test('an authenticated image is cached and remains readable without another network request', async () => {
-  jest.mocked(database.localStorage.get).mockResolvedValueOnce(undefined);
-  jest.mocked(api.get).mockResolvedValueOnce({
+test('caches an authenticated image in the current account database', async () => {
+  jest.mocked(mockDatabase.localStorage.get).mockResolvedValueOnce(undefined);
+  jest.mocked(getForUser).mockResolvedValueOnce({
     data: Uint8Array.from([1, 2, 3]).buffer,
     headers: { 'content-type': 'image/png' },
-  });
+  } as never);
   const source = await loadManagedImage(152);
   expect(source).toBe('data:image/png;base64,AQID');
-  expect(database.localStorage.set).toHaveBeenCalledWith('nova.managedImage.152', source);
-  jest.mocked(database.localStorage.get).mockResolvedValueOnce(source);
+  expect(mockDatabase.localStorage.set).toHaveBeenCalledWith('nova.managedImage.152', source);
+  jest.mocked(mockDatabase.localStorage.get).mockResolvedValueOnce(source);
   expect(await loadManagedImage(152)).toBe(source);
-  expect(api.get).toHaveBeenCalledTimes(1);
+  expect(getForUser).toHaveBeenCalledTimes(1);
 });
 
-test('an unexpected document response is not cached as a signature image', async () => {
-  jest.mocked(database.localStorage.get).mockResolvedValueOnce(undefined);
-  jest.mocked(api.get).mockResolvedValueOnce({ data: new ArrayBuffer(0), headers: { 'content-type': 'text/html' } });
+test('does not cache a non-image response', async () => {
+  jest.mocked(mockDatabase.localStorage.get).mockResolvedValueOnce(undefined);
+  jest.mocked(getForUser).mockResolvedValueOnce({
+    data: new ArrayBuffer(0),
+    headers: { 'content-type': 'text/html' },
+  } as never);
   await expect(loadManagedImage(153)).rejects.toThrow('El archivo no tiene una vista previa de imagen.');
-  expect(database.localStorage.set).not.toHaveBeenCalled();
+  expect(mockDatabase.localStorage.set).not.toHaveBeenCalled();
 });
