@@ -127,7 +127,7 @@ export default function TechnicalVisitsScreen() {
               .query(
                 Q.where('SecStatus', true),
                 Q.where('TvsResponsiblePrsID', personId),
-                Q.sortBy('TvsID', Q.asc),
+                Q.sortBy('TvsID', Q.desc),
               )
               .fetch()
           : Promise.resolve([]),

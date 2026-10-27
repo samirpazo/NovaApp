@@ -125,7 +125,6 @@ export const NText = React.forwardRef<
       required={required}
       errorMessage={errorMessage}
       hint={hint}
-      disabled={!editable}
       className={containerClassName}
       labelClassName={labelClassName}
     >

@@ -10,7 +10,7 @@ function Label({
   return (
     <LabelPrimitive.Root
       disabled={disabled}
-      className={cn('flex-row items-center', disabled && 'opacity-50')}
+      className="flex-row items-center"
     >
       <LabelPrimitive.Text
         className={cn('text-sm font-medium text-foreground', className)}

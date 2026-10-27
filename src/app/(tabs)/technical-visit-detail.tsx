@@ -1228,8 +1228,8 @@ export default function TechnicalVisitDetailScreen() {
         />
         <View className="flex-row flex-wrap gap-3 md:gap-4">
           <NDate
-            label="Fecha y hora"
-            mode="datetime"
+            label="Fecha"
+            mode="date"
             value={date}
             onChange={(value) => {
               setDate(value);
@@ -1238,25 +1238,40 @@ export default function TechnicalVisitDetailScreen() {
             required
             containerClassName="min-w-[180px] flex-1"
           />
-          <VisitValue
+          <NSelect
             label="Supervisor"
-            value={schedule?.ResponsibleName}
-            boxed
+            items={[
+              {
+                label: schedule?.ResponsibleName ?? '—',
+                value: schedule?.TvsResponsiblePrsID ?? 0,
+              },
+            ]}
+            itemText="label"
+            itemValue="value"
+            value={schedule?.TvsResponsiblePrsID ?? 0}
+            disabled
+            containerClassName="min-w-[180px] flex-1"
           />
-          <VisitValue
+          <NText
             label="ID Prog."
             value={model.TvsID}
-            boxed
+            editable={false}
+            clearable={false}
+            containerClassName="min-w-[100px] flex-1"
           />
-          <VisitValue
+          <NText
             label="Serie"
-            value={snapshot.Visit.TviDocumentSeries ?? 'Al sincronizar'}
-            boxed
+            value={String(snapshot.Visit.TviDocumentSeries ?? 'Al sincronizar')}
+            editable={false}
+            clearable={false}
+            containerClassName="min-w-[100px] flex-1"
           />
-          <VisitValue
+          <NText
             label="Correlativo"
-            value={snapshot.Visit.TviDocumentNumber ?? 'Al sincronizar'}
-            boxed
+            value={String(snapshot.Visit.TviDocumentNumber ?? 'Al sincronizar')}
+            editable={false}
+            clearable={false}
+            containerClassName="min-w-[100px] flex-1"
           />
         </View>
       </View>
@@ -1266,15 +1281,26 @@ export default function TechnicalVisitDetailScreen() {
           icon={MapPin}
         />
         <View className="flex-row flex-wrap gap-3 md:gap-4">
-          <VisitValue
+          <NText
             label="ID lote"
             value={schedule?.PlfID}
-            boxed
+            editable={false}
+            clearable={false}
+            containerClassName="min-w-[100px] flex-1"
           />
-          <VisitValue
+          <NSelect
             label="Campaña"
-            value={schedule?.CmpName}
-            boxed
+            items={[
+              {
+                label: schedule?.CmpName ?? '—',
+                value: schedule?.CmpID ?? 0,
+              },
+            ]}
+            itemText="label"
+            itemValue="value"
+            value={schedule?.CmpID ?? 0}
+            disabled
+            containerClassName="min-w-[180px] flex-1"
           />
         </View>
         <View className="gap-4 rounded-xl border border-border p-3 md:flex-row md:gap-5 md:p-5">
@@ -1607,35 +1633,6 @@ export default function TechnicalVisitDetailScreen() {
         </View>
       </Modal>
     </ScrollView>
-  );
-}
-
-function VisitValue({
-  label,
-  value,
-  boxed = false,
-}: {
-  label: string;
-  value: unknown;
-  boxed?: boolean;
-}) {
-  return (
-    <View className="min-w-[100px] flex-1 gap-1.5">
-      <Text className="text-[10px] font-poppins-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </Text>
-      <View
-        className={
-          boxed
-            ? 'min-h-10 justify-center rounded-md border border-border px-3 py-2'
-            : ''
-        }
-      >
-        <Text className="text-sm">
-          {value == null || value === '' ? '—' : String(value)}
-        </Text>
-      </View>
-    </View>
   );
 }
 

@@ -113,7 +113,6 @@ export function NDate({
         className={cn(
           `${mode === 'date' ? 'h-9 sm:h-9' : 'h-10'} flex-row items-center rounded-md border border-input bg-background px-2.5`,
           errorMessage && 'border-destructive',
-          disabled && 'opacity-50',
         )}
       >
         <CalendarIcon

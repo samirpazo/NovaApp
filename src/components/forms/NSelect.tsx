@@ -196,7 +196,6 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
             className={cn(
               'h-9 w-full px-2.5 font-poppins text-xs sm:h-9',
               errorMessage && 'border-destructive',
-              (disabled || loading) && 'opacity-50',
             )}
           >
             <RNRSelectValue
@@ -229,7 +228,6 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
             className={cn(
               'h-8 flex-row items-center rounded-md border border-input bg-background px-2.5',
               errorMessage && 'border-destructive',
-              (disabled || loading) && 'opacity-50',
             )}
           >
             <Text

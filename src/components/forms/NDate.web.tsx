@@ -100,7 +100,7 @@ export function NDate({
             accessibilityState={{ disabled, expanded: open }}
             disabled={disabled}
             onPress={openCalendar}
-            className={`h-9 flex-row items-center rounded-md border bg-background px-2.5 ${errorMessage ? 'border-destructive' : 'border-input'} ${disabled ? 'opacity-50' : ''}`}
+            className={`h-9 flex-row items-center rounded-md border bg-background px-2.5 ${errorMessage ? 'border-destructive' : 'border-input'}`}
           >
             <CalendarIcon
               size={16}
@@ -154,7 +154,6 @@ export function NDate({
               fontFamily: 'Poppins, sans-serif',
               fontSize: 12,
               height: 40,
-              opacity: disabled ? 0.5 : 1,
               padding: clearable && activeValue ? '0 40px 0 12px' : '0 12px',
               width: '100%',
             },

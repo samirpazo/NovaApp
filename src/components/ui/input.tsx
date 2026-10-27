@@ -15,7 +15,6 @@ const Input = React.forwardRef<React.ElementRef<typeof TextInput>, InputProps>(
           Platform.select({
             web: 'outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30',
           }),
-          !editable && 'opacity-50',
           className,
         )}
         editable={editable}

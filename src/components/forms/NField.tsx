@@ -32,7 +32,11 @@ export function NField({
           className={cn('text-[11px] font-poppins-semibold', labelClassName)}
         >
           {label}
-          {required ? <Text className="text-destructive"> *</Text> : null}
+          {required ? (
+            <Text className="text-[11px] font-poppins-semibold text-destructive">
+              {' *'}
+            </Text>
+          ) : null}
         </Label>
       ) : null}
       {children}
