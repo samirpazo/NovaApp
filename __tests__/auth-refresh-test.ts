@@ -85,6 +85,65 @@ describe('renovación de sesión', () => {
     expect(storage.setItem).not.toHaveBeenCalled();
   });
 
+  test('una renovación tardía de A no reemplaza el inicio de sesión de B', async () => {
+    const accountA = {
+      ...session,
+      AccessTokenExpiration: '2020-01-01T00:00:00.000Z',
+      User: { UsrID: 11, UsrName: 'account-a' },
+    };
+    const accountB = {
+      AccessTokenExpiration: '2030-01-01T00:00:00.000Z',
+      SsnID: 2,
+      User: { UsrID: 22, UsrName: 'account-b' },
+    };
+    useAuthStore.setState({
+      Session: accountA,
+      IsAuthenticated: true,
+      IsLoading: false,
+      IsReady: true,
+      Error: null,
+    });
+    jest.mocked(storage.getItem).mockResolvedValue(JSON.stringify(accountA));
+    let releaseRefresh!: (response: unknown) => void;
+    let signalRefresh!: () => void;
+    const refreshStarted = new Promise<void>((resolve) => {
+      signalRefresh = resolve;
+    });
+    const delayedRefresh = new Promise<unknown>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    jest.mocked(api.post).mockImplementation(((url: string) => {
+      if (url === '/Token/Refresh') {
+        signalRefresh();
+        return delayedRefresh;
+      }
+      if (url === '/Token')
+        return Promise.resolve({
+          data: { Succeeded: true, Message: null, Data: accountB },
+          headers: {},
+        });
+      return Promise.resolve({ data: { Succeeded: true }, headers: {} });
+    }) as never);
+    jest.mocked(api.get).mockResolvedValue({ data: { Data: 'csrf-b' } });
+
+    const pendingRefresh = useAuthStore.getState().ensureOnlineSession();
+    await refreshStarted;
+    await useAuthStore.getState().signIn('account-b', 'fictional-password');
+    releaseRefresh({
+      data: { Succeeded: true, Message: null, Data: accountA },
+      headers: {},
+    });
+
+    await expect(pendingRefresh).rejects.toThrow('La sesión cambió');
+    expect(useAuthStore.getState().Session).toEqual(accountB);
+    expect(useAuthStore.getState().IsAuthenticated).toBe(true);
+    expect(storage.setItem).toHaveBeenCalledWith(
+      'nova.auth.session',
+      JSON.stringify(accountB),
+    );
+    expect(storage.removeItem).not.toHaveBeenCalled();
+  });
+
   test('guarda la sesión renovada en el estado autenticado antes del sync', async () => {
     const renewedSession = {
       ...session,
