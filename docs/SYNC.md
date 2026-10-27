@@ -190,19 +190,31 @@ La caché también incluye los catálogos requeridos por visitas técnicas: camp
 asignaciones activas del supervisor autenticado; fuentes de agua de esos lotes; cultivos y variedades
 de esos lotes; insumos vinculados a objetivos activos de esos cultivos; plagas y relaciones con
 cultivos. Los catálogos se descargan como
-ReadOnly, y los lotes/fundos/fuentes/asignaciones se limitan en NovaApi al alcance actual del
-`PrsID`. Las relaciones de producto y plaga se limitan a los cultivos de esos lotes. Las definiciones
+ReadOnly. `GenCampaign` es global; fundos, lotes, fuentes y asignaciones activas se limitan en NovaApi
+al alcance actual del `PrsID`. Las relaciones de producto y plaga se limitan a los cultivos de esos
+lotes. Las definiciones
 y detalles ya se sincronizaban antes. No se replica `GenParameter`: los selectores web revisados no
 lo consumen. La caché migra a WatermelonDB schema v4 y solicita un bootstrap por alcance para traer
-los registros existentes.
+los registros existentes. La revisión local de bootstrap v4 solicita una descarga completa adicional
+para instalaciones que ya habían marcado la revisión previa; el merge conserva los cambios pendientes.
 
-La administración y el formulario de programación offline aún no están disponibles; corresponden a
-la siguiente fase. Esta entrega deja sincronizados los datos base, no crea todavía sus selectores.
+El filtro de estado de visita comparte la definición `OAG_TECHNICAL_VISIT_FILTER_STATUS` entre web y
+móvil. Sus abreviaturas estables (`all`, `pending`, `registered`) controlan el filtro; la app toma las
+descripciones desde `GenDefinitionDetail` sincronizado. El seed está en
+`Nova/scripts/data/oag-technical-visit-catalogs.sql`.
+
+La lista móvil permite crear, editar y eliminar programaciones localmente desde el NCrud. El formulario
+usa los catálogos descargados, asigna la programación al supervisor autenticado y no sincroniza al
+guardar; el Push central conserva el flujo idempotente y de conflictos. El filtro de supervisor se omite
+porque el servidor ya limita las programaciones por `PrsID`.
 
 Firmas y evidencias conservan sus URI locales pendientes mientras el dispositivo está offline. Antes
 del Push, la app los carga con `POST /GenFiles/upload` y `ROUTE_TECHNICAL_VISIT_FILES`, reemplaza la
-URI por el `FileId` administrado en el snapshot y envía la visita como agregado. Las cargas de archivo
-son llamadas separadas al Push JSON del agregado.
+URI por el `FileId` administrado solo en el payload enviado al servidor y envía la visita como agregado.
+No se modifica el registro WatermelonDB durante el callback: WatermelonDB compara el registro actual
+con la copia capturada antes del Push y solo limpia el estado local si ambos siguen iguales. Después
+de que el Push se confirma, la app aplica el agregado y la versión canónicos del servidor al registro
+local.
 
 La firma existente se obtiene mediante una petición autenticada de `api` y se conserva como imagen
 en `database.localStorage`, identificada por `FilID`. La caché pertenece al alcance de la base local
@@ -418,7 +430,7 @@ decisión offline reciente con una versión antigua del servidor.
 
 ### Recuperación de snapshots de visitas existentes
 
-La marca local `nova.sync.technicalVisitBootstrapScope.v2` fuerza un bootstrap una sola vez por
+La marca local `nova.sync.technicalVisitBootstrapScope.v4` fuerza un bootstrap una sola vez por
 alcance para recuperar snapshots que pudieron quedar incompletos en instalaciones anteriores.
 La descarga fusiona datos y conserva los cambios offline pendientes con el mecanismo normal de
 WatermelonDB. No reinicia la base local. El listado abre la visita mediante el `TviID` de su

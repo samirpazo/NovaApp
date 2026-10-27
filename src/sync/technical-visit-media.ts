@@ -65,23 +65,55 @@ export async function prepareTechnicalVisitMedia(
       changed = true;
     }
 
-    if (!changed) continue;
-    data.Snapshot = JSON.stringify(snapshot);
+    if (changed) data.Snapshot = JSON.stringify(snapshot);
+  }
+}
+
+export async function applyTechnicalVisitAcknowledgements(
+  acknowledgements: {
+    SyncId: string;
+    ExpectedSyncVersion: string;
+    Data: OagTechnicalVisit;
+  }[],
+): Promise<void> {
+  for (const acknowledgement of acknowledgements) {
     const records = await database
       .get<OagTechnicalVisitModel>(SYNC_RESOURCES.OagTechnicalVisit)
-      .query(Q.where('SyncId', change.SyncId))
+      .query(Q.where('SyncId', acknowledgement.SyncId))
       .fetch();
     const record = records[0];
-    if (!record)
-      throw new Error(
-        'No se encontró la visita local para guardar sus archivos.',
-      );
-    await database.write(() =>
-      record.update((model) => {
-        model.Snapshot = data.Snapshot;
-        model.TviSignatureFilID = snapshot.Visit.TviSignatureFilID as
-          number | null;
-      }),
-    );
+    if (
+      !record ||
+      record._raw._status !== 'synced' ||
+      record.SyncVersion !== acknowledgement.ExpectedSyncVersion
+    )
+      continue;
+
+    const entity = acknowledgement.Data;
+    await database.write(async () => {
+      const prepared = record.prepareUpdate((model) => {
+        model.SyncVersion = entity.SyncVersion;
+        model.SecStatus = entity.SecStatus;
+        model.CreateUserId = entity.CreateUserId;
+        model.UpdateUserId = entity.UpdateUserId;
+        model.DeleteUserId = entity.DeleteUserId;
+        model.CreateDate = entity.CreateDate;
+        model.UpdateDate = entity.UpdateDate;
+        model.DeleteDate = entity.DeleteDate;
+        model.TviID = entity.TviID;
+        model.TvsID = entity.TvsID;
+        model.TviPerformedDate = entity.TviPerformedDate;
+        model.TviDocumentSeries = entity.TviDocumentSeries ?? null;
+        model.TviDocumentNumber = entity.TviDocumentNumber ?? null;
+        model.TviLatitude = entity.TviLatitude ?? null;
+        model.TviLongitude = entity.TviLongitude ?? null;
+        model.TviObservation = entity.TviObservation ?? null;
+        model.TviSignatureFilID = entity.TviSignatureFilID ?? null;
+        model.Snapshot = entity.Snapshot;
+        model._raw._status = 'synced';
+        model._raw._changed = '';
+      });
+      await database.batch(prepared);
+    });
   }
 }

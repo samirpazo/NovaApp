@@ -1,5 +1,13 @@
 import { NField } from '@/components/forms/NField';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem as RNRSelectItem,
+  SelectTrigger,
+  SelectValue as RNRSelectValue,
+} from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { cn } from '@/lib/utils';
@@ -142,6 +150,19 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
   const displayText = selectedItems.length
     ? selectedItems.map(textOf).join(', ')
     : placeholder;
+  const useRNRSelect =
+    !searchable &&
+    !multiple &&
+    !returnObject &&
+    !clearable &&
+    items.every((item) => {
+      const optionValue = valueOf(item);
+      return (
+        typeof optionValue === 'string' ||
+        typeof optionValue === 'number' ||
+        typeof optionValue === 'boolean'
+      );
+    });
 
   return (
     <NField
@@ -152,137 +173,192 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
       disabled={disabled}
       className={containerClassName}
     >
-      <Pressable
-        accessibilityLabel={label}
-        accessibilityRole="button"
-        accessibilityState={{ disabled, expanded: open }}
-        disabled={disabled || loading}
-        onPress={() => setOpen(true)}
-        className={cn(
-          'h-8 flex-row items-center rounded-md border border-input bg-background px-2.5',
-          errorMessage && 'border-destructive',
-          (disabled || loading) && 'opacity-50',
-        )}
-      >
-        <Text
-          numberOfLines={1}
-          className={cn(
-            'flex-1 text-xs',
-            !selectedItems.length && 'text-muted-foreground',
-          )}
+      {useRNRSelect ? (
+        <Select
+          value={
+            activeValue == null
+              ? undefined
+              : { value: String(activeValue), label: displayText }
+          }
+          onValueChange={(option) => {
+            if (!option) return;
+            const item = items.find(
+              (entry) => String(valueOf(entry)) === option.value,
+            );
+            if (item) emit(valueOf(item));
+          }}
+          disabled={disabled || loading}
         >
-          {loading ? 'Cargando...' : displayText}
-        </Text>
-        {clearable && selectedItems.length ? (
-          <Pressable
-            accessibilityLabel={`Limpiar ${label ?? 'seleccion'}`}
-            hitSlop={8}
-            onPress={(event) => {
-              event.stopPropagation();
-              emit(multiple ? [] : null);
-            }}
+          <SelectTrigger
+            size="sm"
+            accessibilityLabel={label}
+            aria-invalid={Boolean(errorMessage)}
+            className={cn(
+              'h-9 w-full px-2.5 font-poppins text-xs sm:h-9',
+              errorMessage && 'border-destructive',
+              (disabled || loading) && 'opacity-50',
+            )}
           >
-            <X
-              size={14}
-              className="text-muted-foreground"
+            <RNRSelectValue
+              placeholder={loading ? 'Cargando...' : placeholder}
+              className="font-poppins text-xs"
             />
-          </Pressable>
-        ) : (
-          <ChevronDown
-            size={15}
-            className="text-muted-foreground"
-          />
-        )}
-      </Pressable>
-
-      <Modal
-        visible={open}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setOpen(false)}
-      >
-        <SafeAreaView
-          className="flex-1"
-          style={{ backgroundColor: dark ? '#171717' : '#ffffff' }}
-        >
-          <View
-            className="flex-row items-center border-b px-4 py-3"
-            style={{ borderColor: dark ? '#383838' : '#e5e5e5' }}
+          </SelectTrigger>
+          <SelectContent className="w-full">
+            <SelectGroup>
+              {items.map((item, index) => (
+                <RNRSelectItem
+                  key={`${String(valueOf(item))}-${index}`}
+                  value={String(valueOf(item))}
+                  label={textOf(item)}
+                >
+                  <Text className="text-xs">{textOf(item)}</Text>
+                </RNRSelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      ) : (
+        <>
+          <Pressable
+            accessibilityLabel={label}
+            accessibilityRole="button"
+            accessibilityState={{ disabled, expanded: open }}
+            disabled={disabled || loading}
+            onPress={() => setOpen(true)}
+            className={cn(
+              'h-8 flex-row items-center rounded-md border border-input bg-background px-2.5',
+              errorMessage && 'border-destructive',
+              (disabled || loading) && 'opacity-50',
+            )}
           >
             <Text
-              className={`flex-1 text-base font-semibold ${dark ? 'text-zinc-50' : 'text-zinc-900'}`}
+              numberOfLines={1}
+              className={cn(
+                'flex-1 text-xs',
+                !selectedItems.length && 'text-muted-foreground',
+              )}
             >
-              {label ?? 'Seleccionar'}
+              {loading ? 'Cargando...' : displayText}
             </Text>
-            <Pressable
-              className="h-9 w-9 items-center justify-center"
-              onPress={() => setOpen(false)}
-              accessibilityLabel="Cerrar"
+            {clearable && selectedItems.length ? (
+              <Pressable
+                accessibilityLabel={`Limpiar ${label ?? 'seleccion'}`}
+                hitSlop={8}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  emit(multiple ? [] : null);
+                }}
+              >
+                <X
+                  size={14}
+                  className="text-muted-foreground"
+                />
+              </Pressable>
+            ) : (
+              <ChevronDown
+                size={15}
+                className="text-muted-foreground"
+              />
+            )}
+          </Pressable>
+
+          <Modal
+            visible={open}
+            animationType="slide"
+            presentationStyle="fullScreen"
+            onRequestClose={() => setOpen(false)}
+          >
+            <SafeAreaView
+              className="flex-1"
+              style={{
+                backgroundColor: dark ? '#171717' : '#ffffff',
+                minHeight: '100%',
+                width: '100%',
+              }}
             >
-              <X
-                size={20}
-                color={dark ? '#fafafa' : '#171717'}
-              />
-            </Pressable>
-          </View>
-          {searchable ? (
-            <View className="relative mx-4 my-3 justify-center">
-              <Search
-                size={18}
-                className="absolute left-3 z-10 text-muted-foreground"
-              />
-              <Input
-                value={search}
-                onChangeText={setSearch}
-                placeholder={searchPlaceholder}
-                className="pl-10"
-                autoFocus
-                style={{
-                  color: dark ? '#fafafa' : '#171717',
-                  backgroundColor: dark ? '#090909' : '#ffffff',
+              <View
+                className="flex-row items-center border-b px-4 py-3"
+                style={{ borderColor: dark ? '#383838' : '#e5e5e5' }}
+              >
+                <Text
+                  className={`flex-1 text-base font-semibold ${dark ? 'text-zinc-50' : 'text-zinc-900'}`}
+                >
+                  {label ?? 'Seleccionar'}
+                </Text>
+                <Pressable
+                  className="h-9 w-9 items-center justify-center"
+                  onPress={() => setOpen(false)}
+                  accessibilityLabel="Cerrar"
+                >
+                  <X
+                    size={20}
+                    color={dark ? '#fafafa' : '#171717'}
+                  />
+                </Pressable>
+              </View>
+              {searchable ? (
+                <View className="relative mx-4 my-3 justify-center">
+                  <Search
+                    size={18}
+                    className="absolute left-3 z-10 text-muted-foreground"
+                  />
+                  <Input
+                    value={search}
+                    onChangeText={setSearch}
+                    placeholder={searchPlaceholder}
+                    className="pl-10"
+                    autoFocus
+                    style={{
+                      color: dark ? '#fafafa' : '#171717',
+                      backgroundColor: dark ? '#090909' : '#ffffff',
+                    }}
+                  />
+                </View>
+              ) : null}
+              <FlatList
+                data={[...filteredItems]}
+                keyExtractor={(item, index) =>
+                  `${String(valueOf(item))}-${index}`
+                }
+                keyboardShouldPersistTaps="handled"
+                contentContainerClassName="px-4 py-2"
+                ListEmptyComponent={
+                  <Text
+                    className={`py-10 text-center ${dark ? 'text-zinc-400' : 'text-zinc-500'}`}
+                  >
+                    {noResultsText}
+                  </Text>
+                }
+                renderItem={({ item }) => {
+                  const selected = selectedValues.some(
+                    (entry) => String(entry) === String(valueOf(item)),
+                  );
+                  return (
+                    <Pressable
+                      onPress={() => select(item)}
+                      className="min-h-12 flex-row items-center border-b py-3"
+                      style={{ borderColor: dark ? '#383838' : '#e5e5e5' }}
+                    >
+                      <Text
+                        className={`flex-1 text-sm ${dark ? 'text-zinc-50' : 'text-zinc-900'}`}
+                      >
+                        {textOf(item)}
+                      </Text>
+                      {selected ? (
+                        <Check
+                          size={19}
+                          className="text-primary"
+                        />
+                      ) : null}
+                    </Pressable>
+                  );
                 }}
               />
-            </View>
-          ) : null}
-          <FlatList
-            data={[...filteredItems]}
-            keyExtractor={(item, index) => `${String(valueOf(item))}-${index}`}
-            keyboardShouldPersistTaps="handled"
-            contentContainerClassName="px-4 py-2"
-            ListEmptyComponent={
-              <Text
-                className={`py-10 text-center ${dark ? 'text-zinc-400' : 'text-zinc-500'}`}
-              >
-                {noResultsText}
-              </Text>
-            }
-            renderItem={({ item }) => {
-              const selected = selectedValues.some(
-                (entry) => String(entry) === String(valueOf(item)),
-              );
-              return (
-                <Pressable
-                  onPress={() => select(item)}
-                  className="min-h-12 flex-row items-center border-b py-3"
-                  style={{ borderColor: dark ? '#383838' : '#e5e5e5' }}
-                >
-                  <Text
-                    className={`flex-1 text-sm ${dark ? 'text-zinc-50' : 'text-zinc-900'}`}
-                  >
-                    {textOf(item)}
-                  </Text>
-                  {selected ? (
-                    <Check
-                      size={19}
-                      className="text-primary"
-                    />
-                  ) : null}
-                </Pressable>
-              );
-            }}
-          />
-        </SafeAreaView>
-      </Modal>
+            </SafeAreaView>
+          </Modal>
+        </>
+      )}
     </NField>
   );
 }

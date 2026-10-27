@@ -12,9 +12,11 @@ import * as React from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   Pressable,
   View,
+  useWindowDimensions,
 } from 'react-native';
 
 import {
@@ -88,6 +90,12 @@ export function NCrudToolbar<T extends NCrudRow>({
   tools,
 }: NCrudToolbarProps<T>) {
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [menuPosition, setMenuPosition] = React.useState({
+    left: 12,
+    top: 120,
+  });
+  const menuTriggerRef = React.useRef<View>(null);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [executingActionId, setExecutingActionId] = React.useState<
     string | null
   >(null);
@@ -244,89 +252,128 @@ export function NCrudToolbar<T extends NCrudRow>({
   };
 
   const showSearch = config.search !== false && config.searchInput !== false;
+  const openActionMenu = () => {
+    if (Platform.OS === 'web') {
+      setMenuOpen((value) => !value);
+      return;
+    }
+    menuTriggerRef.current?.measureInWindow((x, y, _width, height) => {
+      setMenuPosition({
+        left: Math.max(8, Math.min(x, windowWidth - 216)),
+        top: Math.max(8, Math.min(y + height + 4, windowHeight - 180)),
+      });
+      setMenuOpen(true);
+    });
+  };
 
   return (
-    <View
-      className={cn(
-        'gap-3 border-b border-border/60 bg-muted/60 px-3',
-        isMobile ? 'py-3' : 'h-11 flex-row items-center py-1',
-      )}
-    >
-      <View className="min-w-0 flex-1 flex-row items-center gap-2">
-        {isFormActive && !busy && onBack ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onPress={onBack}
-            accessibilityLabel="Volver"
-          >
-            <ArrowLeft size={16} />
-          </Button>
-        ) : null}
-        <Text className="font-poppins-bold text-[11px] uppercase tracking-[2px]">
-          {title}
-        </Text>
-      </View>
-
-      {!isFormActive ? (
-        <View
-          className={cn('flex-row items-center gap-2', isMobile && 'w-full')}
-        >
-          {config.showSelectionInfo && selectedRows.length > 0 ? (
-            <Text className="text-xs text-muted-foreground">
-              {selectedRows.length} seleccionada
-              {selectedRows.length === 1 ? '' : 's'}
-            </Text>
+    <>
+      <View
+        className={cn(
+          'gap-3 border-b border-border/60 bg-muted/60 px-3',
+          isMobile ? 'py-3' : 'h-11 flex-row items-center py-1',
+        )}
+      >
+        <View className="min-w-0 flex-1 flex-row items-center gap-2">
+          {isFormActive && !busy && onBack ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onPress={onBack}
+              accessibilityLabel="Volver"
+            >
+              <ArrowLeft size={16} />
+            </Button>
           ) : null}
-
-          {isMobile && actions.length > 0 ? (
-            <View className="relative z-50">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Acciones"
-                disabled={busy}
-                onPress={() => setMenuOpen((value) => !value)}
-                className="h-8 flex-row items-center gap-2 rounded-lg border border-border/20 bg-background/40 px-3"
-              >
-                <Text className="font-poppins-bold text-[9px] uppercase tracking-[1.5px] text-muted-foreground">
-                  Acciones
-                </Text>
-                <ChevronDown size={14} />
-              </Pressable>
-              {menuOpen ? (
-                <View className="absolute left-0 top-10 z-50 w-52 overflow-hidden rounded-lg border border-border bg-card py-1 shadow-lg">
-                  {actions.map((action) => renderAction(action, true))}
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-
-          {!isMobile ? (
-            <View className="flex-row items-center gap-1">
-              {actions.map((action) => renderAction(action))}
-            </View>
-          ) : null}
-
-          {tools}
-
-          {showSearch ? (
-            <View className="relative min-w-0 flex-1 md:w-72 md:flex-none">
-              <Search
-                className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-muted-foreground"
-                size={16}
-              />
-              <Input
-                value={searchText}
-                editable={!busy}
-                onChangeText={onSearch}
-                placeholder={searchPlaceholder}
-                className="h-8 pl-9 text-xs"
-              />
-            </View>
-          ) : null}
+          <Text className="font-poppins-bold text-[11px] uppercase tracking-[2px]">
+            {title}
+          </Text>
         </View>
+
+        {!isFormActive ? (
+          <View
+            className={cn('flex-row items-center gap-2', isMobile && 'w-full')}
+          >
+            {config.showSelectionInfo && selectedRows.length > 0 ? (
+              <Text className="text-xs text-muted-foreground">
+                {selectedRows.length} seleccionada
+                {selectedRows.length === 1 ? '' : 's'}
+              </Text>
+            ) : null}
+
+            {isMobile && actions.length > 0 ? (
+              <View className="relative z-50">
+                <Pressable
+                  ref={menuTriggerRef}
+                  accessibilityRole="button"
+                  accessibilityLabel="Acciones"
+                  disabled={busy}
+                  onPress={openActionMenu}
+                  className="h-8 flex-row items-center gap-2 rounded-lg border border-border/20 bg-background/40 px-3"
+                >
+                  <Text className="font-poppins-bold text-[9px] uppercase tracking-[1.5px] text-muted-foreground">
+                    Acciones
+                  </Text>
+                  <ChevronDown size={14} />
+                </Pressable>
+                {menuOpen && Platform.OS === 'web' ? (
+                  <View className="absolute left-0 top-10 z-50 w-52 overflow-hidden rounded-lg border border-border bg-card py-1 shadow-lg">
+                    {actions.map((action) => renderAction(action, true))}
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
+            {!isMobile ? (
+              <View className="flex-row items-center gap-1">
+                {actions.map((action) => renderAction(action))}
+              </View>
+            ) : null}
+
+            {tools}
+
+            {showSearch ? (
+              <View className="relative min-w-0 flex-1 md:w-72 md:flex-none">
+                <Search
+                  className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-muted-foreground"
+                  size={16}
+                />
+                <Input
+                  value={searchText}
+                  editable={!busy}
+                  onChangeText={onSearch}
+                  placeholder={searchPlaceholder}
+                  className="h-8 pl-9 text-xs"
+                />
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+      {Platform.OS !== 'web' ? (
+        <Modal
+          transparent
+          visible={menuOpen}
+          animationType="fade"
+          presentationStyle="overFullScreen"
+          onRequestClose={() => setMenuOpen(false)}
+        >
+          <View className="flex-1">
+            <Pressable
+              accessibilityLabel="Cerrar acciones"
+              className="absolute inset-0"
+              onPress={() => setMenuOpen(false)}
+            />
+            <View
+              style={{ position: 'absolute', ...menuPosition }}
+              className="w-52 overflow-hidden rounded-lg border border-border bg-card py-1 shadow-lg"
+            >
+              {actions.map((action) => renderAction(action, true))}
+            </View>
+          </View>
+        </Modal>
       ) : null}
-    </View>
+    </>
   );
 }

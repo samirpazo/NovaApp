@@ -59,7 +59,8 @@ Antes de crear o rediseñar una pantalla, consultar `PRODUCT.md` para las decisi
 con Nova Web están bajo `.agents/skills/`; aplicar sus reglas de producto y adaptación móvil, pero no
 trasladar literalmente patrones exclusivos de DOM o Next.js.
 
-- `NText`, `NSelect` y `NDate` para campos;
+- `NText`, `NSelect`, `NSelectDefinition` y `NDate` para campos; `NSelectDefinition` observa
+  `GenDefinitionDetail` local y actualiza sus opciones al sincronizar;
 - `NSwitch` para booleanos con tamaño consistente entre web y nativo;
 - `NFormPanel` para encabezado, cierre, contenido y acciones de un formulario CRUD;
 - `NCrud` para componer filtros, formulario, listado, selección, ordenamiento y paginación. El

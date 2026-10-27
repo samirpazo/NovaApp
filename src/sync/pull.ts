@@ -40,12 +40,15 @@ import {
 import { type PullResult, useSyncState } from '@/sync/state';
 import { classifySyncFailure, reportSyncTelemetry } from '@/sync/telemetry';
 import { initialPullCursor } from '@/sync/pull-options';
-import { prepareTechnicalVisitMedia } from '@/sync/technical-visit-media';
+import {
+  applyTechnicalVisitAcknowledgements,
+  prepareTechnicalVisitMedia,
+} from '@/sync/technical-visit-media';
 
 const ACTIVE_SCOPE_KEY = localStorageKey<string>('nova.sync.activeScope');
 const LAST_PULL_KEY = localStorageKey<PullResult>('nova.sync.lastPull');
 const TECHNICAL_VISIT_BOOTSTRAP_SCOPE_KEY = localStorageKey<string>(
-  'nova.sync.technicalVisitBootstrapScope.v3',
+  'nova.sync.technicalVisitBootstrapScope.v4',
 );
 const MAX_PULL_PAGES = 10_000;
 
@@ -175,7 +178,10 @@ function pushChangesFrom({ changes }: SyncPushArgs): SyncPushChange[] {
   return result;
 }
 
-async function prepareScope(connection: SyncConnection, personId: number): Promise<void> {
+async function prepareScope(
+  connection: SyncConnection,
+  personId: number,
+): Promise<void> {
   const nextScope = scopeFor(connection, personId);
   const activeScope = await database.localStorage.get(ACTIVE_SCOPE_KEY);
   if (activeScope && activeScope !== nextScope) {
@@ -263,7 +269,13 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
     let uploaded = 0;
     let pages = 0;
     let finalCursor = 0;
-    let bootstrapRequested = (options.forceBootstrap ?? false) || bootstrapTechnicalVisits;
+    let bootstrapRequested =
+      (options.forceBootstrap ?? false) || bootstrapTechnicalVisits;
+    const acknowledgedTechnicalVisits: {
+      SyncId: string;
+      ExpectedSyncVersion: string;
+      Data: SyncEntityMap['OagTechnicalVisit'];
+    }[] = [];
 
     const pullChanges = async ({ lastPulledAt }: { lastPulledAt?: number }) => {
       const changes = createChangeSet();
@@ -356,6 +368,25 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
             failed.Message || `No se pudo sincronizar ${failed.Resource}.`,
           );
         for (const result of envelope.Data.Results) {
+          if (
+            result.Resource !== SYNC_RESOURCES.OagTechnicalVisit ||
+            result.Status !== 'Applied' ||
+            !result.Data
+          )
+            continue;
+          const pushedChange = changes.find(
+            (change) =>
+              change.Resource === result.Resource &&
+              change.SyncId === result.SyncId,
+          );
+          if (!pushedChange) continue;
+          acknowledgedTechnicalVisits.push({
+            SyncId: result.SyncId,
+            ExpectedSyncVersion: pushedChange.SyncVersion ?? '',
+            Data: result.Data,
+          });
+        }
+        for (const result of envelope.Data.Results) {
           const conflict = conflictForChange(storedConflicts, {
             Resource: result.Resource,
             SyncId: result.SyncId,
@@ -420,6 +451,7 @@ async function executePull(options: PullNovaOptions): Promise<PullResult> {
       pullChanges,
       pushChanges,
     });
+    await applyTechnicalVisitAcknowledgements(acknowledgedTechnicalVisits);
     await database.localStorage.set(
       TECHNICAL_VISIT_BOOTSTRAP_SCOPE_KEY,
       currentScope,

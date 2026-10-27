@@ -7,13 +7,16 @@ import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 import { useAuthStore } from '@/auth/store';
 import { NCrud, type NCrudColumn, type NCrudRow } from '@/components/crud';
-import { NDate, NSelect } from '@/components/forms';
+import { NDate, NSelect, NSelectDefinition, NText } from '@/components/forms';
 import { Text } from '@/components/ui/text';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import {
   database,
   OagTechnicalVisitModel,
   OagTechnicalVisitScheduleModel,
+  GenCampaignModel,
+  OagFruitFarmModel,
+  OagPlotFarmModel,
 } from '@/database';
 import { DateTime } from 'luxon';
 import { formatters } from '@/lib/formatter';
@@ -47,8 +50,17 @@ interface TechnicalVisitScheduleRow extends NCrudRow {
   PlfName: string | null;
   CmpName: string | null;
   TvsObservation: string | null;
-  VisitStatus: string;
+  VisitStatus: 'Sin registrar' | 'Registrado';
 }
+
+type ScheduleDraft = {
+  PlfID: number | null;
+  CmpID: number | null;
+  TvsScheduledDate: string;
+  TvsObservation: string;
+  TvsVisitType: number;
+  id?: string;
+};
 
 const columns: NCrudColumn<TechnicalVisitScheduleRow>[] = [
   { key: 'TvsID', title: 'ID', width: 64, align: 'right' },
@@ -94,30 +106,53 @@ export default function TechnicalVisitsScreen() {
   const [visits, setVisits] = React.useState<OagTechnicalVisitModel[]>([]);
   const [dateFrom, setDateFrom] = React.useState('');
   const [dateTo, setDateTo] = React.useState('');
-  const [visitStatus, setVisitStatus] = React.useState('');
+  const [visitStatus, setVisitStatus] = React.useState<
+    'all' | 'pending' | 'registered'
+  >('all');
+  const [campaigns, setCampaigns] = React.useState<GenCampaignModel[]>([]);
+  const [plots, setPlots] = React.useState<OagPlotFarmModel[]>([]);
+  const [farms, setFarms] = React.useState<OagFruitFarmModel[]>([]);
+  const [scheduleDraft, setScheduleDraft] =
+    React.useState<ScheduleDraft | null>(null);
 
   const refresh = React.useCallback(async () => {
     const personId = user?.PrsID ?? 0;
-    const [scheduleRows, visitRows] = await Promise.all([
-      personId > 0
-        ? database
-            .get<OagTechnicalVisitScheduleModel>(
-              SYNC_RESOURCES.OagTechnicalVisitSchedule,
-            )
-            .query(
-              Q.where('SecStatus', true),
-              Q.where('TvsResponsiblePrsID', personId),
-              Q.sortBy('TvsID', Q.asc),
-            )
-            .fetch()
-        : Promise.resolve([]),
-      database
-        .get<OagTechnicalVisitModel>(SYNC_RESOURCES.OagTechnicalVisit)
-        .query(Q.where('SecStatus', true))
-        .fetch(),
-    ]);
+    const [scheduleRows, visitRows, campaignRows, plotRows, farmRows] =
+      await Promise.all([
+        personId > 0
+          ? database
+              .get<OagTechnicalVisitScheduleModel>(
+                SYNC_RESOURCES.OagTechnicalVisitSchedule,
+              )
+              .query(
+                Q.where('SecStatus', true),
+                Q.where('TvsResponsiblePrsID', personId),
+                Q.sortBy('TvsID', Q.asc),
+              )
+              .fetch()
+          : Promise.resolve([]),
+        database
+          .get<OagTechnicalVisitModel>(SYNC_RESOURCES.OagTechnicalVisit)
+          .query(Q.where('SecStatus', true))
+          .fetch(),
+        database
+          .get<GenCampaignModel>(SYNC_RESOURCES.GenCampaign)
+          .query(Q.where('SecStatus', true), Q.sortBy('CmpName', Q.asc))
+          .fetch(),
+        database
+          .get<OagPlotFarmModel>(SYNC_RESOURCES.OagPlotFarm)
+          .query(Q.where('SecStatus', true), Q.sortBy('PlfName', Q.asc))
+          .fetch(),
+        database
+          .get<OagFruitFarmModel>(SYNC_RESOURCES.OagFruitFarm)
+          .query(Q.where('SecStatus', true))
+          .fetch(),
+      ]);
     setSchedules(scheduleRows);
     setVisits(visitRows);
+    setCampaigns(campaignRows);
+    setPlots(plotRows);
+    setFarms(farmRows);
   }, [user?.PrsID]);
 
   useFocusEffect(
@@ -249,12 +284,9 @@ export default function TechnicalVisitsScreen() {
       PlfName: schedule.PlfName,
       CmpName: schedule.CmpName,
       TvsObservation: schedule.TvsObservation,
-      VisitStatus: visit
-        ? visit.TviID > 0
+      VisitStatus:
+        (visit?.TviID ?? schedule.TviID ?? 0) > 0
           ? 'Registrado'
-          : 'Borrador local'
-        : schedule.TviID != null && schedule.TviID > 0
-          ? 'Pendiente de descargar'
           : 'Sin registrar',
     };
   });
@@ -288,6 +320,138 @@ export default function TechnicalVisitsScreen() {
     },
   ];
 
+  const campaignOptions = campaigns.map((campaign) => ({
+    label: campaign.CmpName,
+    value: campaign.CmpID,
+  }));
+  const plotOptions = plots.map((plot) => ({
+    label: `${plot.PlfName} · ${farms.find((farm) => farm.FrfID === plot.FrfID)?.FrfName ?? 'Fundo'}`,
+    value: plot.PlfID,
+  }));
+  const updateDraft = (value: Partial<ScheduleDraft>) =>
+    setScheduleDraft((current) =>
+      current ? { ...current, ...value } : current,
+    );
+  const openNewSchedule = () =>
+    setScheduleDraft({
+      PlfID: null,
+      CmpID: null,
+      TvsScheduledDate: DateTime.local().toISODate() ?? '',
+      TvsObservation: '',
+      TvsVisitType: 0,
+    });
+  const openSchedule = (row: TechnicalVisitScheduleRow) =>
+    setScheduleDraft({
+      id: row.id,
+      PlfID: schedules.find((item) => item.id === row.id)?.PlfID ?? null,
+      CmpID: schedules.find((item) => item.id === row.id)?.CmpID ?? null,
+      TvsScheduledDate: row.TvsScheduledDate,
+      TvsObservation: row.TvsObservation ?? '',
+      TvsVisitType:
+        schedules.find((item) => item.id === row.id)?.TvsVisitType ?? 0,
+    });
+  const saveSchedule = async () => {
+    const personId = user?.PrsID ?? 0;
+    if (
+      !scheduleDraft?.PlfID ||
+      !scheduleDraft.CmpID ||
+      !scheduleDraft.TvsScheduledDate ||
+      personId <= 0
+    ) {
+      Alert.alert(
+        'Completa la programación',
+        'Selecciona lote, campaña y fecha. Se requiere una cuenta vinculada a un supervisor.',
+      );
+      return false;
+    }
+    const plot = plots.find((item) => item.PlfID === scheduleDraft.PlfID);
+    const campaign = campaigns.find(
+      (item) => item.CmpID === scheduleDraft.CmpID,
+    );
+    if (!plot || !campaign) {
+      Alert.alert(
+        'Catálogos no disponibles',
+        'Sincroniza los datos base de visitas técnicas y vuelve a intentarlo.',
+      );
+      return false;
+    }
+    const now = DateTime.utc().toISO() ?? '';
+    const ownerId = user?.UsrID ?? 0;
+    const existing = scheduleDraft.id
+      ? (schedules.find((item) => item.id === scheduleDraft.id) ?? null)
+      : null;
+    await database.write(async () => {
+      if (existing) {
+        await existing.update((record) => {
+          record.PlfID = plot.PlfID;
+          record.CmpID = campaign.CmpID;
+          record.TvsScheduledDate = scheduleDraft.TvsScheduledDate;
+          record.TvsResponsiblePrsID = personId;
+          record.TvsObservation = scheduleDraft.TvsObservation || null;
+          record.TvsVisitType = scheduleDraft.TvsVisitType;
+          record.PlfName = plot.PlfName;
+          record.FrfName =
+            farms.find((farm) => farm.FrfID === plot.FrfID)?.FrfName ?? null;
+          record.CmpName = campaign.CmpName;
+          record.ResponsibleName = user?.FullName ?? user?.UsrName ?? null;
+          record.UpdateUserId = ownerId;
+          record.UpdateDate = now;
+        });
+      } else {
+        const syncId = randomUUID();
+        await database
+          .get<OagTechnicalVisitScheduleModel>(
+            SYNC_RESOURCES.OagTechnicalVisitSchedule,
+          )
+          .create((record) => {
+            record._raw.id = syncId;
+            record.SyncId = syncId;
+            record.SyncVersion = '';
+            record.SecStatus = true;
+            record.CreateUserId = ownerId;
+            record.UpdateUserId = ownerId;
+            record.DeleteUserId = null;
+            record.CreateDate = now;
+            record.UpdateDate = now;
+            record.DeleteDate = null;
+            record.TvsID = -Math.floor(Date.now());
+            record.PlfID = plot.PlfID;
+            record.CmpID = campaign.CmpID;
+            record.TvsScheduledDate = scheduleDraft.TvsScheduledDate;
+            record.TvsResponsiblePrsID = personId;
+            record.TvsVisitType = scheduleDraft.TvsVisitType;
+            record.TvsObservation = scheduleDraft.TvsObservation || null;
+            record.PlfName = plot.PlfName;
+            record.FrfName =
+              farms.find((farm) => farm.FrfID === plot.FrfID)?.FrfName ?? null;
+            record.CmpName = campaign.CmpName;
+            record.ProducerName = null;
+            record.ResponsibleName = user?.FullName ?? user?.UsrName ?? null;
+          });
+      }
+    });
+    setScheduleDraft(null);
+    await refresh();
+    return true;
+  };
+  const removeSchedule = async (row: TechnicalVisitScheduleRow) => {
+    const schedule = schedules.find((item) => item.id === row.id);
+    if (!schedule) return;
+    const visit = visits.find(
+      (item) => item.TvsID === schedule.TvsID && item.SecStatus,
+    );
+    if (visit)
+      throw new Error(
+        'No se puede eliminar una programación que ya tiene una visita.',
+      );
+    await database.write(async () => {
+      if (schedule.syncStatus === 'created')
+        await schedule.destroyPermanently();
+      else await schedule.markAsDeleted();
+    });
+    await refresh();
+  };
+
   const filteredRows = rows.filter((row) => {
     const scheduledAt = DateTime.fromISO(row.TvsScheduledDate, {
       setZone: true,
@@ -301,7 +465,9 @@ export default function TechnicalVisitsScreen() {
     return (
       (!from || scheduledAt >= from) &&
       (!to || scheduledAt <= to) &&
-      (!visitStatus || row.VisitStatus === visitStatus)
+      (visitStatus === 'all' ||
+        (visitStatus === 'registered' && row.VisitStatus === 'Registrado') ||
+        (visitStatus === 'pending' && row.VisitStatus === 'Sin registrar'))
     );
   });
 
@@ -313,6 +479,68 @@ export default function TechnicalVisitsScreen() {
       <NCrud
         title="Programación de visitas técnicas"
         offline={{ resource: SYNC_RESOURCES.OagTechnicalVisitSchedule }}
+        add
+        edit
+        remove
+        authorization={{ optCode: 'OAG_TECHNICAL_VISIT' }}
+        onAdd={openNewSchedule}
+        onEdit={openSchedule}
+        onDelete={removeSchedule}
+        form={{
+          addTitle: 'Nueva programación de visitas técnicas',
+          editTitle: 'Editar programación de visitas técnicas',
+          description:
+            'Guarda la programación en este dispositivo para sincronizarla después.',
+          submitLabel: 'Guardar localmente',
+          onClose: () => setScheduleDraft(null),
+          onSubmit: saveSchedule,
+          render: () =>
+            scheduleDraft ? (
+              <View className="gap-3">
+                <NSelect
+                  label="Lote"
+                  items={plotOptions}
+                  value={scheduleDraft.PlfID}
+                  onChange={(value) =>
+                    updateDraft({ PlfID: value == null ? null : Number(value) })
+                  }
+                  placeholder="Seleccionar lote..."
+                  searchable
+                  required
+                />
+                <NSelect
+                  label="Campaña"
+                  items={campaignOptions}
+                  value={scheduleDraft.CmpID}
+                  onChange={(value) =>
+                    updateDraft({ CmpID: value == null ? null : Number(value) })
+                  }
+                  placeholder="Seleccionar campaña..."
+                  searchable
+                  required
+                />
+                <NDate
+                  label="Fecha"
+                  value={scheduleDraft.TvsScheduledDate}
+                  onChange={(value) => updateDraft({ TvsScheduledDate: value })}
+                  required
+                />
+                <NText
+                  label="Observación"
+                  value={scheduleDraft.TvsObservation}
+                  onChange={(value) => updateDraft({ TvsObservation: value })}
+                  multiline
+                  numberOfLines={3}
+                />
+                {!plotOptions.length || !campaignOptions.length ? (
+                  <Text className="text-xs text-warning">
+                    Faltan lotes o campañas descargados. Sincroniza los datos
+                    base para completar la programación.
+                  </Text>
+                ) : null}
+              </View>
+            ) : null,
+        }}
         rows={filteredRows}
         columns={visitColumns}
         search={false}
@@ -333,30 +561,33 @@ export default function TechnicalVisitsScreen() {
               clearable
               containerClassName="flex-1"
             />
-            <NSelect
+            <NSelectDefinition
               label="Estado visita"
-              items={[
-                'Todos',
-                'Sin registrar',
-                'Borrador local',
-                'Registrado',
-                'Pendiente de descargar',
-              ]}
-              value={visitStatus || 'Todos'}
-              onChange={(value) =>
-                setVisitStatus(value === 'Todos' ? '' : String(value))
-              }
+              defCode="OAG_TECHNICAL_VISIT_FILTER_STATUS"
+              itemText="DedDescription"
+              itemValue="DedAbbreviation"
+              value={visitStatus}
+              onChange={(value) => {
+                if (
+                  value === 'all' ||
+                  value === 'pending' ||
+                  value === 'registered'
+                )
+                  setVisitStatus(value);
+              }}
               containerClassName="flex-1"
             />
           </View>
         }
         filterActiveCount={
-          [dateFrom, dateTo, visitStatus].filter(Boolean).length
+          [dateFrom, dateTo, visitStatus !== 'all' ? visitStatus : ''].filter(
+            Boolean,
+          ).length
         }
         onResetFilters={() => {
           setDateFrom('');
           setDateTo('');
-          setVisitStatus('');
+          setVisitStatus('all');
         }}
       />
       <Pressable

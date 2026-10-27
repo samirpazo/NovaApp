@@ -2,11 +2,12 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import { DateTime } from 'luxon';
-import { Calendar, X } from 'lucide-react-native';
+import { Calendar as CalendarIcon, X } from 'lucide-react-native';
 import * as React from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { Modal, Platform, Pressable, View } from 'react-native';
 
 import { NField } from '@/components/forms/NField';
+import { Calendar } from '@/components/ui/calendar';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 
@@ -62,6 +63,7 @@ export function NDate({
   const [pickerMode, setPickerMode] = React.useState<'date' | 'time' | null>(
     null,
   );
+  const [calendarOpen, setCalendarOpen] = React.useState(false);
   const activeValue = controlled ? value : internalValue;
   const selectedDate = parseValue(activeValue, mode);
 
@@ -98,16 +100,24 @@ export function NDate({
       <Pressable
         accessibilityLabel={label}
         accessibilityRole="button"
+        accessibilityState={{
+          disabled,
+          expanded: calendarOpen || pickerMode !== null,
+        }}
         disabled={disabled}
-        onPress={() => setPickerMode(mode === 'time' ? 'time' : 'date')}
+        onPress={() =>
+          mode === 'date'
+            ? setCalendarOpen(true)
+            : setPickerMode(mode === 'time' ? 'time' : 'date')
+        }
         className={cn(
-          'h-10 flex-row items-center rounded-md border border-input bg-background px-3',
+          `${mode === 'date' ? 'h-9 sm:h-9' : 'h-10'} flex-row items-center rounded-md border border-input bg-background px-2.5`,
           errorMessage && 'border-destructive',
           disabled && 'opacity-50',
         )}
       >
-        <Calendar
-          size={18}
+        <CalendarIcon
+          size={16}
           className="mr-2 text-muted-foreground"
         />
         <Text
@@ -136,6 +146,31 @@ export function NDate({
           </Pressable>
         ) : null}
       </Pressable>
+      {mode === 'date' ? (
+        <Modal
+          transparent
+          visible={calendarOpen}
+          animationType="fade"
+          onRequestClose={() => setCalendarOpen(false)}
+        >
+          <View className="flex-1 items-center justify-center px-4">
+            <Pressable
+              accessibilityLabel="Cerrar calendario"
+              className="absolute inset-0 bg-black/40"
+              onPress={() => setCalendarOpen(false)}
+            />
+            <Calendar
+              value={activeValue ? selectedDate.toFormat('yyyy-LL-dd') : null}
+              minDate={minDate}
+              maxDate={maxDate}
+              onSelect={(date) => {
+                emit(DateTime.fromISO(date));
+                setCalendarOpen(false);
+              }}
+            />
+          </View>
+        </Modal>
+      ) : null}
       {pickerMode ? (
         <View
           className={
