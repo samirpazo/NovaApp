@@ -4,7 +4,7 @@ import { DateTime } from 'luxon';
 import * as React from 'react';
 import { View } from 'react-native';
 
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Text } from '@/components/ui/text';
 import {
   filterResourceConflicts,
@@ -80,7 +80,7 @@ export function NCrudOfflineSummary({ resource }: { resource: SyncResource }) {
       </View>
       <View className="flex-row items-center gap-2">
         {conflicts.length ? (
-          <Button
+          <NButton
             variant="outline"
             className="h-8 px-3"
             onPress={() => router.push('/conflicts')}
@@ -90,9 +90,9 @@ export function NCrudOfflineSummary({ resource }: { resource: SyncResource }) {
               className="text-warning"
             />
             <Text className="text-xs">Resolver {conflicts.length}</Text>
-          </Button>
+          </NButton>
         ) : null}
-        <Button
+        <NButton
           variant={error ? 'destructive' : 'outline'}
           className="h-8 px-3"
           disabled={syncing}
@@ -102,7 +102,7 @@ export function NCrudOfflineSummary({ resource }: { resource: SyncResource }) {
           <Text className="text-xs">
             {syncing ? 'Sincronizando…' : error ? 'Reintentar' : 'Sincronizar'}
           </Text>
-        </Button>
+        </NButton>
       </View>
     </View>
   );

@@ -27,7 +27,7 @@ import { z } from 'zod';
 
 import { useAuthStore } from '@/auth';
 import { FormNText } from '@/components/forms';
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 
@@ -379,7 +379,7 @@ export default function LoginScreen() {
                           </View>
                         ) : null}
 
-                        <Button
+                        <NButton
                           size="lg"
                           className={`justify-between rounded-[9px] border border-[#0024db] bg-[#002aff] px-[17px] ${wideLayout ? 'h-[51px]' : 'h-[52px]'}`}
                           style={styles.submitShadow}
@@ -396,7 +396,7 @@ export default function LoginScreen() {
                               color="white"
                             />
                           ) : null}
-                        </Button>
+                        </NButton>
                       </View>
 
                       <View

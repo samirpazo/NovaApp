@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Text } from '@/components/ui/text';
 import { getSyncConflicts, useSyncConflictState } from '@/sync';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -45,7 +45,7 @@ export default function ConflictsTab() {
           </View>
         </View>
       ) : (
-        <Button
+        <NButton
           className="min-h-14 justify-start gap-2.5 px-3 py-2.5"
           variant="outline"
           onPress={() => router.push('/conflict-resolution')}
@@ -68,7 +68,7 @@ export default function ConflictsTab() {
             size={17}
             className="text-muted-foreground"
           />
-        </Button>
+        </NButton>
       )}
     </ScrollView>
   );

@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Text } from '@/components/ui/text';
 import { X } from 'lucide-react-native';
 import type { PropsWithChildren, ReactNode } from 'react';
@@ -29,7 +29,7 @@ export function NFormPanel({
             </Text>
           ) : null}
         </View>
-        <Button
+        <NButton
           className="h-7 w-7"
           variant="ghost"
           size="icon"
@@ -40,7 +40,7 @@ export function NFormPanel({
             size={14}
             className="text-muted-foreground"
           />
-        </Button>
+        </NButton>
       </View>
       {children}
       {footer ? (

@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Text } from '@/components/ui/text';
 import { signatureExportViewBox } from '@/components/forms/signature-export';
 import type { PickedFile } from '@/lib/fileService';
@@ -116,13 +116,13 @@ export function NSignature({
 
   return (
     <>
-      <Button
+      <NButton
         variant="outline"
         disabled={disabled}
         onPress={() => setVisible(true)}
       >
         <Text>{hasSignature ? 'Reemplazar firma' : 'Firmar en pantalla'}</Text>
-      </Button>
+      </NButton>
       <Modal
         visible={visible}
         animationType="slide"
@@ -133,7 +133,7 @@ export function NSignature({
             <Text className="text-xl font-poppins-semibold">
               Firma del productor
             </Text>
-            <Button
+            <NButton
               variant="ghost"
               size="icon"
               accessibilityLabel="Cerrar"
@@ -143,7 +143,7 @@ export function NSignature({
                 size={20}
                 className="text-foreground"
               />
-            </Button>
+            </NButton>
           </View>
           <Text className="text-sm text-muted-foreground">
             Firma dentro del recuadro con el dedo.
@@ -179,7 +179,7 @@ export function NSignature({
             </Svg>
           </View>
           <View className="flex-row justify-between gap-3">
-            <Button
+            <NButton
               variant="outline"
               disabled={!strokes.length || saving}
               onPress={() => {
@@ -192,8 +192,8 @@ export function NSignature({
                 className="text-foreground"
               />
               <Text>Borrar trazo</Text>
-            </Button>
-            <Button
+            </NButton>
+            <NButton
               disabled={!hasStroke || saving}
               onPress={() => void save()}
             >
@@ -202,7 +202,7 @@ export function NSignature({
                 className="text-primary-foreground"
               />
               <Text>{saving ? 'Guardando…' : 'Usar firma'}</Text>
-            </Button>
+            </NButton>
           </View>
         </View>
       </Modal>

@@ -149,13 +149,30 @@ async function performRefresh(): Promise<boolean> {
 export function getApiErrorMessage(error: unknown): string {
   if (error instanceof AxiosError) {
     const data = error.response?.data;
-    if (
-      data &&
-      typeof data === 'object' &&
-      'Message' in data &&
-      typeof data.Message === 'string'
-    ) {
-      return data.Message;
+    if (data && typeof data === 'object') {
+      const body = data as Record<string, unknown>;
+      for (const key of ['Message', 'message', 'detail']) {
+        const message = body[key];
+        if (typeof message === 'string' && message.trim()) return message;
+      }
+      const errors = body.errors;
+      if (Array.isArray(errors)) {
+        for (const item of errors) {
+          if (!item || typeof item !== 'object') continue;
+          const detail = item as Record<string, unknown>;
+          for (const key of ['Detail', 'detail', 'Message', 'message']) {
+            const message = detail[key];
+            if (typeof message === 'string' && message.trim()) return message;
+          }
+        }
+      } else if (errors && typeof errors === 'object') {
+        for (const messages of Object.values(errors)) {
+          if (Array.isArray(messages) && typeof messages[0] === 'string')
+            return messages[0];
+        }
+      }
+      if (typeof body.title === 'string' && body.title.trim())
+        return body.title;
     }
     if (error.code === 'ECONNABORTED')
       return 'La conexión con Nova agotó el tiempo de espera.';

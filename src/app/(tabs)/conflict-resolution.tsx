@@ -11,7 +11,7 @@ import * as React from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Card } from '@/components/ui/card';
 import { ConflictComparison } from '@/components/sync/conflict-comparison';
 import { Text } from '@/components/ui/text';
@@ -121,7 +121,7 @@ export default function ConflictsScreen() {
     <SafeAreaView className="flex-1 bg-background">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-4xl gap-3 pb-24 pt-4">
         <View className="flex-row items-center gap-2">
-          <Button
+          <NButton
             variant="ghost"
             size="icon"
             className="h-8 w-8"
@@ -132,7 +132,7 @@ export default function ConflictsScreen() {
               size={18}
               className="text-foreground"
             />
-          </Button>
+          </NButton>
           <View className="min-w-0 flex-1">
             <Text className="text-lg font-poppins-semibold">
               Resolver conflictos
@@ -142,7 +142,7 @@ export default function ConflictsScreen() {
               pendiente{conflicts.length === 1 ? '' : 's'}
             </Text>
           </View>
-          <Button
+          <NButton
             variant="ghost"
             size="icon"
             className="h-8 w-8"
@@ -153,7 +153,7 @@ export default function ConflictsScreen() {
               size={17}
               className="text-foreground"
             />
-          </Button>
+          </NButton>
         </View>
 
         {error ? (
@@ -237,7 +237,7 @@ export default function ConflictsScreen() {
                 </View>
 
                 <View className="gap-3 border-t border-border bg-muted/20 p-4 md:flex-row">
-                  <Button
+                  <NButton
                     className="min-h-10 flex-1 px-3 py-2"
                     variant="outline"
                     disabled={busyKey === key}
@@ -252,8 +252,8 @@ export default function ConflictsScreen() {
                       />
                     )}
                     <Text className="text-sm">Usar versión del servidor</Text>
-                  </Button>
-                  <Button
+                  </NButton>
+                  <NButton
                     className="min-h-10 flex-1 px-3 py-2"
                     disabled={busyKey === key}
                     onPress={() => void resolveWithLocal(conflict)}
@@ -270,7 +270,7 @@ export default function ConflictsScreen() {
                       />
                     )}
                     <Text className="text-sm">Mantener mi cambio</Text>
-                  </Button>
+                  </NButton>
                 </View>
               </Card>
             );

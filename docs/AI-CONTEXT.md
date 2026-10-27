@@ -61,6 +61,8 @@ trasladar literalmente patrones exclusivos de DOM o Next.js.
 
 - `NText`, `NSelect`, `NSelectDefinition` y `NDate` para campos; `NSelectDefinition` observa
   `GenDefinitionDetail` local y actualiza sus opciones al sincronizar;
+- `NButton` desde `@/components/forms` para acciones; admite variantes semánticas, tamaños y estado
+  de carga, con altura predeterminada de 32 px;
 - `NSwitch` para booleanos con tamaño consistente entre web y nativo;
 - `NFormPanel` para encabezado, cierre, contenido y acciones de un formulario CRUD;
 - `NCrud` para componer filtros, formulario, listado, selección, ordenamiento y paginación. El
@@ -69,6 +71,22 @@ trasladar literalmente patrones exclusivos de DOM o Next.js.
 
 La escala estándar es control de 32 px, texto de 12 px y label de 11 px. Una pantalla puede declarar
 una variante mayor por una razón concreta, como el login, pero no debe cambiar los defaults globales.
+
+### Mapa de componentes reutilizables
+
+| Componente | Uso | Implementación |
+|---|---|---|
+| `NButton` | Acciones con variantes, tamaños y estado de carga | `src/components/forms/NButton.tsx` |
+| `NText`, `NDate`, `NSelect`, `NSelectDefinition`, `NSwitch` | Campos de formularios | `src/components/forms/` |
+| `NField`, `FormField`, `NFormPanel` | Labels, validación y paneles de formulario | `src/components/forms/` |
+| `NCrud` | CRUD offline con filtros, formulario, acciones y paginación | `src/components/crud/offline-crud.tsx` |
+| `NCrudTable` | Tabla responsive genérica usada por `NCrud` | `src/components/crud/n-crud-table.tsx` |
+| `NCrudDataSource` | Lectura paginada/filtrada desde una fuente | `src/components/crud/contracts.ts` |
+| `NSignature` | Captura y reemplazo de firma | `src/components/forms/NSignature.tsx` |
+
+La app no tiene un componente independiente llamado `NTable`: las pantallas estándar usan
+`NCrudTable` dentro de `NCrud`. Antes de agregar variantes o props, leer los tipos de la
+implementación; no copiar APIs de Nova Web si la implementación nativa tiene otro contrato.
 
 ## Invariantes que no se deben romper
 

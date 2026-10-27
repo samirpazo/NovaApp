@@ -5,6 +5,7 @@ import { SYNC_RESOURCES, type SyncPushChange } from '@/contracts/sync';
 import type { OagTechnicalVisit } from '@/contracts/entities/operationsagr';
 import { database, OagTechnicalVisitModel } from '@/database';
 import { uploadManagedFile, type PickedFile } from '@/lib/fileService';
+import { normalizeTechnicalVisitTemporaryIds } from '@/sync/technical-visit-temp-ids';
 
 type PendingFile = PickedFile;
 type VisitSnapshot = {
@@ -25,9 +26,11 @@ export async function prepareTechnicalVisitMedia(
       continue;
     if (!change.Data) continue;
     const data = change.Data as OagTechnicalVisit;
+    const ids = new Map<number, number>();
+    let changed = normalizeTechnicalVisitTemporaryIds(data, ids);
     const raw = data.Snapshot;
     const snapshot = JSON.parse(raw) as VisitSnapshot;
-    let changed = false;
+    changed = normalizeTechnicalVisitTemporaryIds(snapshot, ids) || changed;
 
     if (snapshot.PendingSignatureFile) {
       const pendingSignature = snapshot.PendingSignatureFile;

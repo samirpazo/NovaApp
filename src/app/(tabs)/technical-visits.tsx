@@ -22,6 +22,7 @@ import { DateTime } from 'luxon';
 import { formatters } from '@/lib/formatter';
 import { useSyncState } from '@/sync/state';
 import { scheduledTechnicalVisit } from '@/lib/technical-visit-validation';
+import { createTechnicalVisitTemporaryId } from '@/sync/technical-visit-temp-ids';
 
 type VisitSnapshot = {
   Visit: Record<string, unknown>;
@@ -191,7 +192,7 @@ export default function TechnicalVisitsScreen() {
         return;
       }
       const syncId = randomUUID();
-      const temporaryId = -Math.floor(Date.now());
+      const temporaryId = createTechnicalVisitTemporaryId();
       const now = DateTime.utc().toISO() ?? '';
       const ownerId = user?.UsrID ?? 0;
       const snapshot: VisitSnapshot = {
@@ -414,7 +415,7 @@ export default function TechnicalVisitsScreen() {
             record.CreateDate = now;
             record.UpdateDate = now;
             record.DeleteDate = null;
-            record.TvsID = -Math.floor(Date.now());
+            record.TvsID = createTechnicalVisitTemporaryId();
             record.PlfID = plot.PlfID;
             record.CmpID = campaign.CmpID;
             record.TvsScheduledDate = scheduleDraft.TvsScheduledDate;

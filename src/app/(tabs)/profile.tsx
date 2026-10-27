@@ -1,5 +1,5 @@
 import { useAuthStore } from '@/auth';
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { useRouter } from 'expo-router';
@@ -149,7 +149,7 @@ export default function ProfileTab() {
 
       <View className="gap-2">
         <Text variant="small">Preferencias</Text>
-        <Button
+        <NButton
           className="h-10 justify-start px-3"
           variant="outline"
           onPress={() => router.push('/appearance')}
@@ -165,10 +165,10 @@ export default function ProfileTab() {
             size={16}
             className="text-muted-foreground"
           />
-        </Button>
+        </NButton>
       </View>
 
-      <Button
+      <NButton
         className="h-10"
         variant="ghost"
         onPress={confirmLogout}
@@ -178,7 +178,7 @@ export default function ProfileTab() {
           className="text-destructive"
         />
         <Text className="text-destructive">Cerrar sesión</Text>
-      </Button>
+      </NButton>
     </ScrollView>
   );
 }

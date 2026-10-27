@@ -34,7 +34,7 @@ import {
 import { NCrudToolbar } from '@/components/crud/n-crud-toolbar';
 import { useNCrudController } from '@/components/crud/use-ncrud-controller';
 import { NFormPanel } from '@/components/forms';
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Text } from '@/components/ui/text';
 import { useOptionPermissions } from '@/features/security/options';
 import { useSyncConflictState } from '@/sync/conflicts';
@@ -348,7 +348,7 @@ export function NCrud<
           <>
             {form.footer?.(formContext)}
             <View className="flex-1 items-end">
-              <Button
+              <NButton
                 className="h-8 px-3"
                 disabled={formContext.pending}
                 onPress={() => void submitForm()}
@@ -362,7 +362,7 @@ export function NCrud<
                     ? 'Guardando...'
                     : (form.submitLabel ?? 'Guardar localmente')}
                 </Text>
-              </Button>
+              </NButton>
             </View>
           </>
         }
@@ -417,7 +417,7 @@ export function NCrud<
         tools={
           <View className="flex-row items-center gap-1">
             {compact && extraFilters ? (
-              <Button
+              <NButton
                 variant="ghost"
                 size="icon"
                 className="relative h-8 w-8"
@@ -432,7 +432,7 @@ export function NCrud<
                     </Text>
                   </View>
                 ) : null}
-              </Button>
+              </NButton>
             ) : null}
           </View>
         }

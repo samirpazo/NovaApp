@@ -11,7 +11,7 @@ import { Alert, Platform, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/auth';
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { formatters } from '@/lib/formatter';
@@ -177,7 +177,7 @@ export default function SyncScreen() {
               </Text>
             </View>
           </View>
-          <Button
+          <NButton
             className="h-9"
             disabled={!ready || sync.Status === 'syncing'}
             onPress={() => void synchronize()}
@@ -189,8 +189,8 @@ export default function SyncScreen() {
             <Text>
               {sync.Status === 'syncing' ? 'Sincronizando...' : 'Sincronizar'}
             </Text>
-          </Button>
-          <Button
+          </NButton>
+          <NButton
             variant="outline"
             className="h-9"
             disabled={!ready || sync.Status === 'syncing'}
@@ -201,7 +201,7 @@ export default function SyncScreen() {
               className="text-foreground"
             />
             <Text>Recuperar datos del servidor</Text>
-          </Button>
+          </NButton>
           <Text variant="caption">
             Acción técnica: vuelve a descargar el estado completo y conserva
             cambios offline pendientes.
@@ -262,7 +262,7 @@ export default function SyncScreen() {
           </Text>
         ) : null}
 
-        <Button
+        <NButton
           variant="outline"
           className="h-12 justify-start px-3"
           onPress={() => router.push('/conflict-resolution')}
@@ -281,7 +281,7 @@ export default function SyncScreen() {
             size={16}
             className="text-muted-foreground"
           />
-        </Button>
+        </NButton>
 
         <Card className="p-3">
           <Text

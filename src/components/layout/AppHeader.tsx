@@ -1,5 +1,5 @@
 import { useAuthStore } from '@/auth';
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Text } from '@/components/ui/text';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { getLastPull, pullNova, useSyncState } from '@/sync';
@@ -109,7 +109,7 @@ export function AppHeader({ pendingChanges, sceneGutter }: AppHeaderProps) {
         </View>
         <ThemeToggle darkForeground={darkForeground} />
         <View className="relative">
-          <Button
+          <NButton
             variant="ghost"
             size="icon"
             className="h-8 w-8"
@@ -128,7 +128,7 @@ export function AppHeader({ pendingChanges, sceneGutter }: AppHeaderProps) {
               }
               style={sync.Status === 'syncing' ? { opacity: 0.55 } : undefined}
             />
-          </Button>
+          </NButton>
           {pending ? (
             <View className="absolute -right-1 -top-1 min-w-4 items-center rounded-full bg-warning px-1">
               <Text className="text-[8px] leading-4 text-zinc-950">

@@ -15,7 +15,7 @@ import * as React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import {
@@ -174,7 +174,7 @@ export default function AppearanceScreen() {
     <SafeAreaView className="flex-1 bg-background">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-5xl gap-4 pb-20 pt-3">
         <View className="flex-row items-center gap-2">
-          <Button
+          <NButton
             className="h-8 w-8"
             variant="ghost"
             size="icon"
@@ -185,7 +185,7 @@ export default function AppearanceScreen() {
               size={17}
               className="text-foreground"
             />
-          </Button>
+          </NButton>
           <View>
             <Text className="font-poppins-semibold text-lg">
               Personalización
@@ -280,7 +280,7 @@ export default function AppearanceScreen() {
           />
         </View>
         <View className="items-end">
-          <Button
+          <NButton
             onPress={save}
             disabled={saving}
           >
@@ -289,7 +289,7 @@ export default function AppearanceScreen() {
               className="text-primary-foreground"
             />
             <Text>{saving ? 'Guardando...' : 'Guardar preferencias'}</Text>
-          </Button>
+          </NButton>
         </View>
       </ScrollView>
       {message ? (

@@ -6,7 +6,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 
 import { useAuthStore } from '@/auth/store';
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { NText } from '@/components/forms/NText';
 import { NDate } from '@/components/forms/NDate';
 import { NSignature } from '@/components/forms/NSignature';
@@ -44,6 +44,7 @@ import {
 import { Image } from 'expo-image';
 import { loadManagedImage } from '@/lib/managed-image';
 import { useSyncState } from '@/sync/state';
+import { createTechnicalVisitTemporaryId } from '@/sync/technical-visit-temp-ids';
 import {
   TechnicalVisitSections,
   VisitSectionHeading,
@@ -879,7 +880,7 @@ export default function TechnicalVisitDetailScreen() {
     if (!file) return;
     const now = DateTime.utc().toISO() ?? '';
     const ownerId = userId;
-    const primaryId = -Math.floor(Date.now());
+    const primaryId = createTechnicalVisitTemporaryId();
     const evidence = {
       SyncId: randomUUID(),
       SyncVersion: '',
@@ -1015,7 +1016,7 @@ export default function TechnicalVisitDetailScreen() {
     const rows = snapshot[activeSection.key] as TechnicalVisitSnapshotRow[];
     const primaryId = editingRow
       ? editingRow[activeSection.id]
-      : -Date.now() - rows.length;
+      : createTechnicalVisitTemporaryId();
     const base = editingRow ?? {
       SyncId: randomUUID(),
       SyncVersion: '',
@@ -1144,7 +1145,8 @@ export default function TechnicalVisitDetailScreen() {
       UpdateDate: now,
       DeleteDate: null,
       [key === 'Phenology' ? 'TphID' : 'TinID']:
-        existing?.[key === 'Phenology' ? 'TphID' : 'TinID'] ?? -Date.now(),
+        existing?.[key === 'Phenology' ? 'TphID' : 'TinID'] ??
+        createTechnicalVisitTemporaryId(),
       TviID: model.TviID,
       [stageKey]: option.value,
       [field]: field === 'TphPercentage' ? Number(value) : value,
@@ -1196,7 +1198,7 @@ export default function TechnicalVisitDetailScreen() {
       contentContainerClassName="mx-auto w-full max-w-7xl gap-4 px-3 py-3 pb-24 md:gap-6 md:px-4 md:py-5 md:pb-28"
     >
       <View className="flex-row items-center gap-3">
-        <Button
+        <NButton
           size="icon"
           variant="ghost"
           accessibilityLabel="Volver a programaciones"
@@ -1206,7 +1208,7 @@ export default function TechnicalVisitDetailScreen() {
             size={20}
             className="text-foreground"
           />
-        </Button>
+        </NButton>
         <View className="flex-1">
           <Text className="text-xl font-poppins-semibold">
             Editar visita técnica
@@ -1419,6 +1421,9 @@ export default function TechnicalVisitDetailScreen() {
             containerClassName="min-w-0 flex-1"
           />
           <View className="min-w-0 flex-1 gap-3">
+            <Text className="text-xs text-muted-foreground">
+              Firma del productor (opcional)
+            </Text>
             <View
               className={`h-40 items-center justify-center overflow-hidden rounded-xl border border-border ${signatureUri ? 'bg-white' : 'bg-muted/40'}`}
             >
@@ -1445,7 +1450,7 @@ export default function TechnicalVisitDetailScreen() {
           </View>
         </View>
         <View className="items-end border-t border-border pt-4">
-          <Button
+          <NButton
             disabled={saving}
             onPress={() => void save()}
           >
@@ -1454,7 +1459,7 @@ export default function TechnicalVisitDetailScreen() {
               className="text-primary-foreground"
             />
             <Text>{saving ? 'Guardando…' : 'Guardar cambios'}</Text>
-          </Button>
+          </NButton>
           <Text
             role={saveFeedback?.error ? 'alert' : undefined}
             className={`mt-2 text-xs ${saveFeedback?.error ? 'text-destructive' : 'text-muted-foreground'}`}
@@ -1482,7 +1487,7 @@ export default function TechnicalVisitDetailScreen() {
                 {editingRow ? 'Editar ' : 'Agregar '}
                 {activeSection?.label}
               </Text>
-              <Button
+              <NButton
                 variant="ghost"
                 size="icon"
                 accessibilityLabel="Cerrar formulario"
@@ -1492,7 +1497,7 @@ export default function TechnicalVisitDetailScreen() {
                   size={18}
                   className="text-muted-foreground"
                 />
-              </Button>
+              </NButton>
             </View>
             {activeSection?.fields.map((field) => {
               const selectedSupplyId = Number(
@@ -1613,13 +1618,13 @@ export default function TechnicalVisitDetailScreen() {
               );
             })}
             <View className="flex-row justify-end gap-3 border-t border-border pt-3">
-              <Button
+              <NButton
                 variant="outline"
                 onPress={() => setActiveSection(null)}
               >
                 <Text>Cancelar</Text>
-              </Button>
-              <Button onPress={() => void saveSectionRow()}>
+              </NButton>
+              <NButton onPress={() => void saveSectionRow()}>
                 <Save
                   size={16}
                   className="text-primary-foreground"
@@ -1627,7 +1632,7 @@ export default function TechnicalVisitDetailScreen() {
                 <Text>
                   {editingRow ? 'Aplicar cambios' : 'Agregar al borrador'}
                 </Text>
-              </Button>
+              </NButton>
             </View>
           </ScrollView>
         </View>

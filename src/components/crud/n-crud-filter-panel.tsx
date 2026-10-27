@@ -3,7 +3,7 @@ import { View } from 'react-native';
 
 import type { NCrudColumn, NCrudRow } from '@/components/crud/contracts';
 import { NText } from '@/components/forms';
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Text } from '@/components/ui/text';
 
 export interface NCrudFilterPanelProps<T extends NCrudRow> {
@@ -28,13 +28,13 @@ export function NCrudFilterPanel<T extends NCrudRow>({
         <Text className="text-[10px] font-bold uppercase tracking-[1.5px] text-muted-foreground">
           Filtros
         </Text>
-        <Button
+        <NButton
           variant="ghost"
           className="h-7 px-2"
           onPress={onReset}
         >
           <Text className="text-[10px]">Restablecer filtros</Text>
-        </Button>
+        </NButton>
       </View>
       {searchable.length ? (
         <View className="gap-3 md:flex-row md:flex-wrap">

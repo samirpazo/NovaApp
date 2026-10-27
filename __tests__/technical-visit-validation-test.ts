@@ -168,14 +168,12 @@ describe('technical visit validation', () => {
     expect(validateTechnicalVisitSnapshot(completeSnapshot())).toBeNull();
   });
 
-  it('requires a new or existing producer signature before saving', () => {
+  it('allows saving without a producer signature', () => {
     const value = completeSnapshot();
     value.PendingSignatureFile = undefined;
     value.Visit.TviSignatureFilID = null;
 
-    expect(validateTechnicalVisitSnapshot(value)).toBe(
-      'La firma del productor es obligatoria.',
-    );
+    expect(validateTechnicalVisitSnapshot(value)).toBeNull();
   });
 
   it('requires coherent application dates and a target for supplies', () => {

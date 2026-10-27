@@ -33,6 +33,10 @@ Cada registro tiene dos identidades con objetivos distintos:
 | `SyncId` UUID | `683861b3-...`               | Cliente que crea | Permanente                             |
 | ID entero     | `DefID=-1`, luego `DefID=91` | Servidor         | Temporal negativo, definitivo positivo |
 
+Al crear localmente, los IDs temporales negativos deben permanecer dentro del rango `Int32` que
+usan los contratos del servidor. El callback de Push también normaliza IDs temporales antiguos que
+se hayan guardado fuera de ese rango, conservando las referencias repetidas del snapshot.
+
 Al crear localmente:
 
 ```ts

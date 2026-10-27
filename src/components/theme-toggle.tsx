@@ -1,7 +1,7 @@
 import { LoaderCircle, Monitor, Moon, Sun } from 'lucide-react-native';
 import * as React from 'react';
 
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import {
   getNextThemeMode,
   resolveThemeMode,
@@ -41,7 +41,7 @@ export function ThemeToggle({
   };
 
   return (
-    <Button
+    <NButton
       variant="ghost"
       size="icon"
       className={`h-8 w-8 ${darkForeground ? 'active:bg-black/10' : 'active:bg-white/15'}`}
@@ -70,6 +70,6 @@ export function ThemeToggle({
           className={foregroundClass}
         />
       )}
-    </Button>
+    </NButton>
   );
 }

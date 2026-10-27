@@ -17,7 +17,7 @@ import { View } from 'react-native';
 
 import { NSwitch } from '@/components/forms/NSwitch';
 import { NText } from '@/components/forms/NText';
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Text } from '@/components/ui/text';
 import { managedFilePreviewUrl } from '@/lib/fileService';
 import { formatters } from '@/lib/formatter';
@@ -162,7 +162,7 @@ export function VisitSectionHeading({
 
 function AddButton({ label, onPress }: { label: string; onPress: () => void }) {
   return (
-    <Button
+    <NButton
       className="h-8 px-3"
       onPress={onPress}
     >
@@ -171,7 +171,7 @@ function AddButton({ label, onPress }: { label: string; onPress: () => void }) {
         className="text-primary-foreground"
       />
       <Text>{label}</Text>
-    </Button>
+    </NButton>
   );
 }
 
@@ -187,7 +187,7 @@ function IconAction({
   danger?: boolean;
 }) {
   return (
-    <Button
+    <NButton
       variant="ghost"
       size="icon"
       className="h-7 w-7"
@@ -198,7 +198,7 @@ function IconAction({
         size={14}
         className={danger ? 'text-destructive' : 'text-primary'}
       />
-    </Button>
+    </NButton>
   );
 }
 
@@ -544,9 +544,9 @@ export function TechnicalVisitSections({
           title={detailsFor(application).map((detail) => textOf(detail.TadProductDescription) || textOf(detail.TadObservation) || 'Sin producto').join(', ') || 'Sin productos'}
           detail={`${dateTimeText(application.TapStartDateTime)} · ${optionText(options, 'OAG_FIELD_APPLICATION_MODE', application.TapApplicationMode, application.TapApplicationModeDescription)}`}
         />
-        <Button variant="ghost" className="h-6 self-start px-0" accessibilityLabel={`Ver productos de aplicación ${String(application.TapID)}`} onPress={() => setExpandedApplicationId((current) => current === Number(application.TapID) ? null : Number(application.TapID))}>
+        <NButton variant="ghost" className="h-6 self-start px-0" accessibilityLabel={`Ver productos de aplicación ${String(application.TapID)}`} onPress={() => setExpandedApplicationId((current) => current === Number(application.TapID) ? null : Number(application.TapID))}>
           <Text className="text-[10px] text-primary">{expandedApplicationId === Number(application.TapID) ? 'Ocultar productos' : `Ver productos (${detailsFor(application).length})`}</Text>
-        </Button>
+        </NButton>
       </View>,
     },
     {
@@ -864,7 +864,7 @@ export function TechnicalVisitSections({
           </View> : null}
         />
         {emptyApplications.length > 0 ? (
-          <Button
+          <NButton
             variant="outline"
             className="h-8 self-start px-3"
             onPress={() => setShowAllApplications((current) => !current)}
@@ -874,7 +874,7 @@ export function TechnicalVisitSections({
                 ? 'Ocultar aplicaciones sin productos'
                 : `Ver ${emptyApplications.length} aplicaciones sin productos`}
             </Text>
-          </Button>
+          </NButton>
         ) : null}
       </View>
 
@@ -1158,7 +1158,7 @@ export function TechnicalVisitSections({
                 <View className="flex-row flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-2">
                   {existing ? (
                     <>
-                      <Button
+                      <NButton
                         variant="outline"
                         className="h-8 px-3"
                         onPress={() =>
@@ -1170,7 +1170,7 @@ export function TechnicalVisitSections({
                           className="text-foreground"
                         />
                         <Text>Editar seguimiento</Text>
-                      </Button>
+                      </NButton>
                       <IconAction
                         label="Eliminar seguimiento"
                         icon={Trash2}
@@ -1181,7 +1181,7 @@ export function TechnicalVisitSections({
                       />
                     </>
                   ) : (
-                    <Button
+                    <NButton
                       className="h-8 px-3"
                       onPress={() =>
                         onAdd('RecommendationFollowUps', recommendation)
@@ -1192,7 +1192,7 @@ export function TechnicalVisitSections({
                         className="text-primary-foreground"
                       />
                       <Text>Agregar seguimiento</Text>
-                    </Button>
+                    </NButton>
                   )}
                 </View>
               </View>
@@ -1292,7 +1292,7 @@ export function TechnicalVisitSections({
                 <View className="flex-row flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-2">
                   {existing ? (
                     <>
-                      <Button
+                      <NButton
                         variant="outline"
                         className="h-8 px-3"
                         onPress={() =>
@@ -1304,7 +1304,7 @@ export function TechnicalVisitSections({
                           className="text-foreground"
                         />
                         <Text>Editar seguimiento</Text>
-                      </Button>
+                      </NButton>
                       <IconAction
                         label="Eliminar seguimiento"
                         icon={Trash2}
@@ -1315,7 +1315,7 @@ export function TechnicalVisitSections({
                       />
                     </>
                   ) : (
-                    <Button
+                    <NButton
                       className="h-8 px-3"
                       onPress={() =>
                         onAdd('CulturalActivityFollowUps', activity)
@@ -1326,7 +1326,7 @@ export function TechnicalVisitSections({
                         className="text-primary-foreground"
                       />
                       <Text>Agregar seguimiento</Text>
-                    </Button>
+                    </NButton>
                   )}
                 </View>
               </View>

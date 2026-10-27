@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import type { SecOption } from '@/contracts/security/SecOption';
@@ -215,7 +215,7 @@ export default function ModulesTab() {
       <View className="mx-auto w-full max-w-3xl gap-3 pb-2 pt-3">
         <View className="flex-row items-center justify-between">
           <Text className="font-poppins-semibold text-lg">Módulos</Text>
-          <Button
+          <NButton
             variant="ghost"
             size="icon"
             className="h-8 w-8"
@@ -226,7 +226,7 @@ export default function ModulesTab() {
               size={16}
               className="text-foreground"
             />
-          </Button>
+          </NButton>
         </View>
         <View className="relative justify-center">
           <Search

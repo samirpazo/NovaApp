@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { formatters } from '@/lib/formatter';
@@ -43,7 +43,7 @@ export default function SyncTab() {
             </Text>
           </View>
         </View>
-        <Button
+        <NButton
           className="h-9"
           disabled={sync.Status === 'syncing'}
           onPress={() => void synchronize()}
@@ -57,7 +57,7 @@ export default function SyncTab() {
               ? 'Sincronizando...'
               : 'Sincronizar ahora'}
           </Text>
-        </Button>
+        </NButton>
         {sync.Error ? (
           <Text className="text-sm text-destructive">{sync.Error}</Text>
         ) : null}
@@ -82,13 +82,13 @@ export default function SyncTab() {
           </View>
         </Card>
       ) : null}
-      <Button
+      <NButton
         className="h-9"
         variant="outline"
         onPress={() => router.push('/sync-details')}
       >
         <Text>Ver detalles técnicos</Text>
-      </Button>
+      </NButton>
     </ScrollView>
   );
 }

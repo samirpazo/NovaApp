@@ -28,7 +28,7 @@ import type {
   NCrudRow,
   NCrudToolbarConfig,
 } from '@/components/crud/contracts';
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
@@ -276,7 +276,7 @@ export function NCrudToolbar<T extends NCrudRow>({
       >
         <View className="min-w-0 flex-1 flex-row items-center gap-2">
           {isFormActive && !busy && onBack ? (
-            <Button
+            <NButton
               variant="ghost"
               size="icon"
               className="h-8 w-8"
@@ -284,7 +284,7 @@ export function NCrudToolbar<T extends NCrudRow>({
               accessibilityLabel="Volver"
             >
               <ArrowLeft size={16} />
-            </Button>
+            </NButton>
           ) : null}
           <Text className="font-poppins-bold text-[11px] uppercase tracking-[2px]">
             {title}

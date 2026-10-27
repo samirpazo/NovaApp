@@ -8,7 +8,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useAuthStore } from '@/auth';
 import { NCrud, type NCrudColumn } from '@/components/crud';
 import { NSelect, NSwitch, NText } from '@/components/forms';
-import { Button } from '@/components/ui/button';
+import { NButton } from '@/components/forms/NButton';
 import { Text } from '@/components/ui/text';
 import { SYNC_RESOURCES } from '@/contracts/sync';
 import {
@@ -268,14 +268,14 @@ export default function DefinitionDetailsScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View className="flex-row items-center gap-3">
-          <Button
+          <NButton
             variant="ghost"
             size="icon"
             onPress={() => router.replace('/definitions')}
             accessibilityLabel="Volver a definiciones"
           >
             <ArrowLeft size={20} />
-          </Button>
+          </NButton>
           <View className="min-w-0 flex-1">
             <Text variant="title">Valores de definición</Text>
             <Text variant="caption">GenDefinitionDetail · datos locales</Text>
@@ -362,7 +362,7 @@ export default function DefinitionDetailsScreen() {
                   />
                 </View>
                 <View className="flex-row items-center gap-3">
-                  <Button
+                  <NButton
                     variant="outline"
                     className="h-8 px-3"
                     disabled={uploading}
@@ -370,7 +370,7 @@ export default function DefinitionDetailsScreen() {
                   >
                     <Paperclip size={14} />
                     <Text className="text-xs">Adjuntar imagen</Text>
-                  </Button>
+                  </NButton>
                   <Text className="text-xs text-muted-foreground">
                     {draft.attachmentName ?? 'Sin archivo adjunto'}
                   </Text>

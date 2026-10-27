@@ -299,12 +299,6 @@ export function validateTechnicalVisitSnapshot(
     return 'La latitud debe estar entre -90 y 90.';
   if (longitude != null && (longitude < -180 || longitude > 180))
     return 'La longitud debe estar entre -180 y 180.';
-  if (
-    positiveValue(snapshot.Visit.TviSignatureFilID) == null &&
-    !snapshot.PendingSignatureFile
-  )
-    return 'La firma del productor es obligatoria.';
-
   const applications = activeRows(snapshot.Applications);
   for (const row of applications) {
     const error = validateApplication(row);
