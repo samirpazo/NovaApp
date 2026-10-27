@@ -176,6 +176,33 @@ describe('technical visit validation', () => {
     expect(validateTechnicalVisitSnapshot(value)).toBeNull();
   });
 
+  it('allows recommendations without producer instructions', () => {
+    const value = completeSnapshot();
+    value.Recommendations[0].TvrInstruction = '';
+
+    expect(validateTechnicalVisitSnapshot(value)).toBeNull();
+  });
+
+  it('allows catalog recommendations without a configured objective', () => {
+    const value = completeSnapshot();
+    value.Recommendations[0].TvrObjective = '';
+    delete value.Recommendations[0].FstID;
+
+    expect(validateTechnicalVisitSnapshot(value)).toBeNull();
+  });
+
+  it('still requires an objective for freeform recommendations', () => {
+    const value = completeSnapshot();
+    value.Recommendations[0].FrsID = null;
+    value.Recommendations[0].FstID = null;
+    value.Recommendations[0].TvrProductDescription = 'Producto observado';
+    value.Recommendations[0].TvrObjective = '';
+
+    expect(validateTechnicalVisitSnapshot(value)).toBe(
+      'Describe el objetivo de la recomendación.',
+    );
+  });
+
   it('requires coherent application dates and a target for supplies', () => {
     const value = completeSnapshot();
     value.Applications[0].TapEndDateTime =

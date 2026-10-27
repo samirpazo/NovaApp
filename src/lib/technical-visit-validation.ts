@@ -224,26 +224,21 @@ function validateActivity(row: TechnicalVisitSnapshotRow) {
 function validateRecommendation(row: TechnicalVisitSnapshotRow) {
   if (positiveValue(row.TvrRecommendationType) == null)
     return 'Selecciona el tipo de recomendación.';
-  if (!textValue(row.TvrObjective))
+  const supplyId = positiveValue(row.FrsID);
+  if (!supplyId && !textValue(row.TvrObjective))
     return 'Describe el objetivo de la recomendación.';
   if (textValue(row.TvrObjective).length > 500)
     return 'El objetivo de la recomendación no debe superar 500 caracteres.';
-  if (!textValue(row.TvrInstruction))
-    return 'Describe las indicaciones de la recomendación.';
   if (positiveValue(row.TvrDose) == null)
     return 'Indica una dosis mayor que cero.';
   if (positiveValue(row.TvrDoseUnit) == null)
     return 'Selecciona la unidad de dosis.';
   if (positiveValue(row.TvrSortOrder) == null)
     return 'Indica un orden mayor que cero.';
-  const supplyId = positiveValue(row.FrsID);
-  const targetId = positiveValue(row.FstID);
   if (!supplyId && !textValue(row.TvrProductDescription))
     return 'Selecciona un insumo o describe el producto recomendado.';
   if (textValue(row.TvrProductDescription).length > 500)
     return 'La descripción del producto no debe superar 500 caracteres.';
-  if (supplyId && !targetId)
-    return 'Selecciona el objetivo del insumo recomendado.';
   if (!supplyId && hasValue(row.FstID))
     return 'El modo observación no debe tener un objetivo de catálogo.';
   return null;
