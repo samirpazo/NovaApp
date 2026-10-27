@@ -11,6 +11,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
+import { signatureExportViewBox } from '@/components/forms/signature-export';
 import type { PickedFile } from '@/lib/fileService';
 
 const WIDTH = 720;
@@ -28,6 +29,7 @@ export function NSignature({
 }) {
   const [visible, setVisible] = React.useState(false);
   const [strokes, setStrokes] = React.useState<Stroke[]>([]);
+  const [viewBox, setViewBox] = React.useState(`0 0 ${WIDTH} ${HEIGHT}`);
   const [saving, setSaving] = React.useState(false);
   const svgRef = React.useRef<Svg>(null);
   const size = React.useRef({ width: 1, height: 1 });
@@ -79,6 +81,8 @@ export function NSignature({
     if (!hasStroke) return;
     setSaving(true);
     try {
+      setViewBox(signatureExportViewBox(strokes.map(({ d }) => d)));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const base64 = await new Promise<string>((resolve, reject) => {
         if (!svgRef.current) {
           reject(new Error('No se pudo preparar la firma.'));
@@ -99,6 +103,7 @@ export function NSignature({
       });
       setVisible(false);
       setStrokes([]);
+      setViewBox(`0 0 ${WIDTH} ${HEIGHT}`);
     } catch (error) {
       Alert.alert(
         'No se pudo guardar la firma',
@@ -158,7 +163,7 @@ export function NSignature({
               ref={svgRef}
               width="100%"
               height="100%"
-              viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+              viewBox={viewBox}
             >
               {strokes.map((stroke, index) => (
                 <Path
