@@ -3,11 +3,13 @@ import { z } from 'zod';
 
 export type TechnicalVisitSnapshotRow = Record<string, unknown>;
 
-const PendingFileSchema = z.object({
-  uri: z.string(),
-  name: z.string(),
-  mimeType: z.string().nullish(),
-}).passthrough();
+const PendingFileSchema = z
+  .object({
+    uri: z.string(),
+    name: z.string(),
+    mimeType: z.string().nullish(),
+  })
+  .passthrough();
 
 const SnapshotRowSchema = z.record(z.string(), z.unknown());
 
@@ -42,8 +44,7 @@ const activeRows = (rows: TechnicalVisitSnapshotRow[]) =>
   rows.filter((row) => row.SecStatus !== false);
 
 const numberValue = (value: unknown): number | null => {
-  if (typeof value === 'number')
-    return Number.isFinite(value) ? value : null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value === 'string' && value.trim() !== '') {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
@@ -95,11 +96,15 @@ function validateApplication(row: TechnicalVisitSnapshotRow) {
   if (end.toMillis() < start.toMillis())
     return 'La fecha y hora de fin deben ser posteriores al inicio.';
   if (
-    ['TapWaterLiters', 'TapFuelExpense', 'TapAppliedHectares', 'TapAppliedPlants']
-      .some((key) => {
-        const value = numberValue(row[key]);
-        return value != null && value < 0;
-      })
+    [
+      'TapWaterLiters',
+      'TapFuelExpense',
+      'TapAppliedHectares',
+      'TapAppliedPlants',
+    ].some((key) => {
+      const value = numberValue(row[key]);
+      return value != null && value < 0;
+    })
   )
     return 'Los valores de la aplicación no pueden ser negativos.';
   return null;
@@ -128,13 +133,10 @@ function validateApplicationDetail(
     return 'Describe el producto o la observación.';
   const isObservation = row.TadIsObservation === true;
   const supplyId = positiveValue(row.TadFrsID);
-  const targetId = positiveValue(row.TadFstID);
   if (isObservation && supplyId)
     return 'Una observación no debe tener un insumo relacionado.';
   if (!isObservation && !supplyId)
     return 'Selecciona el insumo relacionado con el producto.';
-  if (!isObservation && !targetId)
-    return 'Selecciona el objetivo del insumo relacionado.';
   return null;
 }
 
@@ -161,8 +163,7 @@ function validateActivity(row: TechnicalVisitSnapshotRow) {
   const start = dateValue(row.TvaStartDate);
   const end = dateValue(row.TvaEndDate);
   if (type == null) return 'Selecciona el tipo de labor.';
-  if (!start || !end)
-    return 'Completa las fechas de inicio y fin de la labor.';
+  if (!start || !end) return 'Completa las fechas de inicio y fin de la labor.';
   if (end.toMillis() < start.toMillis())
     return 'La fecha de fin de la labor debe ser posterior al inicio.';
   const pairs: [string, string][] = [
@@ -213,10 +214,7 @@ function validateActivity(row: TechnicalVisitSnapshotRow) {
     return 'La cantidad de árboles podados solo corresponde a la poda.';
   if (type !== 3 && hasValue(row.TvaWeedingType))
     return 'El tipo de deshierbo solo corresponde a esa labor.';
-  if (
-    type !== 4 &&
-    (hasValue(row.TvaTrapType) || hasValue(row.TvaTrapCount))
-  )
+  if (type !== 4 && (hasValue(row.TvaTrapType) || hasValue(row.TvaTrapCount)))
     return 'Los datos de trampas solo corresponden a esa labor.';
   return null;
 }
@@ -271,10 +269,7 @@ function validateEvidence(row: TechnicalVisitSnapshotRow) {
   return null;
 }
 
-function hasDuplicate(
-  rows: TechnicalVisitSnapshotRow[],
-  key: string,
-) {
+function hasDuplicate(rows: TechnicalVisitSnapshotRow[], key: string) {
   const values = activeRows(rows)
     .map((row) => numberValue(row[key]))
     .filter((value): value is number => value != null);
@@ -418,10 +413,17 @@ export function validateTechnicalVisitSectionRow(
   return null;
 }
 
-export function scheduledTechnicalVisit<T extends { TvsID: number; TviID: number }>(
+export function scheduledTechnicalVisit<
+  T extends { TvsID: number; TviID: number },
+>(
   schedule: { TvsID: number; TviID?: number | null },
   visits: readonly T[],
 ): T | undefined {
-  return visits.find((visit) => visit.TvsID === schedule.TvsID &&
-    (schedule.TviID == null || schedule.TviID <= 0 || visit.TviID === schedule.TviID));
+  return visits.find(
+    (visit) =>
+      visit.TvsID === schedule.TvsID &&
+      (schedule.TviID == null ||
+        schedule.TviID <= 0 ||
+        visit.TviID === schedule.TviID),
+  );
 }

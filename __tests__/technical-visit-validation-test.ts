@@ -203,19 +203,16 @@ describe('technical visit validation', () => {
     );
   });
 
-  it('requires coherent application dates and a target for supplies', () => {
+  it('requires coherent application dates but allows supplies without targets', () => {
     const value = completeSnapshot();
-    value.Applications[0].TapEndDateTime =
-      '2026-10-25T07:00:00.000-05:00';
+    value.Applications[0].TapEndDateTime = '2026-10-25T07:00:00.000-05:00';
     expect(validateTechnicalVisitSnapshot(value)).toBe(
       'La fecha y hora de fin deben ser posteriores al inicio.',
     );
 
     const withoutTarget = completeSnapshot();
     delete withoutTarget.ApplicationDetails[0].TadFstID;
-    expect(validateTechnicalVisitSnapshot(withoutTarget)).toBe(
-      'Selecciona el objetivo del insumo relacionado.',
-    );
+    expect(validateTechnicalVisitSnapshot(withoutTarget)).toBeNull();
   });
 
   it('rejects follow-ups that point to the current visit', () => {
@@ -280,7 +277,6 @@ describe('technical visit validation', () => {
   });
 });
 
-
 describe('selección de visita al abrir una programación', () => {
   const records = [
     { TvsID: 1, TviID: -1, id: 'draft' },
@@ -288,12 +284,18 @@ describe('selección de visita al abrir una programación', () => {
     { TvsID: 2, TviID: 20, id: 'other-schedule' },
   ];
   test('abre el registro asignado aunque un borrador vacío aparezca primero', () => {
-    expect(scheduledTechnicalVisit({ TvsID: 1, TviID: 10 }, records)?.id).toBe('server');
+    expect(scheduledTechnicalVisit({ TvsID: 1, TviID: 10 }, records)?.id).toBe(
+      'server',
+    );
   });
   test('no sustituye una visita registrada ausente por otro borrador local', () => {
-    expect(scheduledTechnicalVisit({ TvsID: 1, TviID: 11 }, records)).toBeUndefined();
+    expect(
+      scheduledTechnicalVisit({ TvsID: 1, TviID: 11 }, records),
+    ).toBeUndefined();
   });
   test('permite continuar un borrador cuando la programación aún no tiene visita registrada', () => {
-    expect(scheduledTechnicalVisit({ TvsID: 1, TviID: null }, records)?.id).toBe('draft');
+    expect(
+      scheduledTechnicalVisit({ TvsID: 1, TviID: null }, records)?.id,
+    ).toBe('draft');
   });
 });

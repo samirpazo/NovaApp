@@ -969,6 +969,25 @@ export default function TechnicalVisitDetailScreen() {
 
   const saveSectionRow = async () => {
     if (!model || !snapshot || !activeSection) return;
+    if (
+      activeSection.key === 'ApplicationDetails' &&
+      !sectionValues.TadIsObservation
+    ) {
+      const supplyId = Number(sectionValues.TadFrsID);
+      const targetId = Number(sectionValues.TadFstID);
+      const targets = catalogOptions.targets.filter(
+        (target) =>
+          target.FrsID === supplyId &&
+          (!plotCropId || target.CltID === plotCropId),
+      );
+      if (targets.length > 0 && !(targetId > 0)) {
+        Alert.alert(
+          'Revisa la sección',
+          'Selecciona el objetivo del insumo relacionado.',
+        );
+        return;
+      }
+    }
     const data: Record<string, unknown> = {};
     for (const field of activeSection.fields) {
       const value = sectionValues[field.key];
@@ -1566,6 +1585,10 @@ export default function TechnicalVisitDetailScreen() {
                     placeholder="Selecciona una opción descargada"
                     searchable
                     clearable
+                    disabled={
+                      (field.key === 'TadFstID' || field.key === 'FstID') &&
+                      items.length === 0
+                    }
                     required={field.required}
                   />
                 );
