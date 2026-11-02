@@ -11,6 +11,7 @@ import {
   SyncPushResultSchema,
   SYNC_RESOURCES,
 } from '@/contracts/sync';
+import { normalizeObjectiveContract } from '@/sync/normalize-objective-contract';
 
 const syncId = '683861b3-3bcd-4c2f-aff5-98d48ee3c048';
 const definition = {
@@ -99,6 +100,46 @@ describe('contratos de sincronización', () => {
         Data: definition,
       }),
     ).toThrow();
+  });
+
+  test('normaliza recursos y snapshots del contrato antiguo de plagas', () => {
+    const normalized = normalizeObjectiveContract({
+      Data: {
+        Changes: [
+          {
+            Resource: 'OagPlague',
+            Data: { PlgID: 7, PlgDescription: 'Arañita roja', TypePlague: 1 },
+          },
+          {
+            Resource: 'OagPlagueCultive',
+            Data: { PgcID: 9, PlgID: 7, CltID: 4 },
+          },
+          {
+            Resource: 'OagTechnicalVisit',
+            Data: { Snapshot: JSON.stringify({ Diagnoses: [{ PlgID: 7 }] }) },
+          },
+        ],
+      },
+    });
+
+    expect(normalized).toMatchObject({
+      Data: {
+        Changes: [
+          {
+            Resource: 'OagObjective',
+            Data: { ObjID: 7, ObjDescription: 'Arañita roja', ObjType: 1 },
+          },
+          {
+            Resource: 'OagObjectiveCultive',
+            Data: { OjcID: 9, ObjID: 7, CltID: 4 },
+          },
+          {
+            Resource: 'OagTechnicalVisit',
+            Data: { Snapshot: JSON.stringify({ Diagnoses: [{ ObjID: 7 }] }) },
+          },
+        ],
+      },
+    });
   });
 
   test('discrimina la operación y no acepta un recurso de solo lectura en Push', () => {

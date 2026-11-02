@@ -51,8 +51,8 @@ resuelve además el supervisor asignado al fundo.
 | `OagCultive`, `OagVariety`              | Etiquetas de cultivo y variedad del lote                            | Sincronizados para cultivos/variedades de lotes asignados    |
 | `OagFarmSupplies`                       | Catálogo de productos/insumos para aplicaciones y recomendaciones   | Sincronizado según objetivos vinculados a cultivos asignados |
 | `OagFarmSuppliesTarget`                 | Objetivos compatibles con el insumo y cultivo                       | Sincronizado solo para cultivos de lotes asignados           |
-| `OagPlague`                             | Opciones de plaga para diagnóstico y objetivos de insumos           | Sincronizado según las relaciones de cultivos asignados      |
-| `OagPlagueCultive`                      | Filtra plagas por cultivo del lote                                  | Sincronizado solo para cultivos de lotes asignados           |
+| `OagObjective`                             | Objetivos agronómicos para diagnóstico y objetivos de insumos           | Sincronizado según las relaciones de cultivos asignados      |
+| `OagObjectiveCultive`                      | Filtra objetivos agronómicos por cultivo del lote                                  | Sincronizado solo para cultivos de lotes asignados           |
 | `OagWaterSource`                        | Fuentes de agua del lote para actividades de riego                  | Sincronizado solo para lotes asignados                       |
 | `GenDefinition` + `GenDefinitionDetail` | Tipos, unidades, etapas y estados usados en las secciones           | Sí están sincronizadas                                       |
 
@@ -103,7 +103,7 @@ binarias como recursos de WatermelonDB.
 1. **Inventario** (completado): confirmar tablas del agregado, catálogos, alcance y diferencias con
    Nova Web.
 2. **Datos offline** (completado en código): sincronizar campañas; fundos, lotes y asignaciones;
-   cultivos/variedades; insumos/objetivos; plagas y fuentes de agua. ReadOnly en Push; fundos/lotes/
+   cultivos/variedades; insumos/objetivos; objetivos agronómicos y fuentes de agua. ReadOnly en Push; fundos/lotes/
    asignaciones/fuentes y relaciones de cultivo limitados por el supervisor autenticado. El esquema
    local sube a v4 y solicita un bootstrap por alcance. No se agrega `GenParameter` porque la web no
    lo consume para visitas.
@@ -115,7 +115,7 @@ binarias como recursos de WatermelonDB.
    migrar la lista a `NCrudDataSource` y verificar el Push/reconciliación en una instalación con los
    catálogos descargados.
 4. **Componentes de detalle**: reemplazar entradas de IDs por selectores offline para insumos,
-   objetivos, plagas, fuentes de agua e instalaciones; completar definición/unidad/estado y mantener
+   objetivos, objetivos agronómicos, fuentes de agua e instalaciones; completar definición/unidad/estado y mantener
    todos los cambios de secciones dentro del guardado único del agregado.
 5. **Cierre funcional**: validar alta de programación, apertura/captura de visita, firma/evidencia,
    cierre y reapertura offline, Push idempotente, Pull/reconciliación y conflictos.

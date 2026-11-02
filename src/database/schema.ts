@@ -7,7 +7,7 @@ import { technicalVisitCatalogColumns } from '@/database/technical-visit-catalog
 export { entityBaseColumns } from '@/database/schema-base-columns';
 
 export const databaseSchema = appSchema({
-  version: 4,
+  version: 5,
   tables: [
     tableSchema({
       name: SYNC_RESOURCES.GenDefinition,

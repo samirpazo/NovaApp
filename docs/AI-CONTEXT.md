@@ -130,7 +130,7 @@ implementación; no copiar APIs de Nova Web si la implementación nativa tiene o
 | `OagCultive`, `OagVariety` | Solo lectura | `CltID`, `VrtID` | Cultivos/variedades de los lotes asignados |
 | `OagFarmSupplies` | Solo lectura | `FrsID` | Insumos de objetivos asociados a cultivos asignados |
 | `OagFarmSuppliesTarget` | Solo lectura | `FstID` | Objetivos de insumos para cultivos asignados |
-| `OagPlague`, `OagPlagueCultive` | Solo lectura | `PlgID`, `PgcID` | Plagas y relaciones con cultivos asignados |
+| `OagObjective`, `OagObjectiveCultive` | Solo lectura | `ObjID`, `OjcID` | Objetivos agronómicos y relaciones con cultivos asignados |
 | `OagWaterSource` | Solo lectura | `OwsID` | Fuentes de agua de lotes asignados |
 
 `RstTable` no debe volverse editable en móvil: el diseñador de restaurante está reservado para

@@ -72,23 +72,23 @@ export class OagFarmSuppliesTargetModel extends EntityBaseModel {
   @field('FstID') FstID: number;
   @field('FrsID') FrsID: number;
   @field('CltID') CltID: number;
-  @field('PlgID') PlgID: number;
+  @field('ObjID') ObjID: number;
   @field('FstMinDose') FstMinDose: number | null;
   @field('FstMaxDose') FstMaxDose: number | null;
   @text('FstApplicationFrequency') FstApplicationFrequency: string | null;
   @text('FstPpplCode') FstPpplCode: string | null;
   @field('FstGracePeriodDays') FstGracePeriodDays: number | null;
 }
-export class OagPlagueModel extends EntityBaseModel {
-  static table = SYNC_RESOURCES.OagPlague;
-  @field('PlgID') PlgID: number;
-  @text('PlgDescription') PlgDescription: string;
-  @field('TypePlague') TypePlague: number;
+export class OagObjectiveModel extends EntityBaseModel {
+  static table = SYNC_RESOURCES.OagObjective;
+  @field('ObjID') ObjID: number;
+  @text('ObjDescription') ObjDescription: string;
+  @field('ObjType') ObjType: number;
 }
-export class OagPlagueCultiveModel extends EntityBaseModel {
-  static table = SYNC_RESOURCES.OagPlagueCultive;
-  @field('PgcID') PgcID: number;
-  @field('PlgID') PlgID: number;
+export class OagObjectiveCultiveModel extends EntityBaseModel {
+  static table = SYNC_RESOURCES.OagObjectiveCultive;
+  @field('OjcID') OjcID: number;
+  @field('ObjID') ObjID: number;
   @field('CltID') CltID: number;
 }
 export class OagWaterSourceModel extends EntityBaseModel {

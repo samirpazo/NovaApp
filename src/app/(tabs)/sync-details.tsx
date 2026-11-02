@@ -45,8 +45,8 @@ const emptyCounts: LocalCounts = {
   OagVariety: 0,
   OagFarmSupplies: 0,
   OagFarmSuppliesTarget: 0,
-  OagPlague: 0,
-  OagPlagueCultive: 0,
+  OagObjective: 0,
+  OagObjectiveCultive: 0,
   OagWaterSource: 0,
 };
 
@@ -65,8 +65,8 @@ const resourceLabels: Record<keyof LocalCounts, string> = {
   OagVariety: 'Variedades',
   OagFarmSupplies: 'Insumos agrícolas',
   OagFarmSuppliesTarget: 'Objetivos de insumos',
-  OagPlague: 'Plagas',
-  OagPlagueCultive: 'Plagas por cultivo',
+  OagObjective: 'Objetivos agronómicos',
+  OagObjectiveCultive: 'Objetivos por cultivo',
   OagWaterSource: 'Fuentes de agua',
 };
 

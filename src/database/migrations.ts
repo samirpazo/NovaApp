@@ -2,6 +2,7 @@ import {
   addColumns,
   createTable,
   schemaMigrations,
+  unsafeExecuteSql,
 } from '@nozbe/watermelondb/Schema/migrations';
 import { entityBaseColumns } from '@/database/schema-base-columns';
 import { technicalVisitCatalogColumns } from '@/database/technical-visit-catalog-columns';
@@ -71,6 +72,19 @@ export const databaseMigrations = schemaMigrations({
       steps: Object.entries(technicalVisitCatalogColumns).map(([name, columns]) =>
         createTable({ name, columns }),
       ),
+    },
+    {
+      toVersion: 5,
+      steps: [
+        unsafeExecuteSql('ALTER TABLE "OagPlague" RENAME TO "OagObjective";'),
+        unsafeExecuteSql('ALTER TABLE "OagPlagueCultive" RENAME TO "OagObjectiveCultive";'),
+        unsafeExecuteSql('ALTER TABLE "OagObjective" RENAME COLUMN "PlgID" TO "ObjID";'),
+        unsafeExecuteSql('ALTER TABLE "OagObjective" RENAME COLUMN "PlgDescription" TO "ObjDescription";'),
+        unsafeExecuteSql('ALTER TABLE "OagObjective" RENAME COLUMN "TypePlague" TO "ObjType";'),
+        unsafeExecuteSql('ALTER TABLE "OagObjectiveCultive" RENAME COLUMN "PgcID" TO "OjcID";'),
+        unsafeExecuteSql('ALTER TABLE "OagObjectiveCultive" RENAME COLUMN "PlgID" TO "ObjID";'),
+        unsafeExecuteSql('ALTER TABLE "OagFarmSuppliesTarget" RENAME COLUMN "PlgID" TO "ObjID";'),
+      ],
     },
   ],
 });

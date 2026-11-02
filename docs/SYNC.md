@@ -74,7 +74,7 @@ y sobrescribiría silenciosamente un cambio concurrente.
 Endpoint:
 
 ```http
-GET /sync/pull?cursor={cursor}&limit={1..500}&branchId={opcional}
+GET /sync/pull?contractVersion=2&cursor={cursor}&limit={1..500}&branchId={opcional}
 ```
 
 Respuesta lógica:
@@ -131,7 +131,7 @@ En una eliminación, `Data` puede omitirse. El esquema usa `nullish()` y normali
 Endpoint:
 
 ```http
-POST /sync/push
+POST /sync/push?contractVersion=2
 Idempotency-Key: nova-sync-{sha256-del-lote}
 X-CSRF-TOKEN: {token, solo web cuando corresponda}
 ```
@@ -194,10 +194,10 @@ El cambio del encabezado registra el agregado en el journal, por lo que el Pull 
 snapshot completo; los endpoints antiguos de edición puntual de secciones no notifican el agregado.
 La caché también incluye los catálogos requeridos por visitas técnicas: campañas; fundos, lotes y
 asignaciones activas del supervisor autenticado; fuentes de agua de esos lotes; cultivos y variedades
-de esos lotes; insumos vinculados a objetivos activos de esos cultivos; plagas y relaciones con
+de esos lotes; insumos vinculados a objetivos activos de esos cultivos; objetivos agronómicos y relaciones con
 cultivos. Los catálogos se descargan como
 ReadOnly. `GenCampaign` es global; fundos, lotes, fuentes y asignaciones activas se limitan en NovaApi
-al alcance actual del `PrsID`. Las relaciones de producto y plaga se limitan a los cultivos de esos
+al alcance actual del `PrsID`. Las relaciones de insumos y objetivos agronómicos se limitan a los cultivos de esos
 lotes. Las definiciones
 y detalles ya se sincronizaban antes. No se replica `GenParameter`: los selectores web revisados no
 lo consumen. La caché migra a WatermelonDB schema v4 y solicita un bootstrap por alcance para traer

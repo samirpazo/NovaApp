@@ -21,8 +21,8 @@ import {
   GenDefinitionModel,
   OagFarmSuppliesModel,
   OagFarmSuppliesTargetModel,
-  OagPlagueCultiveModel,
-  OagPlagueModel,
+  OagObjectiveCultiveModel,
+  OagObjectiveModel,
   OagPlotFarmModel,
   OagTechnicalVisitModel,
   OagTechnicalVisitScheduleModel,
@@ -79,6 +79,13 @@ function normalizeSnapshot(
   snapshot: TechnicalVisitSnapshot,
   currentVisitId: number,
 ): TechnicalVisitSnapshot {
+  const diagnoses = snapshot.Diagnoses.map((row) => {
+    const { PlgID, ...currentRow } = row;
+    return {
+      ...currentRow,
+      ...(currentRow.ObjID == null && PlgID != null ? { ObjID: PlgID } : {}),
+    };
+  });
   const visitDate = String(snapshot.Visit.TviPerformedDate ?? '');
   const previousRecommendations = previousTechnicalVisitRows(
     snapshot.PreviousRecommendations,
@@ -93,6 +100,7 @@ function normalizeSnapshot(
   if (!DateTime.fromISO(visitDate, { setZone: true }).isValid) {
     return {
       ...snapshot,
+      Diagnoses: diagnoses,
       PreviousRecommendations: previousRecommendations,
       PreviousCulturalActivities: previousCulturalActivities,
     };
@@ -105,6 +113,7 @@ function normalizeSnapshot(
   );
   return {
     ...snapshot,
+    Diagnoses: diagnoses,
     PreviousRecommendations: previousRecommendations,
     PreviousCulturalActivities: previousCulturalActivities,
     RecommendationFollowUps: snapshot.RecommendationFollowUps.filter(
@@ -213,7 +222,7 @@ const editableSections: SectionDefinition[] = [
         required: true,
         definitionCode: 'OAG_TECHNICAL_DIAGNOSIS_CATEGORY',
       },
-      { key: 'PlgID', label: 'ID de plaga', kind: 'number' },
+      { key: 'ObjID', label: 'ID de objetivo agronómico', kind: 'number' },
       { key: 'FrsID', label: 'ID de insumo relacionado', kind: 'number' },
       {
         key: 'TvdPlantOrgan',
@@ -465,12 +474,12 @@ export default function TechnicalVisitDetailScreen() {
       label: string;
       value: number;
       FrsID: number;
-      PlgID: number;
+      ObjID: number;
       CltID: number;
     }[];
-    plagues: { label: string; value: number }[];
+    objectives: { label: string; value: number }[];
     waterSources: { label: string; value: number }[];
-  }>({ supplies: [], targets: [], plagues: [], waterSources: [] });
+  }>({ supplies: [], targets: [], objectives: [], waterSources: [] });
   const [plotCropId, setPlotCropId] = React.useState<number | null>(null);
   const markDraftDirty = () => {
     draftDirtyRef.current = true;
@@ -555,11 +564,11 @@ export default function TechnicalVisitDetailScreen() {
         .query(Q.where('SecStatus', true))
         .fetch(),
       database
-        .get<OagPlagueModel>(SYNC_RESOURCES.OagPlague)
+        .get<OagObjectiveModel>(SYNC_RESOURCES.OagObjective)
         .query(Q.where('SecStatus', true))
         .fetch(),
       database
-        .get<OagPlagueCultiveModel>(SYNC_RESOURCES.OagPlagueCultive)
+        .get<OagObjectiveCultiveModel>(SYNC_RESOURCES.OagObjectiveCultive)
         .query(Q.where('SecStatus', true))
         .fetch(),
       database
@@ -567,10 +576,10 @@ export default function TechnicalVisitDetailScreen() {
         .query(Q.where('SecStatus', true))
         .fetch(),
     ])
-      .then(([supplies, targets, plagues, plagueCultives, waterSources]) => {
+      .then(([supplies, targets, objectives, objectiveCultives, waterSources]) => {
         if (cancelled) return;
-        const plagueNames = new Map(
-          plagues.map((plague) => [plague.PlgID, plague.PlgDescription]),
+        const objectiveNames = new Map(
+          objectives.map((objective) => [objective.ObjID, objective.ObjDescription]),
         );
         setCatalogOptions({
           supplies: supplies.map((item) => ({
@@ -578,28 +587,28 @@ export default function TechnicalVisitDetailScreen() {
             value: item.FrsID,
           })),
           targets: targets.map((item) => ({
-            label: `${plagueNames.get(item.PlgID) ?? 'Objetivo'} · ${item.FstID}`,
+            label: `${objectiveNames.get(item.ObjID) ?? 'Objetivo'} · ${item.FstID}`,
             value: item.FstID,
             FrsID: item.FrsID,
-            PlgID: item.PlgID,
+            ObjID: item.ObjID,
             CltID: item.CltID,
           })),
-          plagues: plagues
+          objectives: objectives
             .filter(
-              (plague) =>
+              (objective) =>
                 !plotCropId ||
-                plagueCultives.some(
+                objectiveCultives.some(
                   (relation) =>
                     relation.CltID === plotCropId &&
-                    relation.PlgID === plague.PlgID,
+                    relation.ObjID === objective.ObjID,
                 ) ||
                 targets.some(
                   (target) =>
                     target.CltID === plotCropId &&
-                    target.PlgID === plague.PlgID,
+                    target.ObjID === objective.ObjID,
                 ),
             )
-            .map((item) => ({ label: item.PlgDescription, value: item.PlgID })),
+            .map((item) => ({ label: item.ObjDescription, value: item.ObjID })),
           waterSources: waterSources
             .filter((item) => item.PlfID === schedule?.PlfID)
             .map((item) => ({ label: item.OwsName, value: item.OwsID })),
@@ -609,7 +618,7 @@ export default function TechnicalVisitDetailScreen() {
         setCatalogOptions({
           supplies: [],
           targets: [],
-          plagues: [],
+          objectives: [],
           waterSources: [],
         }),
       );
@@ -1530,8 +1539,8 @@ export default function TechnicalVisitDetailScreen() {
                               item.FrsID === selectedSupplyId),
                         )
                         .map(({ label, value }) => ({ label, value }))
-                    : field.key === 'PlgID'
-                      ? catalogOptions.plagues
+                    : field.key === 'ObjID'
+                      ? catalogOptions.objectives
                       : field.key === 'OwsID'
                         ? catalogOptions.waterSources
                         : null;

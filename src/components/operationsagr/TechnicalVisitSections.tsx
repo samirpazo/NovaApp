@@ -566,7 +566,7 @@ export function TechnicalVisitSections({
   const diagnosisColumns: TableColumn[] = [
     {
       key: 'item',
-      label: 'Enfermedad / plaga / maleza',
+      label: 'Objetivo agronómico',
       render: (row) => (
         <TwoLine
           title={textOf(row.TvdItemDescription) || 'Sin descripción'}
@@ -954,7 +954,7 @@ export function TechnicalVisitSections({
         <View className="min-w-0 gap-3 md:flex-1">
           <VisitSectionHeading
             title="Evaluación fitosanitaria"
-            subtitle="Plagas, órganos afectados e incidencia observada."
+            subtitle="Objetivos agronómicos, órganos afectados e incidencia observada."
             icon={ShieldAlert}
             action={
               <AddButton

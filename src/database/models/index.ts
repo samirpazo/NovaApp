@@ -7,7 +7,7 @@ import { OagTechnicalVisitScheduleModel } from '@/database/models/OagTechnicalVi
 import {
   GenCampaignModel, OagFruitFarmModel, OagPlotFarmModel, OagFruitFarmSupervisorModel,
   OagCultiveModel, OagVarietyModel, OagFarmSuppliesModel, OagFarmSuppliesTargetModel,
-  OagPlagueModel, OagPlagueCultiveModel, OagWaterSourceModel,
+  OagObjectiveModel, OagObjectiveCultiveModel, OagWaterSourceModel,
 } from '@/database/models/TechnicalVisitCatalogs';
 
 export * from '@/database/models/EntityBaseModel';
@@ -34,7 +34,7 @@ export const databaseModels = [
   OagVarietyModel,
   OagFarmSuppliesModel,
   OagFarmSuppliesTargetModel,
-  OagPlagueModel,
-  OagPlagueCultiveModel,
+  OagObjectiveModel,
+  OagObjectiveCultiveModel,
   OagWaterSourceModel,
 ];

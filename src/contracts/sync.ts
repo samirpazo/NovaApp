@@ -15,13 +15,13 @@ import {
   OagTechnicalVisitScheduleSchema,
   OagFruitFarmSchema, OagPlotFarmSchema, OagFruitFarmSupervisorSchema,
   OagCultiveSchema, OagVarietySchema, OagFarmSuppliesSchema,
-  OagFarmSuppliesTargetSchema, OagPlagueSchema, OagPlagueCultiveSchema,
+  OagFarmSuppliesTargetSchema, OagObjectiveSchema, OagObjectiveCultiveSchema,
   OagWaterSourceSchema,
   type OagTechnicalVisit,
   type OagTechnicalVisitSchedule,
   type OagFruitFarm, type OagPlotFarm, type OagFruitFarmSupervisor,
   type OagCultive, type OagVariety, type OagFarmSupplies,
-  type OagFarmSuppliesTarget, type OagPlague, type OagPlagueCultive,
+  type OagFarmSuppliesTarget, type OagObjective, type OagObjectiveCultive,
   type OagWaterSource,
 } from '@/contracts/entities/operationsagr';
 import { GuidSchema } from '@/contracts/common';
@@ -42,8 +42,8 @@ export const SYNC_RESOURCES = {
   OagVariety: 'OagVariety',
   OagFarmSupplies: 'OagFarmSupplies',
   OagFarmSuppliesTarget: 'OagFarmSuppliesTarget',
-  OagPlague: 'OagPlague',
-  OagPlagueCultive: 'OagPlagueCultive',
+  OagObjective: 'OagObjective',
+  OagObjectiveCultive: 'OagObjectiveCultive',
   OagWaterSource: 'OagWaterSource',
 } as const;
 
@@ -62,8 +62,8 @@ export const SyncResourceSchema = z.enum([
   SYNC_RESOURCES.OagVariety,
   SYNC_RESOURCES.OagFarmSupplies,
   SYNC_RESOURCES.OagFarmSuppliesTarget,
-  SYNC_RESOURCES.OagPlague,
-  SYNC_RESOURCES.OagPlagueCultive,
+  SYNC_RESOURCES.OagObjective,
+  SYNC_RESOURCES.OagObjectiveCultive,
   SYNC_RESOURCES.OagWaterSource,
 ]);
 export const SyncOperationSchema = z.enum(['C', 'U', 'D']);
@@ -74,8 +74,8 @@ export type SyncAccess = 'ReadOnly' | 'ReadWrite';
 export type WritableSyncResource = Exclude<SyncResource,
   | 'RstTable' | 'GenCampaign' | 'OagFruitFarm' | 'OagPlotFarm'
   | 'OagFruitFarmSupervisor' | 'OagCultive' | 'OagVariety'
-  | 'OagFarmSupplies' | 'OagFarmSuppliesTarget' | 'OagPlague'
-  | 'OagPlagueCultive' | 'OagWaterSource'
+  | 'OagFarmSupplies' | 'OagFarmSuppliesTarget' | 'OagObjective'
+  | 'OagObjectiveCultive' | 'OagWaterSource'
 >;
 
 export interface SyncEntityMap {
@@ -93,8 +93,8 @@ export interface SyncEntityMap {
   OagVariety: OagVariety;
   OagFarmSupplies: OagFarmSupplies;
   OagFarmSuppliesTarget: OagFarmSuppliesTarget;
-  OagPlague: OagPlague;
-  OagPlagueCultive: OagPlagueCultive;
+  OagObjective: OagObjective;
+  OagObjectiveCultive: OagObjectiveCultive;
   OagWaterSource: OagWaterSource;
 }
 
@@ -113,8 +113,8 @@ export const SYNC_ACCESS: Record<SyncResource, SyncAccess> = {
   OagVariety: 'ReadOnly',
   OagFarmSupplies: 'ReadOnly',
   OagFarmSuppliesTarget: 'ReadOnly',
-  OagPlague: 'ReadOnly',
-  OagPlagueCultive: 'ReadOnly',
+  OagObjective: 'ReadOnly',
+  OagObjectiveCultive: 'ReadOnly',
   OagWaterSource: 'ReadOnly',
 };
 
@@ -177,8 +177,8 @@ export const SyncPullChangeSchema = z.discriminatedUnion('Resource', [
   z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagVariety), Data: OagVarietySchema.nullish().transform((value) => value ?? null) }),
   z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagFarmSupplies), Data: OagFarmSuppliesSchema.nullish().transform((value) => value ?? null) }),
   z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagFarmSuppliesTarget), Data: OagFarmSuppliesTargetSchema.nullish().transform((value) => value ?? null) }),
-  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagPlague), Data: OagPlagueSchema.nullish().transform((value) => value ?? null) }),
-  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagPlagueCultive), Data: OagPlagueCultiveSchema.nullish().transform((value) => value ?? null) }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagObjective), Data: OagObjectiveSchema.nullish().transform((value) => value ?? null) }),
+  z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagObjectiveCultive), Data: OagObjectiveCultiveSchema.nullish().transform((value) => value ?? null) }),
   z.object({ ...syncChangeBase, Resource: z.literal(SYNC_RESOURCES.OagWaterSource), Data: OagWaterSourceSchema.nullish().transform((value) => value ?? null) }),
 ]);
 

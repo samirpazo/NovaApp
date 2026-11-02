@@ -46,6 +46,7 @@ import {
 import { type PullResult, useSyncState } from '@/sync/state';
 import { classifySyncFailure, reportSyncTelemetry } from '@/sync/telemetry';
 import { initialPullCursor } from '@/sync/pull-options';
+import { normalizeObjectiveContract } from '@/sync/normalize-objective-contract';
 import { activateSyncScope } from '@/sync/scope';
 import { classifyPushResults, pushSequentially } from '@/sync/push-batches';
 import {
@@ -83,8 +84,8 @@ function createChangeSet(): MutableChangeSet {
     [SYNC_RESOURCES.OagVariety]: emptyTableChanges(),
     [SYNC_RESOURCES.OagFarmSupplies]: emptyTableChanges(),
     [SYNC_RESOURCES.OagFarmSuppliesTarget]: emptyTableChanges(),
-    [SYNC_RESOURCES.OagPlague]: emptyTableChanges(),
-    [SYNC_RESOURCES.OagPlagueCultive]: emptyTableChanges(),
+    [SYNC_RESOURCES.OagObjective]: emptyTableChanges(),
+    [SYNC_RESOURCES.OagObjectiveCultive]: emptyTableChanges(),
     [SYNC_RESOURCES.OagWaterSource]: emptyTableChanges(),
   };
 }
@@ -319,6 +320,7 @@ async function executePull(
           );
         const response = await getForUser('/sync/pull', userId, {
           params: {
+            contractVersion: 2,
             limit,
             ...(connection.BranchId === undefined
               ? {}
@@ -328,7 +330,7 @@ async function executePull(
           signal: options.signal,
         }, identityKey);
         const envelope = createResponseApiSchema(SyncPullResponseSchema).parse(
-          response.data,
+          normalizeObjectiveContract(response.data),
         );
         if (
           !isActiveIdentity(identityKey) ||
@@ -386,6 +388,7 @@ async function executePull(
             { BranchId: connection.BranchId, Changes: batch },
             userId,
             {
+              params: { contractVersion: 2 },
               headers: { 'Idempotency-Key': idempotencyKey },
               signal: options.signal,
             },
