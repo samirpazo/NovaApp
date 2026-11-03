@@ -1,3 +1,8 @@
+---
+name: nova-frontend
+description: Frontend patterns, architecture guidelines, and N-Series component conventions for the Nova project.
+---
+
 # Nova Frontend — Patrones y Arquitectura
 
 ## 1. Sistema de Autenticación
