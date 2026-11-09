@@ -119,8 +119,6 @@ implementación; no copiar APIs de Nova Web si la implementación nativa tiene o
 | --------------------- | ----------------- | --------- | ------------------------------- |
 | `GenDefinition`       | Lectura/escritura | `DefID`   | General                         |
 | `GenDefinitionDetail` | Lectura/escritura | `DedID`   | General                         |
-| `RstBranch`           | Lectura/escritura | `BrhID`   | Restaurante                     |
-| `RstTable`            | Solo lectura      | `TabID`   | Sucursal cuando haya `BranchId` |
 | `OagTechnicalVisitSchedule` | Lectura/escritura | `TvsID` | Supervisor autenticado (`PrsID`) |
 | `OagTechnicalVisit`   | Lectura/escritura | `TviID`   | Aggregate de su programación asignada |
 | `GenCampaign` | Solo lectura | `CmpID` | Campañas de la instalación |
@@ -133,10 +131,7 @@ implementación; no copiar APIs de Nova Web si la implementación nativa tiene o
 | `OagObjective`, `OagObjectiveCultive` | Solo lectura | `ObjID`, `OjcID` | Objetivos agronómicos y relaciones con cultivos asignados |
 | `OagWaterSource` | Solo lectura | `OwsID` | Fuentes de agua de lotes asignados |
 
-`RstTable` no debe volverse editable en móvil: el diseñador de restaurante está reservado para
-Nova Web y requiere una pantalla grande.
-Los contratos y modelos `RstBranch`/`RstTable` permanecen en el protocolo para mantener compatibilidad
-con los datos sincronizables que ya existan; Nova App no ofrece pantallas CRUD para esos recursos.
+Nota sobre Restaurant: La integración de Restaurant (`RstBranch`, `RstTable`) con Sync fue una implementación experimental y fue completamente retirada del backend. Los modelos locales se mantienen temporalmente en WatermelonDB para compatibilidad de esquemas previos, pero el servidor ya no incluye estos recursos en `/sync/pull` ni en `/sync/push`.
 
 ## Archivos clave
 

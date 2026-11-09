@@ -166,15 +166,14 @@ Operaciones:
 
 El cliente ordena las dependencias conocidas y divide Push en lotes secuenciales de hasta 500
 cambios. Solo marca como sincronizados los cambios identificados como `Applied`; los rechazados y
-los lotes posteriores continúan pendientes. `RstTable` no puede aparecer en Push.
+los lotes posteriores continúan pendientes.
 
 ### Contrato validado por recurso
 
 Pull, Push, los resultados del Push y los conflictos se validan mediante una unión discriminada
 por `Resource`. Por tanto, un cambio de `GenDefinition` solo admite los campos de esa entidad, y
-lo mismo aplica a `GenDefinitionDetail`, `RstBranch` y los recursos de visitas técnicas. Las operaciones `C` y `U` exigen `Data`; la
-operación `D` exige `Data: null`. `RstTable` queda fuera del contrato de Push y de conflictos por
-ser un recurso de solo lectura.
+lo mismo aplica a `GenDefinitionDetail` y los recursos de visitas técnicas. Las operaciones `C` y `U` exigen `Data`; la
+operación `D` exige `Data: null`. (Nota: Los recursos de Restaurant `RstBranch` y `RstTable` formaron parte de un piloto experimental y fueron retirados de la API de sincronización).
 
 Los schemas `SyncJsonSchemas` exponen las formas JSON Schema Draft 2020-12 de Pull, Push, resultados
 de Push y decisiones de conflicto. Son una representación para documentación o validadores externos;
