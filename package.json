@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
+    "test:e2e": "playwright test",
     "generate:crud": "node generator/nova-app-gen.mjs"
   },
   "dependencies": {
@@ -82,6 +83,7 @@
   "devDependencies": {
     "@babel/plugin-proposal-decorators": "^7.29.0",
     "@babel/plugin-transform-class-properties": "^7.27.1",
+    "@playwright/test": "^1.65.0",
     "@types/jest": "29.5.14",
     "@types/luxon": "^3.7.2",
     "@types/react": "~19.2.2",
@@ -98,6 +100,10 @@
   "private": true,
   "jest": {
     "preset": "jest-expo",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/e2e/"
+    ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"
     }

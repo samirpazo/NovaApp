@@ -51,6 +51,11 @@ import {
   VisitSectionHeading,
 } from '@/components/operationsagr/TechnicalVisitSections';
 import {
+  TechnicalVisitApplicationModal,
+  type ApplicationHeaderDraft,
+  type ApplicationDetailDraft,
+} from '@/components/operationsagr/TechnicalVisitApplicationModal';
+import {
   parseTechnicalVisitSnapshot,
   previousTechnicalVisitRows,
   validateTechnicalVisitSectionRow,
@@ -453,18 +458,26 @@ export default function TechnicalVisitDetailScreen() {
     Record<string, { label: string; value: number }[]>
   >({});
   const [catalogOptions, setCatalogOptions] = React.useState<{
-    supplies: { label: string; value: number }[];
+    supplies: { label: string; value: number; description?: string }[];
     targets: {
       label: string;
       value: number;
       FrsID: number;
       ObjID: number;
       CltID: number;
+      FstMinDose?: number | null;
+      FstMaxDose?: number | null;
+      objectiveName?: string;
     }[];
     objectives: { label: string; value: number }[];
     waterSources: { label: string; value: number }[];
   }>({ supplies: [], targets: [], objectives: [], waterSources: [] });
   const [plotCropId, setPlotCropId] = React.useState<number | null>(null);
+  const [plotHectares, setPlotHectares] = React.useState<number | null>(null);
+  const [applicationModalVisible, setApplicationModalVisible] =
+    React.useState(false);
+  const [editingApplication, setEditingApplication] =
+    React.useState<TechnicalVisitSnapshotRow | null>(null);
   const [installationCommentTarget, setInstallationCommentTarget] =
     React.useState<{
       option: { label: string; value: number };
@@ -529,7 +542,7 @@ export default function TechnicalVisitDetailScreen() {
         );
         const options: Record<string, { label: string; value: number }[]> = {};
         for (const detail of details) {
-          const code = codes.get(detail.DefID);
+          const code = detail.DedCode || codes.get(detail.DefID);
           if (!code) continue;
           (options[code] ??= []).push({
             label: detail.DedDescription,
@@ -571,17 +584,33 @@ export default function TechnicalVisitDetailScreen() {
           objectives.map((objective) => [objective.ObjID, objective.ObjDescription]),
         );
         setCatalogOptions({
-          supplies: supplies.map((item) => ({
-            label: item.FrsDescription,
-            value: item.FrsID,
-          })),
-          targets: targets.map((item) => ({
-            label: `${objectiveNames.get(item.ObjID) ?? 'Objetivo'} · ${item.FstID}`,
-            value: item.FstID,
-            FrsID: item.FrsID,
-            ObjID: item.ObjID,
-            CltID: item.CltID,
-          })),
+          supplies: supplies.map((item) => {
+            const ingredient = item.FrsActiveIngredientName
+              ? ` - ${item.FrsActiveIngredientName}`
+              : '';
+            const code = item.FrsCode ? ` (${item.FrsCode})` : '';
+            return {
+              label: `${item.FrsDescription}${ingredient}${code}`,
+              value: item.FrsID,
+              description: item.FrsDescription,
+            };
+          }),
+          targets: targets.map((item) => {
+            const objName = objectiveNames.get(item.ObjID) ?? 'Objetivo';
+            const doseRange = [item.FstMinDose, item.FstMaxDose]
+              .filter((d) => d != null)
+              .join('–');
+            return {
+              label: `${objName} · dosis ${doseRange || 'sin rango'}`,
+              value: item.FstID,
+              FrsID: item.FrsID,
+              ObjID: item.ObjID,
+              CltID: item.CltID,
+              FstMinDose: item.FstMinDose,
+              FstMaxDose: item.FstMaxDose,
+              objectiveName: objName,
+            };
+          }),
           objectives: objectives
             .filter(
               (objective) =>
@@ -621,6 +650,7 @@ export default function TechnicalVisitDetailScreen() {
     const plotId = schedule?.PlfID;
     if (!plotId) {
       setPlotCropId(null);
+      setPlotHectares(null);
       return;
     }
     void database
@@ -628,10 +658,16 @@ export default function TechnicalVisitDetailScreen() {
       .query(Q.where('SecStatus', true), Q.where('PlfID', plotId))
       .fetch()
       .then((plots) => {
-        if (!cancelled) setPlotCropId(plots[0]?.CltID ?? null);
+        if (!cancelled) {
+          setPlotCropId(plots[0]?.CltID ?? null);
+          setPlotHectares(plots[0]?.PlfHectares ?? null);
+        }
       })
       .catch(() => {
-        if (!cancelled) setPlotCropId(null);
+        if (!cancelled) {
+          setPlotCropId(null);
+          setPlotHectares(null);
+        }
       });
     return () => {
       cancelled = true;
@@ -948,6 +984,23 @@ export default function TechnicalVisitDetailScreen() {
     row?: TechnicalVisitSnapshotRow,
     parent?: TechnicalVisitSnapshotRow,
   ) => {
+    if (key === 'Applications') {
+      setEditingApplication(row ?? null);
+      setApplicationModalVisible(true);
+      return;
+    }
+    if (key === 'ApplicationDetails') {
+      const app =
+        parent ??
+        (snapshot?.Applications as TechnicalVisitSnapshotRow[])?.find(
+          (a) => Number(a.TapID) === Number(row?.TapID),
+        );
+      if (app) {
+        setEditingApplication(app);
+        setApplicationModalVisible(true);
+        return;
+      }
+    }
     const definition = editableSections.find((item) => item.key === key);
     if (!definition) return;
     openSectionRow(definition, row);
@@ -963,6 +1016,150 @@ export default function TechnicalVisitDetailScreen() {
         [relation]: String(parent[relation]),
       }));
     }
+  };
+
+  const handleSaveApplicationModal = (
+    headerDraft: ApplicationHeaderDraft,
+    detailsDraft: ApplicationDetailDraft[],
+  ) => {
+    if (!model || !snapshot) return;
+
+    const parseNum = (val: string | number | null | undefined) => {
+      if (val == null) return null;
+      if (typeof val === 'number') return Number.isFinite(val) ? val : null;
+      const trimmed = String(val).trim();
+      if (!trimmed) return null;
+      const num = Number(trimmed.replace(',', '.'));
+      return Number.isFinite(num) ? num : null;
+    };
+
+    const now = DateTime.utc().toISO() ?? '';
+    const startAt = DateTime.fromISO(headerDraft.TapStartDateTime, {
+      setZone: true,
+    });
+    const endAt = DateTime.fromISO(headerDraft.TapEndDateTime, {
+      setZone: true,
+    });
+
+    const isEdit = Boolean(editingApplication);
+    const applicationId = isEdit
+      ? Number(editingApplication!.TapID)
+      : createTechnicalVisitTemporaryId();
+
+    const applicationBase = editingApplication ?? {
+      SyncId: randomUUID(),
+      SyncVersion: '',
+      SecStatus: true,
+      CreateUserId: userId,
+      UpdateUserId: userId,
+      DeleteUserId: null,
+      CreateDate: now,
+      UpdateDate: now,
+      DeleteDate: null,
+    };
+
+    const nextApplication: TechnicalVisitSnapshotRow = {
+      ...applicationBase,
+      TapID: applicationId,
+      TviID: model.TviID,
+      TapApplicationMode: headerDraft.TapApplicationMode,
+      TapStartDateTime: startAt.isValid ? startAt.toUTC().toISO() : null,
+      TapEndDateTime: endAt.isValid ? endAt.toUTC().toISO() : null,
+      TapWaterLiters: parseNum(headerDraft.TapWaterLiters),
+      TapFuelExpense: parseNum(headerDraft.TapFuelExpense),
+      TapAppliedHectares: parseNum(headerDraft.TapAppliedHectares),
+      TapAppliedPlants: parseNum(headerDraft.TapAppliedPlants),
+      TapGeneralObservation: headerDraft.TapGeneralObservation.trim() || null,
+      SecStatus: true,
+      UpdateUserId: userId,
+      UpdateDate: now,
+    };
+
+    const currentApplications = snapshot.Applications as TechnicalVisitSnapshotRow[];
+    const nextApplications = isEdit
+      ? currentApplications.map((app) =>
+          Number(app.TapID) === applicationId ? nextApplication : app,
+        )
+      : [...currentApplications, nextApplication];
+
+    const currentDetails = snapshot.ApplicationDetails as TechnicalVisitSnapshotRow[];
+    const activeDetailIds = new Set(
+      detailsDraft
+        .filter((d) => (d.TadID ?? 0) !== 0)
+        .map((d) => d.TadID),
+    );
+
+    const otherDetails = currentDetails.map((detail) => {
+      if (Number(detail.TapID) === applicationId) {
+        if (!activeDetailIds.has(Number(detail.TadID))) {
+          return {
+            ...detail,
+            SecStatus: false,
+            DeleteUserId: userId,
+            DeleteDate: now,
+          };
+        }
+      }
+      return detail;
+    });
+
+    const nextDetails = [...otherDetails];
+    for (const draft of detailsDraft) {
+      const isDetailEdit = Boolean(draft.TadID && draft.TadID !== 0);
+      const detailId = isDetailEdit ? draft.TadID : createTechnicalVisitTemporaryId();
+
+      const existingIndex = nextDetails.findIndex(
+        (d) => Number(d.TadID) === detailId,
+      );
+
+      const detailBase = existingIndex >= 0 ? nextDetails[existingIndex] : {
+        SyncId: randomUUID(),
+        SyncVersion: '',
+        SecStatus: true,
+        CreateUserId: userId,
+        UpdateUserId: userId,
+        DeleteUserId: null,
+        CreateDate: now,
+        UpdateDate: now,
+        DeleteDate: null,
+      };
+
+      const detailRow: TechnicalVisitSnapshotRow = {
+        ...detailBase,
+        TadID: detailId,
+        TapID: applicationId,
+        TadFrsID: draft.TadIsObservation ? null : draft.TadFrsID,
+        TadFstID: draft.TadIsObservation ? null : draft.TadFstID,
+        TadIsObservation: draft.TadIsObservation,
+        TadProductDescription: draft.TadProductDescription.trim(),
+        TadApplicationType: draft.TadApplicationType ?? 0,
+        TadDose: parseNum(draft.TadDose),
+        TadDoseUnit: draft.TadDoseUnit,
+        TadQuantity: parseNum(draft.TadQuantity),
+        TadQuantityUnit: draft.TadQuantityUnit,
+        TadObservation: draft.TadObservation.trim() || null,
+        SecStatus: true,
+        UpdateUserId: userId,
+        UpdateDate: now,
+      };
+
+      if (existingIndex >= 0) {
+        nextDetails[existingIndex] = detailRow;
+      } else {
+        nextDetails.push(detailRow);
+      }
+    }
+
+    const nextSnapshot: TechnicalVisitSnapshot = {
+      ...snapshot,
+      Applications: nextApplications,
+      ApplicationDetails: nextDetails,
+    };
+
+    setSnapshot(nextSnapshot);
+    markDraftDirty();
+    setApplicationModalVisible(false);
+    setEditingApplication(null);
   };
 
   const saveSectionRow = async () => {
@@ -1768,6 +1965,35 @@ export default function TechnicalVisitDetailScreen() {
           </View>
         </View>
       </Modal>
+      <TechnicalVisitApplicationModal
+        visible={applicationModalVisible}
+        onClose={() => {
+          setApplicationModalVisible(false);
+          setEditingApplication(null);
+        }}
+        application={editingApplication}
+        existingDetails={
+          editingApplication
+            ? (snapshot?.ApplicationDetails ?? []).filter(
+                (item) =>
+                  Number(item.TapID) === Number(editingApplication.TapID),
+              )
+            : []
+        }
+        plotHectares={plotHectares}
+        plotCropId={plotCropId}
+        options={{
+          OAG_FIELD_APPLICATION_MODE:
+            definitionOptions.OAG_FIELD_APPLICATION_MODE,
+          OAG_APPLICATION_TYPE: definitionOptions.OAG_APPLICATION_TYPE,
+          OAG_DOSE_UNIT: definitionOptions.OAG_DOSE_UNIT,
+          OAG_APPLICATION_QUANTITY_UNIT:
+            definitionOptions.OAG_APPLICATION_QUANTITY_UNIT,
+        }}
+        supplies={catalogOptions.supplies}
+        targets={catalogOptions.targets}
+        onSave={handleSaveApplicationModal}
+      />
     </ScrollView>
   );
 }

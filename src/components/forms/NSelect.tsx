@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { resolveThemeMode, useAppearanceStore } from '@/theme/appearance';
 import { Check, ChevronDown, Search, X } from 'lucide-react-native';
 import * as React from 'react';
-import { FlatList, Modal, Pressable, SafeAreaView, View } from 'react-native';
+import { FlatList, Modal, Platform, Pressable, SafeAreaView, View } from 'react-native';
 
 type SelectValue = string | number | boolean;
 type SelectItem = SelectValue | Record<string, unknown>;
@@ -173,7 +173,52 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
       disabled={disabled}
       className={containerClassName}
     >
-      {useRNRSelect ? (
+      {Platform.OS === 'web' && !searchable && !multiple ? (
+        <View className="relative w-full">
+          <select
+            aria-label={label}
+            aria-required={required}
+            aria-invalid={Boolean(errorMessage)}
+            disabled={disabled || loading}
+            value={activeValue == null ? '' : String(activeValue)}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === '') {
+                emit(null);
+                return;
+              }
+              const matched = items.find(
+                (item) => String(valueOf(item)) === val,
+              );
+              emit(matched ? valueOf(matched) : val);
+            }}
+            className={cn(
+              'h-8 w-full appearance-none rounded-md border border-input bg-background px-2.5 pr-8 font-poppins text-xs text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+              errorMessage && 'border-destructive',
+            )}
+            style={{
+              backgroundColor: dark ? '#0f172a' : '#ffffff',
+              color: dark ? '#f8fafc' : '#09090b',
+            }}
+          >
+            <option value="" disabled hidden={activeValue != null}>
+              {loading ? 'Cargando...' : placeholder}
+            </option>
+            {items.map((item, index) => {
+              const val = String(valueOf(item));
+              const txt = textOf(item);
+              return (
+                <option key={`${val}-${index}`} value={val}>
+                  {txt}
+                </option>
+              );
+            })}
+          </select>
+          <View className="pointer-events-none absolute right-2.5 top-2.5">
+            <ChevronDown size={14} className="text-muted-foreground" />
+          </View>
+        </View>
+      ) : useRNRSelect ? (
         <Select
           value={
             activeValue == null
