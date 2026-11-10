@@ -59,7 +59,7 @@ Antes de crear o rediseñar una pantalla, consultar `PRODUCT.md` para las decisi
 con Nova Web están bajo `.agents/skills/`; aplicar sus reglas de producto y adaptación móvil, pero no
 trasladar literalmente patrones exclusivos de DOM o Next.js.
 
-- `NText`, `NSelect`, `NSelectDefinition` y `NDate` para campos; `NSelectDefinition` observa
+- `NText`, `NTextarea`, `NSelect`, `NSelectDefinition` y `NDate` para campos; `NSelectDefinition` observa
   `GenDefinitionDetail` local y actualiza sus opciones al sincronizar;
 - `NButton` desde `@/components/forms` para acciones; admite variantes semánticas, tamaños y estado
   de carga, con altura predeterminada de 32 px;
@@ -77,7 +77,7 @@ una variante mayor por una razón concreta, como el login, pero no debe cambiar 
 | Componente | Uso | Implementación |
 |---|---|---|
 | `NButton` | Acciones con variantes, tamaños y estado de carga | `src/components/forms/NButton.tsx` |
-| `NText`, `NDate`, `NSelect`, `NSelectDefinition`, `NSwitch` | Campos de formularios | `src/components/forms/` |
+| `NText`, `NTextarea`, `NDate`, `NSelect`, `NSelectDefinition`, `NSwitch` | Campos de formularios | `src/components/forms/` |
 | `NField`, `FormField`, `NFormPanel` | Labels, validación y paneles de formulario | `src/components/forms/` |
 | `NCrud` | CRUD offline con filtros, formulario, acciones y paginación | `src/components/crud/offline-crud.tsx` |
 | `NCrudTable` | Tabla responsive genérica usada por `NCrud` | `src/components/crud/n-crud-table.tsx` |

@@ -16,8 +16,10 @@ import { NSelect } from '@/components/forms/NSelect';
 import { NSelectDefinition } from '@/components/forms/NSelectDefinition';
 import { NSwitch } from '@/components/forms/NSwitch';
 import { NText } from '@/components/forms/NText';
+import { NTextarea } from '@/components/forms/NTextarea';
 import { Text } from '@/components/ui/text';
 import { formatters } from '@/lib/formatter';
+import { PortalHost } from '@rn-primitives/portal';
 
 export type Option = { label: string; value: number };
 
@@ -459,7 +461,10 @@ export function TechnicalVisitApplicationModal({
       onRequestClose={onClose}
     >
       <View className="flex-1 items-center justify-center bg-black/70 px-3 py-5 sm:px-6">
-        <View className="max-h-[92vh] w-full max-w-4xl rounded-2xl border border-border bg-card shadow-2xl">
+        <View
+          nativeID="modal-select-portal-host"
+          className="max-h-[92vh] w-full max-w-4xl rounded-2xl border border-border bg-card shadow-2xl"
+        >
           {/* Header */}
           <View className="flex-row items-center justify-between border-b border-border/80 px-5 py-4">
             <View className="flex-row items-center gap-2.5">
@@ -608,9 +613,8 @@ export function TechnicalVisitApplicationModal({
 
               {/* Subgrupo 3: Observación General */}
               <View className="border-t border-border/50 pt-4">
-                <NText
+                <NTextarea
                   label="Observación general"
-                  multiline
                   numberOfLines={3}
                   value={header.TapGeneralObservation}
                   onChange={(val) =>
@@ -969,10 +973,9 @@ export function TechnicalVisitApplicationModal({
                   </View>
 
                   {/* Observación técnica */}
-                  <NText
+                  <NTextarea
                     label="Observación técnica"
-                    multiline
-                    numberOfLines={2}
+                    numberOfLines={3}
                     value={detailForm.TadObservation}
                     onChange={(val) =>
                       setDetailForm((prev) =>
@@ -1021,6 +1024,7 @@ export function TechnicalVisitApplicationModal({
               </Text>
             </NButton>
           </View>
+          <PortalHost />
         </View>
       </View>
     </Modal>

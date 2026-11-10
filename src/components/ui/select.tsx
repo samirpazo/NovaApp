@@ -32,10 +32,21 @@ function SelectValue({
     <SelectPrimitive.Value
       ref={ref}
       className={cn(
-        'text-foreground line-clamp-1 flex flex-row items-center gap-2 text-sm',
+        'text-foreground truncate whitespace-nowrap overflow-hidden text-ellipsis block flex-1 text-left font-poppins text-xs',
         !value && 'text-muted-foreground',
         className,
       )}
+      style={Platform.select({
+        web: {
+          textAlign: 'left',
+          flex: 1,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          display: 'block',
+          minWidth: 0,
+        } as any,
+      })}
       {...props}
     />
   );
@@ -55,21 +66,48 @@ function SelectTrigger({
     <SelectPrimitive.Trigger
       ref={ref}
       className={cn(
-        'border-input bg-background flex h-10 flex-row items-center justify-between gap-2 rounded-md border px-3 py-2 shadow-sm shadow-black/5 sm:h-9',
+        'border-input bg-background flex h-9 w-full flex-row items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 shadow-sm shadow-black/5 font-poppins text-xs sm:h-9',
         Platform.select({
-          web: 'focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:hover:bg-input/50 w-fit whitespace-nowrap text-sm outline-none transition-[color,box-shadow] focus-visible:ring-[3px] disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:shrink-0',
+          web: 'focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:hover:bg-input/50 whitespace-nowrap overflow-hidden text-xs outline-none transition-[color,box-shadow] focus-visible:ring-[3px] disabled:cursor-not-allowed cursor-pointer [&_svg]:pointer-events-none [&_svg]:shrink-0 [&>span]:truncate [&>span]:whitespace-nowrap [&>span]:overflow-hidden [&>span]:text-ellipsis [&>span]:block [&>span]:flex-1 [&>span]:min-w-0',
         }),
         props.disabled && 'opacity-50',
-        size === 'sm' && 'h-8 py-2 sm:py-1.5',
+        size === 'sm' && 'h-9 py-1.5',
         className,
       )}
+      style={StyleSheet.flatten([
+        {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          minWidth: 0,
+          overflow: 'hidden',
+        },
+        Platform.select({
+          web: {
+            textAlign: 'left',
+          } as any,
+        }),
+        props.style,
+      ])}
       {...props}
     >
-      <>{children}</>
+      <View
+        className="flex-1 min-w-0 overflow-hidden justify-center items-start"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          overflow: 'hidden',
+          justifyContent: 'center',
+          alignItems: 'flex-start',
+        }}
+      >
+        {children}
+      </View>
       <Icon
         as={ChevronDown}
         aria-hidden={true}
-        className="text-muted-foreground size-4"
+        className="text-muted-foreground size-4 shrink-0"
       />
     </SelectPrimitive.Trigger>
   );
@@ -92,11 +130,15 @@ function SelectContent({
     <SelectPrimitive.Portal hostName={portalHost}>
       <FullWindowOverlay>
         <SelectPrimitive.Overlay
-          style={Platform.select({ native: StyleSheet.absoluteFill })}
+          style={Platform.select({
+            native: StyleSheet.absoluteFill,
+            web: { zIndex: 100000 } as unknown as StyleSheet.AbsoluteFillStyle,
+          })}
           asChild={Platform.OS !== 'web'}
         >
           <NativeOnlyAnimatedView
-            className="z-50"
+            className="z-[100000]"
+            style={Platform.select({ web: { zIndex: 100000 } })}
             entering={FadeIn.reduceMotion(ReduceMotion.System)}
             exiting={FadeOut.reduceMotion(ReduceMotion.System)}
             as="Pressable"
@@ -104,7 +146,7 @@ function SelectContent({
             <TextClassContext.Provider value="text-card-foreground">
               <SelectPrimitive.Content
                 className={cn(
-                  'bg-card border-border relative z-50 min-w-[8rem] rounded-md border shadow-md shadow-black/5',
+                  'bg-card border-border relative z-[100000] min-w-[8rem] rounded-md border shadow-md shadow-black/5',
                   Platform.select({
                     web: cn(
                       'animate-in fade-in-0 zoom-in-95 origin-(--radix-select-content-transform-origin) max-h-52 overflow-y-auto overflow-x-hidden',
@@ -123,6 +165,10 @@ function SelectContent({
                   className,
                 )}
                 position={position}
+                onCloseAutoFocus={(e) => {
+                  e?.preventDefault?.();
+                  props.onCloseAutoFocus?.(e);
+                }}
                 {...props}
               >
                 <SelectScrollUpButton />
@@ -190,7 +236,10 @@ function SelectItem({
           />
         </SelectPrimitive.ItemIndicator>
       </View>
-      <SelectPrimitive.ItemText className="text-foreground group-active:text-accent-foreground select-none font-poppins text-xs" />
+      <SelectPrimitive.ItemText
+        numberOfLines={1}
+        className="text-foreground group-active:text-accent-foreground select-none font-poppins text-xs truncate"
+      />
     </SelectPrimitive.Item>
   );
 }

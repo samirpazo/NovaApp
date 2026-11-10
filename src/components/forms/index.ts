@@ -7,3 +7,4 @@ export * from '@/components/forms/NSelect';
 export * from '@/components/forms/NSelectDefinition';
 export * from '@/components/forms/NSwitch';
 export * from '@/components/forms/NText';
+export * from '@/components/forms/NTextarea';

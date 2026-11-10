@@ -211,6 +211,7 @@ const mockSyncChanges = [
       TvsResponsiblePrsID: 1,
       TvsVisitType: 1,
       TvsObservation: 'Visita programada',
+      ResponsibleName: 'Edinson Pascual Santos Vilchez',
       PlfName: 'Lote San José Kent',
       FrfName: 'Fundo San Lorenzo',
       CltDescription: 'Mango',
@@ -297,6 +298,9 @@ const mockSyncChanges = [
 
 test.describe('Visitas Técnicas - Modal de Aplicaciones e Insumos', () => {
   test('debe permitir seleccionar modalidad y auto-seleccionar objetivo al elegir insumo', async ({ page }) => {
+    page.on('console', (msg) => console.log(`[BROWSER CONSOLE] ${msg.type()}: ${msg.text()}`));
+    page.on('pageerror', (err) => console.log(`[BROWSER ERROR] ${err.message}`));
+
     const user = {
       UsrID: 1,
       UsrName: 'admin',
@@ -380,25 +384,42 @@ test.describe('Visitas Técnicas - Modal de Aplicaciones e Insumos', () => {
       await page.waitForTimeout(1500);
     }
 
-    // 5. Abrir modal de Agregar Aplicación
+    // 5. Verificar que NSelect en cabecera (Supervisor) esté alineado a la izquierda y en 1 sola línea (36px)
     const addAppButton = page.getByRole('button', { name: /Agregar aplicación/i }).first();
     await expect(addAppButton).toBeVisible({ timeout: 15000 });
+
+    const supervisorTrigger = page.getByRole('button', { name: 'Supervisor' });
+    await expect(supervisorTrigger).toBeVisible();
+    const supervisorStyles = await supervisorTrigger.evaluate((el) => {
+      const cs = window.getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      return { height: Math.round(rect.height), textAlign: cs.textAlign, whiteSpace: cs.whiteSpace };
+    });
+    expect(supervisorStyles.height).toBe(36);
+    expect(supervisorStyles.textAlign).toBe('left');
+    expect(supervisorStyles.whiteSpace).toBe('nowrap');
+
+    // Abrir modal de Agregar Aplicación
     await addAppButton.click();
 
     // 6. Verificar que el modal de Nueva Aplicación está visible
     await expect(page.getByText('Nueva aplicación')).toBeVisible();
 
-    // 7. Modalidad de aplicación: debe ser seleccionable
-    const modeSelect = page.locator('select[aria-label="Modalidad de aplicación"]');
-    await expect(modeSelect).toBeVisible();
+    // 7. Modalidad de aplicación: debe abrirse sobre el modal (zIndex 999999) y estar alineado a la izquierda
+    const modeTrigger = page.getByRole('button', { name: /Modalidad de aplicación/i });
+    await expect(modeTrigger).toBeVisible();
+    await modeTrigger.click();
 
-    // Seleccionar opción de modalidad
-    const modeOptionValues = await modeSelect.locator('option').evaluateAll((opts) =>
-      opts.map((o) => (o as HTMLOptionElement).value).filter(Boolean)
-    );
-    expect(modeOptionValues.length).toBeGreaterThan(0);
-    await modeSelect.selectOption(modeOptionValues[0]);
-    expect(await modeSelect.inputValue()).toBe(modeOptionValues[0]);
+    const modeOption = page.getByRole('option', { name: /Focalizada|General/i }).first();
+    await expect(modeOption).toBeVisible({ timeout: 5000 });
+
+    const popperZIndex = await page.evaluate(() => {
+      const popper = document.querySelector('[data-radix-popper-content-wrapper]');
+      return popper ? window.getComputedStyle(popper).zIndex : null;
+    });
+    expect(popperZIndex).toBe('999999');
+
+    await modeOption.click();
 
     // 8. Abrir subformulario de nuevo producto aplicado
     const addDetailButton = page.getByRole('button', { name: /Agregar detalle/i });
@@ -417,24 +438,18 @@ test.describe('Visitas Técnicas - Modal de Aplicaciones e Insumos', () => {
     await expect(supplyOption).toBeVisible({ timeout: 5000 });
     await supplyOption.click();
 
-    // 10. VERIFICACIÓN CLAVE: El objetivo 'Arañita Roja' debe auto-seleccionarse automáticamente
-    const targetSelect = page.locator('select[aria-label="Cultivo / objetivo"]');
-    await expect(targetSelect).toBeVisible();
-
-    // Comprobar que el valor ya está seleccionado (FstID: 1)
-    await expect(async () => {
-      const val = await targetSelect.inputValue();
-      expect(val).toBe('1');
-    }).toPass({ timeout: 5000 });
+    // 10. VERIFICACIÓN CLAVE: El objetivo 'Arañita Roja' debe auto-seleccionarse automáticamente en el Select de Reusables
+    const targetTrigger = page.getByRole('button', { name: /Cultivo \/ objetivo/i });
+    await expect(targetTrigger).toBeVisible();
+    await expect(targetTrigger).toContainText(/Arañita Roja/i, { timeout: 5000 });
 
     // 11. Completar Tipo de aplicación, Dosis y Cantidad
-    const appTypeSelect = page.locator('select[aria-label="Tipo de aplicación"]');
-    if (await appTypeSelect.isVisible()) {
-      const appTypeOpts = await appTypeSelect.locator('option').evaluateAll((opts) =>
-        opts.map((o) => (o as HTMLOptionElement).value).filter(Boolean)
-      );
-      if (appTypeOpts.length > 0) {
-        await appTypeSelect.selectOption(appTypeOpts[0]);
+    const appTypeTrigger = page.getByRole('button', { name: /Tipo de aplicación/i });
+    if (await appTypeTrigger.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await appTypeTrigger.click();
+      const appTypeOption = page.getByRole('option', { name: /Foliar/i }).first();
+      if (await appTypeOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await appTypeOption.click();
       }
     }
 
@@ -456,7 +471,12 @@ test.describe('Visitas Técnicas - Modal de Aplicaciones e Insumos', () => {
     await expect(page.getByText(/0.75/)).toBeVisible();
     await expect(page.getByText(/15/)).toBeVisible();
 
-    // 14. Guardar la aplicación completa
+    // 14. Observación general con NTextarea multilínea
+    const generalObs = page.getByPlaceholder(/Observaciones de la aplicación en campo/i);
+    await expect(generalObs).toBeVisible();
+    await generalObs.fill('Aplicación realizada en horas tempranas.\nCondiciones climáticas favorables.');
+
+    // 15. Guardar la aplicación completa
     const saveAppBtn = page.getByRole('button', { name: /Guardar aplicación/i });
     await expect(saveAppBtn).toBeVisible();
     await saveAppBtn.click();

@@ -7,6 +7,37 @@
   scrollbar-color: oklch(0.7 0 0 / 30%) transparent;
 }
 
+/* Fix Radix Popper z-index so dropdowns always render above React Native Web Modals */
+[data-radix-popper-content-wrapper] {
+  z-index: 999999 !important;
+}
+
+/* Truncate and left-align all select trigger labels on a single line with ellipsis */
+[role="combobox"],
+button[role="button"],
+button[type="button"] {
+  text-align: left !important;
+}
+
+[role="combobox"] span,
+[role="combobox"] span > div,
+button[role="button"] span,
+button[role="button"] span > div,
+button[type="button"] span,
+button[type="button"] span > div,
+[data-radix-select-trigger] span,
+[data-radix-select-trigger] div,
+[data-radix-select-value],
+[data-radix-select-value] * {
+  display: block !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
 .dark * {
   scrollbar-color: oklch(0.5 0 0 / 40%) transparent;
 }

@@ -10,7 +10,9 @@ import { getActiveIdentityKey } from '@/database';
 import { getAccessToken } from '@/sync/config';
 
 const MUTATING_METHODS = ['post', 'put', 'patch', 'delete'];
-const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+const configuredApiUrl =
+  process.env.EXPO_PUBLIC_API_URL?.trim() ||
+  (process.env.NODE_ENV === 'test' ? 'http://localhost:9090' : undefined);
 
 if (!configuredApiUrl) {
   throw new Error('EXPO_PUBLIC_API_URL no está configurada.');

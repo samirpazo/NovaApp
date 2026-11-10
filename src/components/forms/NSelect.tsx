@@ -34,12 +34,14 @@ export interface NSelectProps<TItem extends SelectItem = SelectItem> {
   loading?: boolean;
   clearable?: boolean;
   searchable?: boolean;
+  modal?: boolean;
   multiple?: boolean;
   returnObject?: boolean;
   required?: boolean;
   errorMessage?: string;
   hint?: string;
   containerClassName?: string;
+  portalHost?: string;
 }
 
 const getProperty = (item: SelectItem, key: string): unknown =>
@@ -60,12 +62,14 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
   loading = false,
   clearable = false,
   searchable = false,
+  modal = false,
   multiple = false,
   returnObject = false,
   required,
   errorMessage,
   hint,
   containerClassName,
+  portalHost,
 }: NSelectProps<TItem>) {
   const preferences = useAppearanceStore((state) => state.preferences);
   const systemColorScheme = useColorScheme();
@@ -103,15 +107,13 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
         : entry,
     );
   }, [activeValue, itemValue, multiple, returnObject]);
-  const selectedItems = React.useMemo(
-    () =>
-      items.filter((item) =>
-        selectedValues.some(
-          (selected) => String(selected) === String(valueOf(item)),
-        ),
+  const selectedItems = React.useMemo(() => {
+    return items.filter((item) =>
+      selectedValues.some(
+        (selected) => String(selected) === String(valueOf(item)),
       ),
-    [items, selectedValues, valueOf],
-  );
+    );
+  }, [items, selectedValues, valueOf]);
   const filteredItems = React.useMemo(() => {
     const term = search.trim().toLocaleLowerCase();
     return term
@@ -149,9 +151,10 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
   };
   const displayText = selectedItems.length
     ? selectedItems.map(textOf).join(', ')
-    : placeholder;
+    : '';
   const useRNRSelect =
     !searchable &&
+    !modal &&
     !multiple &&
     !returnObject &&
     !clearable &&
@@ -173,57 +176,12 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
       disabled={disabled}
       className={containerClassName}
     >
-      {Platform.OS === 'web' && !searchable && !multiple ? (
-        <View className="relative w-full">
-          <select
-            aria-label={label}
-            aria-required={required}
-            aria-invalid={Boolean(errorMessage)}
-            disabled={disabled || loading}
-            value={activeValue == null ? '' : String(activeValue)}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === '') {
-                emit(null);
-                return;
-              }
-              const matched = items.find(
-                (item) => String(valueOf(item)) === val,
-              );
-              emit(matched ? valueOf(matched) : val);
-            }}
-            className={cn(
-              'h-8 w-full appearance-none rounded-md border border-input bg-background px-2.5 pr-8 font-poppins text-xs text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
-              errorMessage && 'border-destructive',
-            )}
-            style={{
-              backgroundColor: dark ? '#0f172a' : '#ffffff',
-              color: dark ? '#f8fafc' : '#09090b',
-            }}
-          >
-            <option value="" disabled hidden={activeValue != null}>
-              {loading ? 'Cargando...' : placeholder}
-            </option>
-            {items.map((item, index) => {
-              const val = String(valueOf(item));
-              const txt = textOf(item);
-              return (
-                <option key={`${val}-${index}`} value={val}>
-                  {txt}
-                </option>
-              );
-            })}
-          </select>
-          <View className="pointer-events-none absolute right-2.5 top-2.5">
-            <ChevronDown size={14} className="text-muted-foreground" />
-          </View>
-        </View>
-      ) : useRNRSelect ? (
+      {useRNRSelect ? (
         <Select
           value={
             activeValue == null
               ? undefined
-              : { value: String(activeValue), label: displayText }
+              : { value: String(activeValue), label: displayText || String(activeValue) }
           }
           onValueChange={(option) => {
             if (!option) return;
@@ -248,17 +206,21 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
               className="font-poppins text-xs"
             />
           </SelectTrigger>
-          <SelectContent className="w-full">
+          <SelectContent portalHost={portalHost} className="w-full">
             <SelectGroup>
-              {items.map((item, index) => (
-                <RNRSelectItem
-                  key={`${String(valueOf(item))}-${index}`}
-                  value={String(valueOf(item))}
-                  label={textOf(item)}
-                >
-                  <Text className="text-xs">{textOf(item)}</Text>
-                </RNRSelectItem>
-              ))}
+              {items.map((item, index) => {
+                const itemVal = String(valueOf(item));
+                const itemTxt = textOf(item);
+                return (
+                  <RNRSelectItem
+                    key={`${itemVal}-${index}`}
+                    value={itemVal}
+                    label={itemTxt}
+                  >
+                    <Text className="font-poppins text-xs">{itemTxt}</Text>
+                  </RNRSelectItem>
+                );
+              })}
             </SelectGroup>
           </SelectContent>
         </Select>
@@ -271,16 +233,31 @@ export function NSelect<TItem extends SelectItem = SelectItem>({
             disabled={disabled || loading}
             onPress={() => setOpen(true)}
             className={cn(
-              'h-8 flex-row items-center rounded-md border border-input bg-background px-2.5',
+              'h-9 w-full flex-row items-center justify-between rounded-md border border-input bg-background px-2.5 font-poppins text-xs sm:h-9',
               errorMessage && 'border-destructive',
             )}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+            }}
           >
             <Text
               numberOfLines={1}
               className={cn(
-                'flex-1 text-xs',
+                'flex-1 text-xs truncate whitespace-nowrap',
                 !selectedItems.length && 'text-muted-foreground',
               )}
+              style={Platform.select({
+                web: {
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: 'block',
+                  minWidth: 0,
+                } as any,
+              })}
             >
               {loading ? 'Cargando...' : displayText}
             </Text>

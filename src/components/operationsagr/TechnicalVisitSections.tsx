@@ -417,17 +417,8 @@ export function TechnicalVisitSections({
   onInstallationObservation,
   onEvidence,
 }: TechnicalVisitSectionsProps) {
-  const [showAllApplications, setShowAllApplications] = React.useState(false);
-  const [expandedApplicationId, setExpandedApplicationId] = React.useState<number | null>(null);
   const applications = activeRows(snapshot.Applications);
   const applicationDetails = activeRows(snapshot.ApplicationDetails);
-  const hasProducts = (application: Row) => applicationDetails.some(
-    (detail) => Number(detail.TapID) === Number(application.TapID),
-  );
-  const emptyApplications = applications.filter((application) => !hasProducts(application));
-  const visibleApplications = showAllApplications
-    ? applications
-    : applications.filter(hasProducts);
 
   const stages = options.OAG_PHENOLOGICAL_STAGE ?? [];
   const phenology = activeRows(snapshot.Phenology);
@@ -470,87 +461,29 @@ export function TechnicalVisitSections({
     });
   }
 
-  const applicationColumns: TableColumn[] = [
-    {
-      key: 'product',
-      label: 'Producto / observación',
-      render: (row) => (
-        <TwoLine
-          title={textOf(row.TadProductDescription) || 'Sin producto'}
-          detail={
-            [
-              textOf(row.TadObservation),
-              boolValue(row.TadIsObservation) ? 'Observación' : '',
-            ]
-              .filter(Boolean)
-              .join(' · ') || undefined
-          }
-        />
-      ),
-    },
-    {
-      key: 'type',
-      label: 'Tipo',
-      render: (row) => (
-        <Text className="text-xs">
-          {optionText(
-            options,
-            'OAG_APPLICATION_TYPE',
-            row.TadApplicationType,
-            row.TadApplicationTypeDescription,
-          )}
-        </Text>
-      ),
-    },
-    {
-      key: 'dose',
-      label: 'Dosis',
-      align: 'right',
-      render: (row) => (
-        <Text className="text-right text-xs">
-          {measureText(
-            options,
-            row.TadDose,
-            'OAG_DOSE_UNIT',
-            row.TadDoseUnit,
-            row.TadDoseUnitDescription,
-          )}
-        </Text>
-      ),
-    },
-    {
-      key: 'quantity',
-      label: 'Cantidad',
-      align: 'right',
-      render: (row) => (
-        <Text className="text-right text-xs">
-          {measureText(
-            options,
-            row.TadQuantity,
-            'OAG_APPLICATION_QUANTITY_UNIT',
-            row.TadQuantityUnit,
-            row.TadQuantityUnitDescription,
-          )}
-        </Text>
-      ),
-    },
-  ];
-
   const detailsFor = (application: Row) => applicationDetails.filter(
     (detail) => Number(detail.TapID) === Number(application.TapID),
   );
   const applicationSummaryColumns: TableColumn[] = [
     {
-      key: 'products', label: 'Producto / observación', className: 'flex-[2]',
-      render: (application) => <View className="gap-1">
+      key: 'products',
+      label: 'Producto / observación',
+      className: 'flex-[2]',
+      render: (application) => (
         <TwoLine
-          title={detailsFor(application).map((detail) => textOf(detail.TadProductDescription) || textOf(detail.TadObservation) || 'Sin producto').join(', ') || 'Sin productos'}
+          title={
+            detailsFor(application)
+              .map(
+                (detail) =>
+                  textOf(detail.TadProductDescription) ||
+                  textOf(detail.TadObservation) ||
+                  'Sin producto',
+              )
+              .join(', ') || 'Sin productos'
+          }
           detail={`${dateTimeText(application.TapStartDateTime)} · ${optionText(options, 'OAG_FIELD_APPLICATION_MODE', application.TapApplicationMode, application.TapApplicationModeDescription)}`}
         />
-        <NButton variant="ghost" className="h-6 self-start px-0" accessibilityLabel={`Ver productos de aplicación ${String(application.TapID)}`} onPress={() => setExpandedApplicationId((current) => current === Number(application.TapID) ? null : Number(application.TapID))}>
-          <Text className="text-[10px] text-primary">{expandedApplicationId === Number(application.TapID) ? 'Ocultar productos' : `Ver productos (${detailsFor(application).length})`}</Text>
-        </NButton>
-      </View>,
+      ),
     },
     {
       key: 'types', label: 'Tipo aplicación',
@@ -836,49 +769,20 @@ export function TechnicalVisitSections({
           action={
             <AddButton
               label="Agregar aplicación"
-              onPress={() => { setShowAllApplications(true); onAdd('Applications'); }}
+              onPress={() => onAdd('Applications')}
             />
           }
         />
         <ResponsiveTable
           columns={applicationSummaryColumns}
-          rows={visibleApplications}
+          rows={applications}
           rowKey={(application) => String(application.TapID)}
           empty={<EmptyState title="No hay aplicaciones registradas" subtitle="Agrega la primera aplicación de la visita." icon={FlaskConical} />}
           onEdit={(application) => onEdit('Applications', application)}
           onRemove={(application) => onRemove('Applications', application)}
           editLabel="Editar aplicación"
           removeLabel="Eliminar aplicación"
-            renderDetails={(application) => expandedApplicationId === Number(application.TapID) ? <View className="gap-3 border-t border-border bg-muted/40 p-3">
-            <View className="flex-row items-center justify-between gap-3">
-              <Text className="text-xs font-poppins-semibold">Productos de la aplicación</Text>
-              <AddButton label="Producto" onPress={() => onAdd('ApplicationDetails', application)} />
-            </View>
-            <ResponsiveTable
-              columns={applicationColumns}
-              rows={detailsFor(application)}
-              rowKey={(detail) => String(detail.TadID)}
-              empty={<EmptyState title="Sin productos en esta aplicación" subtitle="Agrega un producto u observación." icon={FlaskConical} />}
-              onEdit={(detail) => onEdit('ApplicationDetails', detail)}
-              onRemove={(detail) => onRemove('ApplicationDetails', detail)}
-              editLabel="Editar producto"
-              removeLabel="Eliminar producto"
-            />
-          </View> : null}
         />
-        {emptyApplications.length > 0 ? (
-          <NButton
-            variant="outline"
-            className="h-8 self-start px-3"
-            onPress={() => setShowAllApplications((current) => !current)}
-          >
-            <Text>
-              {showAllApplications
-                ? 'Ocultar aplicaciones sin productos'
-                : `Ver ${emptyApplications.length} aplicaciones sin productos`}
-            </Text>
-          </NButton>
-        ) : null}
       </View>
 
       <View className="gap-4 md:flex-row md:items-start md:gap-5">

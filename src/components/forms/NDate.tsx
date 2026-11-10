@@ -19,6 +19,7 @@ export interface NDateProps {
   placeholder?: string;
   disabled?: boolean;
   mode?: 'date' | 'datetime' | 'time';
+  showTime?: boolean;
   clearable?: boolean;
   minDate?: string | null;
   maxDate?: string | null;
@@ -48,6 +49,7 @@ export function NDate({
   placeholder = 'Seleccionar fecha...',
   disabled = false,
   mode = 'date',
+  showTime = false,
   clearable = false,
   minDate,
   maxDate,
@@ -56,6 +58,7 @@ export function NDate({
   hint,
   containerClassName,
 }: NDateProps) {
+  const effectiveMode = showTime && mode === 'date' ? 'datetime' : mode;
   const controlled = value !== undefined;
   const [internalValue, setInternalValue] = React.useState<string | null>(
     defaultValue,
@@ -65,11 +68,13 @@ export function NDate({
   );
   const [calendarOpen, setCalendarOpen] = React.useState(false);
   const activeValue = controlled ? value : internalValue;
-  const selectedDate = parseValue(activeValue, mode);
+  const selectedDate = parseValue(activeValue, effectiveMode);
 
   const emit = (date: DateTime) => {
     const next =
-      mode === 'time' ? date.toFormat('HH:mm:ss') : (date.toISO() ?? '');
+      effectiveMode === 'time'
+        ? date.toFormat('HH:mm:ss')
+        : (date.toISO() ?? '');
     if (!controlled) setInternalValue(next);
     onChange?.(next);
   };
@@ -106,12 +111,12 @@ export function NDate({
         }}
         disabled={disabled}
         onPress={() =>
-          mode === 'date'
+          effectiveMode === 'date'
             ? setCalendarOpen(true)
-            : setPickerMode(mode === 'time' ? 'time' : 'date')
+            : setPickerMode(effectiveMode === 'time' ? 'time' : 'date')
         }
         className={cn(
-          `${mode === 'date' ? 'h-9 sm:h-9' : 'h-10'} flex-row items-center rounded-md border border-input bg-background px-2.5`,
+          'h-9 flex-row items-center rounded-md border border-input bg-background px-2.5 sm:h-9',
           errorMessage && 'border-destructive',
         )}
       >
