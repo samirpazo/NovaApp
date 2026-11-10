@@ -5,6 +5,7 @@ import {
   ClipboardList,
   FlaskConical,
   Leaf,
+  MessageSquare,
   Pencil,
   Plus,
   ShieldAlert,
@@ -39,6 +40,7 @@ type TechnicalVisitSectionsProps = {
   onRemove: (key: TechnicalVisitSectionKey, row: Row) => void;
   onPhenology: (option: Option, value: string) => void;
   onInstallation: (option: Option, value: boolean) => void;
+  onInstallationObservation?: (option: Option, currentObservation: string) => void;
   onEvidence: () => void;
 };
 
@@ -412,6 +414,7 @@ export function TechnicalVisitSections({
   onRemove,
   onPhenology,
   onInstallation,
+  onInstallationObservation,
   onEvidence,
 }: TechnicalVisitSectionsProps) {
   const [showAllApplications, setShowAllApplications] = React.useState(false);
@@ -1046,13 +1049,16 @@ export function TechnicalVisitSections({
                       </Text>
                     ) : null}
                   </View>
-                  {row ? (
-                    <IconAction
-                      label={`Editar ${option.label}`}
-                      icon={Pencil}
-                      onPress={() => onEdit('Installations', row)}
-                    />
-                  ) : null}
+                  <IconAction
+                    label={`Comentario de ${option.label}`}
+                    icon={MessageSquare}
+                    onPress={() =>
+                      onInstallationObservation?.(
+                        option,
+                        textOf(row?.TinObservation),
+                      )
+                    }
+                  />
                   <NSwitch
                     value={boolValue(row?.TinIsAvailable)}
                     onValueChange={(value) => onInstallation(option, value)}

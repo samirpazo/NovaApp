@@ -331,22 +331,6 @@ const editableSections: SectionDefinition[] = [
     ],
   },
   {
-    key: 'Installations',
-    label: 'Instalaciones',
-    id: 'TinID',
-    fields: [
-      {
-        key: 'TinInstallationType',
-        label: 'Tipo de instalación',
-        kind: 'number',
-        required: true,
-        definitionCode: 'OAG_INSTALLATION_TYPE',
-      },
-      { key: 'TinIsAvailable', label: 'Disponible', kind: 'boolean' },
-      { key: 'TinObservation', label: 'Observación' },
-    ],
-  },
-  {
     key: 'Recommendations',
     label: 'Recomendaciones',
     id: 'TvrID',
@@ -481,6 +465,11 @@ export default function TechnicalVisitDetailScreen() {
     waterSources: { label: string; value: number }[];
   }>({ supplies: [], targets: [], objectives: [], waterSources: [] });
   const [plotCropId, setPlotCropId] = React.useState<number | null>(null);
+  const [installationCommentTarget, setInstallationCommentTarget] =
+    React.useState<{
+      option: { label: string; value: number };
+      observation: string;
+    } | null>(null);
   const markDraftDirty = () => {
     draftDirtyRef.current = true;
     setDraftDirty(true);
@@ -1207,6 +1196,45 @@ export default function TechnicalVisitDetailScreen() {
     void saveCatalogValue('Phenology', option, 'TphPercentage', value);
   };
 
+  const saveInstallationObservation = (
+    option: { label: string; value: number },
+    observationText: string,
+  ) => {
+    if (!model || !snapshot) return;
+    const rows = snapshot.Installations as Record<string, unknown>[];
+    const existing = rows.find(
+      (row) => row.TinInstallationType === option.value,
+    );
+    const now = DateTime.utc().toISO() ?? '';
+    const cleanObservation =
+      observationText.trim() === '' ? null : observationText.trim();
+    const updated = {
+      ...existing,
+      SyncId: existing?.SyncId ?? randomUUID(),
+      SyncVersion: existing?.SyncVersion ?? '',
+      SecStatus: true,
+      CreateUserId: existing?.CreateUserId ?? userId,
+      UpdateUserId: userId,
+      DeleteUserId: null,
+      CreateDate: existing?.CreateDate ?? now,
+      UpdateDate: now,
+      DeleteDate: null,
+      TinID: existing?.TinID ?? createTechnicalVisitTemporaryId(),
+      TviID: model.TviID,
+      TinInstallationType: option.value,
+      TinIsAvailable: existing?.TinIsAvailable ?? false,
+      TinObservation: cleanObservation,
+    };
+    const next = {
+      ...snapshot,
+      Installations: existing
+        ? rows.map((row) => (row === existing ? updated : row))
+        : [...rows, updated],
+    };
+    setSnapshot(next);
+    markDraftDirty();
+  };
+
   if (!model || !snapshot || model.id !== id)
     return (
       <View className="flex-1 items-center justify-center">
@@ -1399,6 +1427,12 @@ export default function TechnicalVisitDetailScreen() {
             'TinIsAvailable',
             value,
           )
+        }
+        onInstallationObservation={(option, currentObservation) =>
+          setInstallationCommentTarget({
+            option,
+            observation: currentObservation,
+          })
         }
         onEvidence={() => void attachEvidence()}
       />
@@ -1663,6 +1697,75 @@ export default function TechnicalVisitDetailScreen() {
               </NButton>
             </View>
           </ScrollView>
+        </View>
+      </Modal>
+      <Modal
+        visible={installationCommentTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setInstallationCommentTarget(null)}
+      >
+        <View className="flex-1 items-center justify-center bg-black/60 px-4 py-6">
+          <View className="w-full max-w-lg rounded-xl border border-border bg-background p-5 gap-4">
+            <View className="flex-row items-center justify-between border-b border-border pb-3">
+              <View className="flex-1">
+                <Text className="text-lg font-poppins-semibold">
+                  Comentario de instalación
+                </Text>
+                <Text className="text-xs font-poppins-medium text-primary">
+                  {installationCommentTarget?.option.label}
+                </Text>
+              </View>
+              <NButton
+                variant="ghost"
+                size="icon"
+                accessibilityLabel="Cerrar"
+                onPress={() => setInstallationCommentTarget(null)}
+              >
+                <X
+                  size={18}
+                  className="text-muted-foreground"
+                />
+              </NButton>
+            </View>
+
+            <NText
+              label="Comentario u observación"
+              value={installationCommentTarget?.observation ?? ''}
+              onChange={(value) =>
+                setInstallationCommentTarget((prev) =>
+                  prev ? { ...prev, observation: value } : null,
+                )
+              }
+              placeholder="Escribe un comentario sobre esta instalación..."
+              multiline
+              numberOfLines={3}
+            />
+
+            <View className="flex-row justify-end gap-3 pt-2">
+              <NButton
+                variant="outline"
+                onPress={() => setInstallationCommentTarget(null)}
+              >
+                <Text>Cancelar</Text>
+              </NButton>
+              <NButton
+                onPress={() => {
+                  if (installationCommentTarget) {
+                    saveInstallationObservation(
+                      installationCommentTarget.option,
+                      installationCommentTarget.observation,
+                    );
+                    setInstallationCommentTarget(null);
+                  }
+                }}
+              >
+                <Text className="text-primary-foreground font-poppins-medium">
+                  Guardar comentario
+                </Text>
+              </NButton>
+            </View>
+          </View>
         </View>
       </Modal>
     </ScrollView>
