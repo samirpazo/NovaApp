@@ -28,10 +28,12 @@ const parseNum = (value: string | number | null | undefined): number | null => {
   if (value == null) return null;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   const trimmed = String(value).trim();
-  if (!trimmed) return null;
+  if (trimmed === '') return null;
   const parsed = Number(trimmed.replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : null;
 };
+
+const SIN_OBJETIVO = 0;
 
 /* -------------------------------------------------------------------------- */
 /* 1. Actividades culturales realizadas (TechnicalVisitFieldWork)             */
@@ -600,6 +602,7 @@ export type RecommendationModalDraft = {
   TvrIsObservation: boolean;
   FrsID: number | null;
   FstID: number | null;
+  TvrObjID: number | null;
   TvrProductDescription: string;
   TvrObjective: string;
   TvrDose: string;
@@ -636,6 +639,7 @@ export function TechnicalVisitRecommendationModal({
     TvrIsObservation: false,
     FrsID: null,
     FstID: null,
+    TvrObjID: null,
     TvrProductDescription: '',
     TvrObjective: '',
     TvrDose: '',
@@ -656,6 +660,7 @@ export function TechnicalVisitRecommendationModal({
         TvrIsObservation: row.FrsID == null,
         FrsID: row.FrsID != null ? Number(row.FrsID) : null,
         FstID: row.FstID != null ? Number(row.FstID) : null,
+        TvrObjID: null,
         TvrProductDescription: row.TvrProductDescription
           ? String(row.TvrProductDescription)
           : '',
@@ -674,6 +679,7 @@ export function TechnicalVisitRecommendationModal({
         TvrIsObservation: false,
         FrsID: null,
         FstID: null,
+        TvrObjID: null,
         TvrProductDescription: '',
         TvrObjective: '',
         TvrDose: '',
@@ -684,45 +690,95 @@ export function TechnicalVisitRecommendationModal({
     }
   }, [visible, row]);
 
-  const filteredTargets = React.useMemo(() => {
-    if (!draft.FrsID) return [];
-    return targets.filter(
-      (target) =>
-        target.FrsID === draft.FrsID &&
-        (!plotCropId || target.CltID === plotCropId),
-    );
-  }, [draft.FrsID, targets, plotCropId]);
-
-  const objectiveOptions = React.useMemo(
-    () =>
-      filteredTargets.map((target) => ({
-        value: target.value,
-        label: target.objectiveName ?? target.label,
-      })),
-    [filteredTargets],
+  // Objetivos disponibles para el cultivo del lote y sus insumos registrados
+  const cropTargets = React.useMemo(
+    () => targets.filter((target) => !plotCropId || target.CltID === plotCropId),
+    [targets, plotCropId],
   );
 
-  // Auto-select target when supply has targets and none is selected yet
-  React.useEffect(() => {
-    if (
-      !draft.TvrIsObservation &&
-      draft.FrsID != null &&
-      draft.FstID == null &&
-      filteredTargets.length > 0
-    ) {
-      const first = filteredTargets[0];
-      setDraft((prev) => ({
-        ...prev,
-        FstID: first.value,
-        TvrObjective: first.objectiveName ?? first.label,
-      }));
+  const objectiveOptions = React.useMemo(() => {
+    const available = new Set(supplies.map((supply) => supply.value));
+    const byObjective = new Map<number, { name: string; count: number }>();
+    for (const target of cropTargets) {
+      if (!available.has(target.FrsID)) continue;
+      const entry = byObjective.get(target.ObjID);
+      if (entry) entry.count += 1;
+      else
+        byObjective.set(target.ObjID, {
+          name: target.objectiveName ?? 'Objetivo',
+          count: 1,
+        });
     }
-  }, [draft.TvrIsObservation, draft.FrsID, draft.FstID, filteredTargets]);
+    return [
+      ...[...byObjective.entries()].map(([objectiveId, entry]) => ({
+        value: objectiveId,
+        label: `${entry.name} · ${entry.count} insumo${entry.count === 1 ? '' : 's'}`,
+      })),
+      { value: SIN_OBJETIVO, label: 'Sin objetivo (cualquier insumo)' },
+    ];
+  }, [cropTargets, supplies]);
 
-  const selectedTarget = React.useMemo(
-    () => filteredTargets.find((target) => target.value === draft.FstID) ?? null,
-    [filteredTargets, draft.FstID],
-  );
+  const selectedObjectiveId = React.useMemo(() => {
+    if (!draft) return null;
+    if (draft.TvrObjID != null) return draft.TvrObjID;
+    if (draft.FstID != null) {
+      const target = cropTargets.find((item) => item.value === draft.FstID);
+      if (target) return target.ObjID;
+    }
+    if (draft.FrsID != null) return SIN_OBJETIVO;
+    return null;
+  }, [cropTargets, draft]);
+
+  const supplyOptions = React.useMemo(() => {
+    if (selectedObjectiveId == null) return [];
+    const available = new Set(supplies.map((supply) => supply.value));
+    if (selectedObjectiveId === SIN_OBJETIVO) {
+      const registered = new Set(cropTargets.map((target) => target.FrsID));
+      return supplies
+        .filter((supply) => !registered.has(supply.value))
+        .map((supply) => ({ value: supply.value, label: supply.label }));
+    }
+    const seen = new Set<number>();
+    const items: { value: number; label: string }[] = [];
+    for (const target of cropTargets) {
+      if (target.ObjID !== selectedObjectiveId) continue;
+      if (seen.has(target.FrsID)) continue;
+      if (!available.has(target.FrsID)) continue;
+      seen.add(target.FrsID);
+      const master = supplies.find((supply) => supply.value === target.FrsID);
+      if (!master) continue;
+      const doseRange = [target.FstMinDose, target.FstMaxDose]
+        .filter((dose) => dose != null)
+        .join('–');
+      items.push({
+        value: target.FrsID,
+        label: doseRange ? `${master.label} · dosis ${doseRange}` : master.label,
+      });
+    }
+    const selected = draft.FrsID;
+    if (selected != null && !items.some((item) => item.value === selected)) {
+      const master = supplies.find((supply) => supply.value === selected);
+      items.unshift({
+        value: selected,
+        label: master?.label ?? `Insumo ${selected}`,
+      });
+    }
+    return items;
+  }, [cropTargets, draft.FrsID, selectedObjectiveId, supplies]);
+
+  const selectedTarget = React.useMemo(() => {
+    if (!draft.FrsID) return null;
+    if (draft.TvrObjID != null) {
+      if (draft.TvrObjID === SIN_OBJETIVO) return null;
+      return (
+        cropTargets.find(
+          (target) =>
+            target.FrsID === draft.FrsID && target.ObjID === draft.TvrObjID,
+        ) ?? null
+      );
+    }
+    return cropTargets.find((target) => target.value === draft.FstID) ?? null;
+  }, [cropTargets, draft]);
 
   const dose = parseNum(draft.TvrDose);
   const doseOutOfRange = Boolean(
@@ -752,15 +808,8 @@ export function TechnicalVisitRecommendationModal({
       Alert.alert('Revisa la recomendación', 'Selecciona un insumo.');
       return;
     }
-    if (
-      !draft.TvrIsObservation &&
-      objectiveOptions.length > 0 &&
-      !draft.FstID
-    ) {
-      Alert.alert(
-        'Revisa la recomendación',
-        'Selecciona el cultivo u objetivo.',
-      );
+    if (!draft.TvrIsObservation && selectedObjectiveId == null) {
+      Alert.alert('Revisa la recomendación', 'Selecciona el objetivo.');
       return;
     }
     if (draft.TvrIsObservation && !draft.TvrObjective.trim()) {
@@ -846,8 +895,8 @@ export function TechnicalVisitRecommendationModal({
           <ScrollView contentContainerClassName="gap-4 p-5">
             <View className="gap-4 rounded-xl border border-border/60 bg-card/30 p-4">
               <VisitSectionHeading
-                title="Insumo y objetivo"
-                subtitle="Define qué producto se recomienda, para qué y cómo debe aplicarlo el productor."
+                title="Objetivo e insumo"
+                subtitle="Elige el objetivo y después el producto que lo atiende, con la dosis y el orden de aplicación."
                 icon={Sprout}
               />
 
@@ -869,6 +918,7 @@ export function TechnicalVisitRecommendationModal({
                       TvrIsObservation: checked,
                       FrsID: null,
                       FstID: null,
+                      TvrObjID: null,
                       TvrProductDescription: '',
                       TvrObjective: '',
                     }))
@@ -908,33 +958,32 @@ export function TechnicalVisitRecommendationModal({
                   />
                 ) : (
                   <NSelect
-                    label="Insumo"
-                    items={supplies}
+                    label="Objetivo"
+                    items={objectiveOptions}
                     itemText="label"
                     itemValue="value"
-                    value={draft.FrsID}
+                    value={selectedObjectiveId}
                     onChange={(val) => {
-                      const nextFrsId = val != null ? Number(val) : null;
-                      const matching = nextFrsId
-                        ? targets.filter(
-                            (t) =>
-                              t.FrsID === nextFrsId &&
-                              (!plotCropId || t.CltID === plotCropId),
-                          )
-                        : [];
-                      const firstTarget = matching[0] ?? null;
+                      const objectiveId = val != null ? Number(val) : null;
+                      const name =
+                        cropTargets.find(
+                          (target) => target.ObjID === objectiveId,
+                        )?.objectiveName ??
+                        objectiveOptions.find(
+                          (item) => item.value === objectiveId,
+                        )?.label ??
+                        '';
                       setDraft((prev) => ({
                         ...prev,
-                        FrsID: nextFrsId,
-                        FstID: firstTarget ? firstTarget.value : null,
-                        TvrObjective: firstTarget
-                          ? (firstTarget.objectiveName ?? firstTarget.label)
-                          : '',
+                        TvrObjID: objectiveId,
+                        FrsID: null,
+                        FstID: null,
+                        TvrProductDescription: '',
+                        TvrObjective: name,
                       }));
                     }}
                     searchable
-                    placeholder="Selecciona un insumo"
-                    searchPlaceholder="Busca por nombre o ingrediente activo"
+                    placeholder="Selecciona el objetivo"
                     required
                     containerClassName="flex-1"
                   />
@@ -955,24 +1004,46 @@ export function TechnicalVisitRecommendationModal({
                   />
                 ) : (
                   <NSelect
-                    label="Cultivo / objetivo"
-                    items={objectiveOptions}
+                    label="Insumo"
+                    items={supplyOptions}
                     itemText="label"
                     itemValue="value"
-                    value={draft.FstID}
+                    value={draft.FrsID}
                     onChange={(val) => {
-                      const targetId = val != null ? Number(val) : null;
-                      const found = objectiveOptions.find(
-                        (item) => item.value === targetId,
+                      const nextFrsId = val != null ? Number(val) : null;
+                      const matching = nextFrsId
+                        ? cropTargets.filter(
+                            (t) =>
+                              t.FrsID === nextFrsId &&
+                              t.ObjID === selectedObjectiveId,
+                          )
+                        : [];
+                      const firstTarget = matching[0] ?? null;
+                      const supply = supplies.find(
+                        (item) => item.value === nextFrsId,
                       );
                       setDraft((prev) => ({
                         ...prev,
-                        FstID: targetId,
-                        TvrObjective: found?.label ?? '',
+                        FrsID: nextFrsId,
+                        TvrObjID: selectedObjectiveId,
+                        FstID: firstTarget ? firstTarget.value : null,
+                        TvrProductDescription: supply?.label ?? '',
+                        TvrObjective:
+                          firstTarget?.objectiveName ?? prev.TvrObjective,
                       }));
                     }}
-                    disabled={!draft.FrsID || objectiveOptions.length === 0}
-                    placeholder="Selecciona el objetivo del cultivo"
+                    searchable
+                    placeholder={
+                      selectedObjectiveId == null
+                        ? 'Primero selecciona el objetivo'
+                        : supplyOptions.length
+                          ? 'Selecciona el insumo'
+                          : 'Sin insumos registrados'
+                    }
+                    disabled={
+                      selectedObjectiveId == null ||
+                      supplyOptions.length === 0
+                    }
                     required
                     containerClassName="flex-1"
                   />
@@ -1035,7 +1106,7 @@ export function TechnicalVisitRecommendationModal({
                       : 'text-xs text-muted-foreground'
                   }
                 >
-                  Rango configurado para el cultivo:{' '}
+                  Rango configurado para el insumo y objetivo:{' '}
                   {selectedTarget.FstMinDose ?? '—'}–
                   {selectedTarget.FstMaxDose ?? '—'}
                   {doseOutOfRange

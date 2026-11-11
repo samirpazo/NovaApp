@@ -115,8 +115,15 @@ binarias como recursos de WatermelonDB.
    migrar la lista a `NCrudDataSource` y verificar el Push/reconciliación en una instalación con los
    catálogos descargados.
 4. **Componentes de detalle**: reemplazar entradas de IDs por selectores offline para insumos,
-   objetivos, objetivos agronómicos, fuentes de agua e instalaciones; completar definición/unidad/estado y mantener
-   todos los cambios de secciones dentro del guardado único del agregado.
+    objetivos, objetivos agronómicos, fuentes de agua e instalaciones; completar definición/unidad/estado y mantener
+    todos los cambios de secciones dentro del guardado único del agregado.
+    En aplicaciones y recomendaciones el selector de insumos y el de objetivo están en orden inverso
+    respecto a Nova Web: primero se elige el objetivo y el selector de insumo ofrece únicamente los
+    insumos registrados para ese objetivo en el cultivo del lote, con su rango de dosis. La fila de
+    `OagFarmSuppliesTarget` se resuelve sola a partir del par insumo/objetivo; la opción "Sin objetivo
+    (cualquier insumo)" deja el `FstID` en null y ofrece los insumos sin relación registrada para el
+    cultivo.
+
 5. **Cierre funcional**: validar alta de programación, apertura/captura de visita, firma/evidencia,
    cierre y reapertura offline, Push idempotente, Pull/reconciliación y conflictos.
 

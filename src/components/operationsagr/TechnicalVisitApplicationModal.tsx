@@ -57,6 +57,7 @@ export type ApplicationDetailDraft = {
   TapID?: number;
   TadFrsID: number | null;
   TadFstID: number | null;
+  TadObjID: number | null;
   TadIsObservation: boolean;
   TadProductDescription: string;
   TadApplicationType: number | null;
@@ -97,6 +98,8 @@ const numericValue = (value: string | number | null | undefined): number | null 
   const parsed = Number(trimmed.replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : null;
 };
+
+const SIN_OBJETIVO = 0;
 
 export function TechnicalVisitApplicationModal({
   visible,
@@ -192,6 +195,7 @@ export function TechnicalVisitApplicationModal({
               detail.TadFrsID != null ? Number(detail.TadFrsID) : null,
             TadFstID:
               detail.TadFstID != null ? Number(detail.TadFstID) : null,
+            TadObjID: null,
             TadIsObservation: Boolean(detail.TadIsObservation),
             TadProductDescription: String(
               detail.TadProductDescription ?? '',
@@ -239,33 +243,96 @@ export function TechnicalVisitApplicationModal({
     setEditingDetailIndex(null);
   }, [visible, application, existingDetails, plotHectares]);
 
-  // Target options filtered by selected supply and plot crop
-  const selectedSupplyId = detailForm?.TadFrsID ?? 0;
-  const filteredTargets = React.useMemo(() => {
-    if (!selectedSupplyId) return [];
-    return targets.filter(
-      (target) =>
-        target.FrsID === selectedSupplyId &&
-        (!plotCropId || target.CltID === plotCropId),
-    );
-  }, [selectedSupplyId, targets, plotCropId]);
+  // Objetivos disponibles para el cultivo del lote y sus insumos registrados
+  const cropTargets = React.useMemo(
+    () => targets.filter((target) => !plotCropId || target.CltID === plotCropId),
+    [targets, plotCropId],
+  );
 
-  const targetSelectItems = React.useMemo(() => {
-    return filteredTargets.map((target) => {
+  const objectiveOptions = React.useMemo(() => {
+    const available = new Set(supplies.map((supply) => supply.value));
+    const byObjective = new Map<number, { name: string; count: number }>();
+    for (const target of cropTargets) {
+      if (!available.has(target.FrsID)) continue;
+      const entry = byObjective.get(target.ObjID);
+      if (entry) entry.count += 1;
+      else
+        byObjective.set(target.ObjID, {
+          name: target.objectiveName ?? 'Objetivo',
+          count: 1,
+        });
+    }
+    return [
+      ...[...byObjective.entries()].map(([objectiveId, entry]) => ({
+        value: objectiveId,
+        label: `${entry.name} · ${entry.count} insumo${entry.count === 1 ? '' : 's'}`,
+      })),
+      { value: SIN_OBJETIVO, label: 'Sin objetivo (cualquier insumo)' },
+    ];
+  }, [cropTargets, supplies]);
+
+  const selectedObjectiveId = React.useMemo(() => {
+    if (!detailForm) return null;
+    if (detailForm.TadObjID != null) return detailForm.TadObjID;
+    if (detailForm.TadFstID != null) {
+      const target = cropTargets.find((item) => item.value === detailForm.TadFstID);
+      if (target) return target.ObjID;
+    }
+    if (detailForm.TadFrsID != null) return SIN_OBJETIVO;
+    return null;
+  }, [cropTargets, detailForm]);
+
+  const supplyOptions = React.useMemo(() => {
+    if (selectedObjectiveId == null) return [];
+    const available = new Set(supplies.map((supply) => supply.value));
+    if (selectedObjectiveId === SIN_OBJETIVO) {
+      const registered = new Set(cropTargets.map((target) => target.FrsID));
+      return supplies
+        .filter((supply) => !registered.has(supply.value))
+        .map((supply) => ({ value: supply.value, label: supply.label }));
+    }
+    const seen = new Set<number>();
+    const items: { value: number; label: string }[] = [];
+    for (const target of cropTargets) {
+      if (target.ObjID !== selectedObjectiveId) continue;
+      if (seen.has(target.FrsID)) continue;
+      if (!available.has(target.FrsID)) continue;
+      seen.add(target.FrsID);
+      const master = supplies.find((supply) => supply.value === target.FrsID);
+      if (!master) continue;
       const doseRange = [target.FstMinDose, target.FstMaxDose]
-        .filter((d) => d != null)
+        .filter((dose) => dose != null)
         .join('–');
-      return {
-        value: target.value,
-        label: `${target.objectiveName ?? 'Objetivo'} · dosis ${doseRange || 'sin rango'}`,
-      };
-    });
-  }, [filteredTargets]);
+      items.push({
+        value: target.FrsID,
+        label: doseRange ? `${master.label} · dosis ${doseRange}` : master.label,
+      });
+    }
+    const selected = detailForm?.TadFrsID ?? null;
+    if (selected != null && !items.some((item) => item.value === selected)) {
+      const master = supplies.find((supply) => supply.value === selected);
+      items.unshift({
+        value: selected,
+        label: master?.label ?? `Insumo ${selected}`,
+      });
+    }
+    return items;
+  }, [cropTargets, detailForm?.TadFrsID, selectedObjectiveId, supplies]);
 
   const selectedTarget = React.useMemo(() => {
-    if (!detailForm?.TadFstID) return null;
-    return filteredTargets.find((t) => t.value === detailForm.TadFstID) ?? null;
-  }, [detailForm?.TadFstID, filteredTargets]);
+    if (!detailForm?.TadFrsID) return null;
+    if (detailForm.TadObjID != null) {
+      if (detailForm.TadObjID === SIN_OBJETIVO) return null;
+      return (
+        cropTargets.find(
+          (target) =>
+            target.FrsID === detailForm.TadFrsID &&
+            target.ObjID === detailForm.TadObjID,
+        ) ?? null
+      );
+    }
+    return cropTargets.find((target) => target.value === detailForm.TadFstID) ?? null;
+  }, [cropTargets, detailForm]);
 
   const targetDoseRangeText = React.useMemo(() => {
     if (!selectedTarget) return null;
@@ -273,37 +340,8 @@ export function TechnicalVisitApplicationModal({
       return null;
     const min = selectedTarget.FstMinDose ?? '—';
     const max = selectedTarget.FstMaxDose ?? '—';
-    return `Rango configurado para el cultivo: ${min}–${max}`;
+    return `Rango configurado para el insumo y objetivo: ${min}–${max}`;
   }, [selectedTarget]);
-
-  // Auto-select first matching target when targets load or change
-  React.useEffect(() => {
-    if (
-      detailForm &&
-      !observationMode &&
-      detailForm.TadFrsID != null &&
-      detailForm.TadFstID == null &&
-      filteredTargets.length > 0
-    ) {
-      const autoTarget = filteredTargets[0];
-      setDetailForm((prev) => {
-        if (!prev || prev.TadFstID != null) return prev;
-        return {
-          ...prev,
-          TadFstID: autoTarget.value,
-          TadDose:
-            !prev.TadDose && autoTarget.FstMinDose != null
-              ? String(autoTarget.FstMinDose)
-              : prev.TadDose,
-        };
-      });
-    }
-  }, [
-    detailForm?.TadFrsID,
-    detailForm?.TadFstID,
-    filteredTargets,
-    observationMode,
-  ]);
 
   // Handle open new detail subform
   const openNewDetail = () => {
@@ -312,6 +350,7 @@ export function TechnicalVisitApplicationModal({
       TadID: 0,
       TadFrsID: null,
       TadFstID: null,
+      TadObjID: null,
       TadIsObservation: false,
       TadProductDescription: '',
       TadApplicationType: applicationTypes[0]?.value ?? null,
@@ -353,15 +392,14 @@ export function TechnicalVisitApplicationModal({
 
     const validProduct = observationMode
       ? detailForm.TadProductDescription.trim().length > 0
-      : detailForm.TadFrsID != null &&
-        (filteredTargets.length === 0 || detailForm.TadFstID != null);
+      : detailForm.TadFrsID != null && selectedObjectiveId != null;
 
     if (!validProduct) {
       Alert.alert(
         'Producto incompleto',
         observationMode
           ? 'Ingresa la descripción del producto u observación.'
-          : 'Selecciona el insumo y su objetivo correspondiente.',
+          : 'Selecciona el objetivo y el insumo correspondiente.',
       );
       return;
     }
@@ -761,6 +799,7 @@ export function TechnicalVisitApplicationModal({
                                 TadIsObservation: checked,
                                 TadFrsID: null,
                                 TadFstID: null,
+                                TadObjID: null,
                                 TadProductDescription: '',
                               }
                             : null,
@@ -791,8 +830,35 @@ export function TechnicalVisitApplicationModal({
                     <View className="gap-3 sm:flex-row">
                       <View className="flex-1">
                         <NSelect
+                          label="Objetivo"
+                          items={objectiveOptions}
+                          itemText="label"
+                          itemValue="value"
+                          value={selectedObjectiveId}
+                          onChange={(val) => {
+                            const objectiveId = val != null ? Number(val) : null;
+                            setDetailForm((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    TadObjID: objectiveId,
+                                    TadFrsID: null,
+                                    TadFstID: null,
+                                    TadProductDescription: '',
+                                    TadDose: '',
+                                  }
+                                : null,
+                            );
+                          }}
+                          placeholder="Selecciona el objetivo"
+                          searchable
+                          required
+                        />
+                      </View>
+                      <View className="flex-1">
+                        <NSelect
                           label="Insumo"
-                          items={supplies}
+                          items={supplyOptions}
                           itemText="label"
                           itemValue="value"
                           value={detailForm.TadFrsID}
@@ -801,56 +867,19 @@ export function TechnicalVisitApplicationModal({
                             const supply = supplies.find(
                               (s) => s.value === supplyId,
                             );
-                            const cropTargets = targets.filter(
+                            const target = cropTargets.find(
                               (t) =>
                                 t.FrsID === supplyId &&
-                                (!plotCropId || t.CltID === plotCropId),
+                                t.ObjID === selectedObjectiveId,
                             );
-                            const allSupplyTargets = targets.filter(
-                              (t) => t.FrsID === supplyId,
-                            );
-                            const autoTarget =
-                              cropTargets.length > 0
-                                ? cropTargets[0]
-                                : allSupplyTargets[0] ?? null;
-
                             setDetailForm((prev) =>
                               prev
                                 ? {
                                     ...prev,
                                     TadFrsID: supplyId,
+                                    TadObjID: selectedObjectiveId,
                                     TadProductDescription: supply?.label ?? '',
-                                    TadFstID: autoTarget ? autoTarget.value : null,
-                                    TadDose:
-                                      !prev.TadDose && autoTarget?.FstMinDose != null
-                                        ? String(autoTarget.FstMinDose)
-                                        : prev.TadDose,
-                                  }
-                                : null,
-                            );
-                          }}
-                          placeholder="Selecciona un insumo"
-                          searchable
-                          required
-                        />
-                      </View>
-                      <View className="flex-1">
-                        <NSelect
-                          label="Cultivo / objetivo"
-                          items={targetSelectItems}
-                          itemText="label"
-                          itemValue="value"
-                          value={detailForm.TadFstID}
-                          onChange={(val) => {
-                            const targetId = val != null ? Number(val) : null;
-                            const target = filteredTargets.find(
-                              (t) => t.value === targetId,
-                            );
-                            setDetailForm((prev) =>
-                              prev
-                                ? {
-                                    ...prev,
-                                    TadFstID: targetId,
+                                    TadFstID: target ? target.value : null,
                                     TadDose:
                                       !prev.TadDose && target?.FstMinDose != null
                                         ? String(target.FstMinDose)
@@ -860,13 +889,18 @@ export function TechnicalVisitApplicationModal({
                             );
                           }}
                           placeholder={
-                            detailForm.TadFrsID
-                              ? targetSelectItems.length
-                                ? 'Selecciona objetivo'
-                                : 'Sin objetivos configurados'
-                              : 'Primero selecciona insumo'
+                            selectedObjectiveId == null
+                              ? 'Primero selecciona el objetivo'
+                              : supplyOptions.length
+                                ? 'Selecciona el insumo'
+                                : 'Sin insumos registrados'
                           }
-                          disabled={!detailForm.TadFrsID || targetSelectItems.length === 0}
+                          disabled={
+                            selectedObjectiveId == null ||
+                            supplyOptions.length === 0
+                          }
+                          searchable
+                          required
                         />
                         {targetDoseRangeText ? (
                           <Text className="mt-1 text-[11px] font-poppins text-primary">

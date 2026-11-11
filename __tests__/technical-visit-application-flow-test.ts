@@ -109,8 +109,7 @@ describe('Technical visit application flow & parity', () => {
     expect(autoTarget?.FstMinDose).toBe(0.5);
   });
 
-  it('rejects saving application detail if product description is missing', () => {
-    const invalidSnapshot: TechnicalVisitSnapshot = {
+  it('rejects saving application detail if product description is missing', () => {    const invalidSnapshot: TechnicalVisitSnapshot = {
       Visit: {
         TviID: 1,
         TviPerformedDate: '2026-11-10T08:00:00.000-05:00',
@@ -160,5 +159,64 @@ describe('Technical visit application flow & parity', () => {
     const error = validateTechnicalVisitSnapshot(invalidSnapshot);
     expect(error).toBeTruthy();
     expect(error).toContain('producto');
+  });
+
+  it('derives the target row from the objective and supply selected (inverted flow)', () => {
+    const targets = [
+      {
+        value: 1,
+        label: 'Arañita Roja · dosis 0.5–1',
+        FrsID: 1,
+        CltID: 1,
+        ObjID: 1,
+        FstMinDose: 0.5,
+        FstMaxDose: 1.0,
+        objectiveName: 'Arañita Roja',
+      },
+      {
+        value: 2,
+        label: 'Mosca de la fruta · dosis 2–3',
+        FrsID: 1,
+        CltID: 2, // Other crop
+        ObjID: 5,
+        FstMinDose: 2.0,
+        FstMaxDose: 3.0,
+        objectiveName: 'Mosca de la fruta',
+      },
+      {
+        value: 3,
+        label: 'Deficiencia de zinc · dosis 1–1.5',
+        FrsID: 7,
+        CltID: 1,
+        ObjID: 2,
+        FstMinDose: 1.0,
+        FstMaxDose: 1.5,
+        objectiveName: 'Deficiencia de zinc',
+      },
+    ];
+
+    const plotCropId = 1;
+    const selectedObjectiveId = 1;
+
+    // Objetivos disponibles: los que tienen insumos registrados para el cultivo del lote.
+    const objectives = [
+      ...new Set(
+        targets
+          .filter((t) => !plotCropId || t.CltID === plotCropId)
+          .map((t) => t.ObjID),
+      ),
+    ];
+    expect(objectives).toEqual([1, 2]);
+
+    // Elegir el objetivo filtra los insumos y resuelve el target (FstID).
+    const suppliesForObjective = targets.filter(
+      (t) =>
+        (!plotCropId || t.CltID === plotCropId) &&
+        t.ObjID === selectedObjectiveId,
+    );
+    expect(suppliesForObjective).toHaveLength(1);
+    expect(suppliesForObjective[0].value).toBe(1);
+    expect(suppliesForObjective[0].FrsID).toBe(1);
+    expect(suppliesForObjective[0].objectiveName).toBe('Arañita Roja');
   });
 });

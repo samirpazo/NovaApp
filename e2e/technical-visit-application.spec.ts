@@ -297,7 +297,7 @@ const mockSyncChanges = [
 ];
 
 test.describe('Visitas Técnicas - Modal de Aplicaciones e Insumos', () => {
-  test('debe permitir seleccionar modalidad y auto-seleccionar objetivo al elegir insumo', async ({ page }) => {
+  test('debe permitir seleccionar modalidad, objetivo y luego el insumo con su dosis', async ({ page }) => {
     page.on('console', (msg) => console.log(`[BROWSER CONSOLE] ${msg.type()}: ${msg.text()}`));
     page.on('pageerror', (err) => console.log(`[BROWSER ERROR] ${err.message}`));
 
@@ -428,20 +428,26 @@ test.describe('Visitas Técnicas - Modal de Aplicaciones e Insumos', () => {
 
     await expect(page.getByText(/Nuevo producto aplicado/i)).toBeVisible();
 
-    // 9. Seleccionar un insumo
-    const supplyTrigger = page.getByRole('button', { name: 'Insumo' }).or(page.getByText('Selecciona un insumo'));
+    // 9. Flujo inverso: primero se elige el OBJETIVO
+    const objectiveTrigger = page.getByRole('button', { name: 'Objetivo', exact: true });
+    await expect(objectiveTrigger).toBeVisible();
+    await objectiveTrigger.click();
+
+    // Seleccionar 'Arañita Roja'
+    const objectiveOption = page.locator('[role="dialog"]').getByText(/Arañita Roja/i).first();
+    await expect(objectiveOption).toBeVisible({ timeout: 5000 });
+    await objectiveOption.click();
+
+    // 10. VERIFICACIÓN CLAVE: el select de INSUMO debe listar solo los insumos
+    // registrados para el objetivo elegido, con su rango de dosis.
+    const supplyTrigger = page.getByRole('button', { name: 'Insumo' }).or(page.getByText('Selecciona el insumo'));
     await expect(supplyTrigger.first()).toBeVisible();
     await supplyTrigger.first().click();
 
-    // Seleccionar 'Bioinsecticida de neem para manejo integrado'
     const supplyOption = page.locator('[role="dialog"]').getByText(/Bioinsecticida/i).first();
     await expect(supplyOption).toBeVisible({ timeout: 5000 });
+    await expect(supplyOption).toContainText(/dosis/i);
     await supplyOption.click();
-
-    // 10. VERIFICACIÓN CLAVE: El objetivo 'Arañita Roja' debe auto-seleccionarse automáticamente en el Select de Reusables
-    const targetTrigger = page.getByRole('button', { name: /Cultivo \/ objetivo/i });
-    await expect(targetTrigger).toBeVisible();
-    await expect(targetTrigger).toContainText(/Arañita Roja/i, { timeout: 5000 });
 
     // 11. Completar Tipo de aplicación, Dosis y Cantidad
     const appTypeTrigger = page.getByRole('button', { name: /Tipo de aplicación/i });
