@@ -7,6 +7,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useAuthStore } from '@/auth/store';
 import { NButton } from '@/components/forms/NButton';
 import { NText } from '@/components/forms/NText';
+import { NTextarea } from '@/components/forms/NTextarea';
 import { NDate } from '@/components/forms/NDate';
 import { NSignature } from '@/components/forms/NSignature';
 import { Text } from '@/components/ui/text';
@@ -55,6 +56,12 @@ import {
   type ApplicationHeaderDraft,
   type ApplicationDetailDraft,
 } from '@/components/operationsagr/TechnicalVisitApplicationModal';
+import {
+  TechnicalVisitActivityModal,
+  TechnicalVisitCulturalActivityModal,
+  TechnicalVisitEvidenceModal,
+  TechnicalVisitRecommendationModal,
+} from '@/components/operationsagr/TechnicalVisitModals';
 import {
   parseTechnicalVisitSnapshot,
   previousTechnicalVisitRows,
@@ -469,7 +476,7 @@ export default function TechnicalVisitDetailScreen() {
       FstMaxDose?: number | null;
       objectiveName?: string;
     }[];
-    objectives: { label: string; value: number }[];
+    objectives: { label: string; value: number; ObjType?: number }[];
     waterSources: { label: string; value: number }[];
   }>({ supplies: [], targets: [], objectives: [], waterSources: [] });
   const [plotCropId, setPlotCropId] = React.useState<number | null>(null);
@@ -477,6 +484,19 @@ export default function TechnicalVisitDetailScreen() {
   const [applicationModalVisible, setApplicationModalVisible] =
     React.useState(false);
   const [editingApplication, setEditingApplication] =
+    React.useState<TechnicalVisitSnapshotRow | null>(null);
+  const [activityModalVisible, setActivityModalVisible] = React.useState(false);
+  const [editingActivity, setEditingActivity] =
+    React.useState<TechnicalVisitSnapshotRow | null>(null);
+  const [recommendationModalVisible, setRecommendationModalVisible] =
+    React.useState(false);
+  const [editingRecommendation, setEditingRecommendation] =
+    React.useState<TechnicalVisitSnapshotRow | null>(null);
+  const [culturalModalVisible, setCulturalModalVisible] = React.useState(false);
+  const [editingCultural, setEditingCultural] =
+    React.useState<TechnicalVisitSnapshotRow | null>(null);
+  const [evidenceModalVisible, setEvidenceModalVisible] = React.useState(false);
+  const [editingEvidence, setEditingEvidence] =
     React.useState<TechnicalVisitSnapshotRow | null>(null);
   const [installationCommentTarget, setInstallationCommentTarget] =
     React.useState<{
@@ -626,7 +646,11 @@ export default function TechnicalVisitDetailScreen() {
                     target.ObjID === objective.ObjID,
                 ),
             )
-            .map((item) => ({ label: item.ObjDescription, value: item.ObjID })),
+            .map((item) => ({
+              label: item.ObjDescription,
+              value: item.ObjID,
+              ObjType: item.ObjType,
+            })),
           waterSources: waterSources
             .filter((item) => item.PlfID === schedule?.PlfID)
             .map((item) => ({ label: item.OwsName, value: item.OwsID })),
@@ -989,6 +1013,26 @@ export default function TechnicalVisitDetailScreen() {
       setApplicationModalVisible(true);
       return;
     }
+    if (key === 'Activities') {
+      setEditingActivity(row ?? null);
+      setActivityModalVisible(true);
+      return;
+    }
+    if (key === 'Recommendations') {
+      setEditingRecommendation(row ?? null);
+      setRecommendationModalVisible(true);
+      return;
+    }
+    if (key === 'CulturalActivities') {
+      setEditingCultural(row ?? null);
+      setCulturalModalVisible(true);
+      return;
+    }
+    if (key === 'Evidences') {
+      setEditingEvidence(row ?? null);
+      setEvidenceModalVisible(true);
+      return;
+    }
     if (key === 'ApplicationDetails') {
       const app =
         parent ??
@@ -1160,6 +1204,158 @@ export default function TechnicalVisitDetailScreen() {
     markDraftDirty();
     setApplicationModalVisible(false);
     setEditingApplication(null);
+  };
+
+  const upsertSnapshotRow = (
+    key: SectionKey,
+    idField: string,
+    existingRow: TechnicalVisitSnapshotRow | null,
+    payload: Record<string, unknown>,
+  ) => {
+    if (!model || !snapshot) return false;
+    const now = DateTime.utc().toISO() ?? '';
+    const rows = snapshot[key] as TechnicalVisitSnapshotRow[];
+    const existingId = Number(payload[idField] || existingRow?.[idField] || 0);
+    const matchedRow =
+      existingRow ??
+      (existingId !== 0
+        ? (rows.find((item) => Number(item[idField]) === existingId) ?? null)
+        : null);
+    const primaryId =
+      existingId !== 0 ? existingId : createTechnicalVisitTemporaryId();
+
+    const base = matchedRow ?? {
+      SyncId: randomUUID(),
+      SyncVersion: '',
+      SecStatus: true,
+      CreateUserId: userId,
+      UpdateUserId: userId,
+      DeleteUserId: null,
+      CreateDate: now,
+      UpdateDate: now,
+      DeleteDate: null,
+    };
+
+    const nextRow: TechnicalVisitSnapshotRow = {
+      ...base,
+      ...payload,
+      [idField]: primaryId,
+      TviID: model.TviID,
+      SecStatus: true,
+      UpdateUserId: userId,
+      UpdateDate: now,
+    };
+
+    const next: TechnicalVisitSnapshot = {
+      ...snapshot,
+      [key]: matchedRow
+        ? rows.map((item) =>
+            Number(item[idField]) === primaryId ? nextRow : item,
+          )
+        : [...rows, nextRow],
+    };
+
+    const validationError = validateTechnicalVisitSectionRow(
+      key,
+      nextRow,
+      next,
+      String(next.Visit.TviPerformedDate ?? ''),
+    );
+    if (validationError) {
+      Alert.alert('Revisa la sección', validationError);
+      return false;
+    }
+
+    setSnapshot(next);
+    markDraftDirty();
+    return true;
+  };
+
+  const handleSaveFollowUp = (
+    key: 'RecommendationFollowUps' | 'CulturalActivityFollowUps',
+    parentField: 'TvrID' | 'TcaID',
+    idField: 'TrfID' | 'TcfID',
+    statusField: 'TrfStatus' | 'TcfStatus',
+    observationField: 'TrfObservation' | 'TcfObservation',
+    parentId: number,
+    status: number,
+    observationText: string,
+  ) => {
+    if (!model || !snapshot || !status) return;
+    const now = DateTime.utc().toISO() ?? '';
+    const rows = snapshot[key] as TechnicalVisitSnapshotRow[];
+    const existing = rows.find(
+      (item) => Number(item[parentField]) === parentId,
+    );
+    const primaryId = existing
+      ? Number(existing[idField])
+      : createTechnicalVisitTemporaryId();
+
+    const base = existing ?? {
+      SyncId: randomUUID(),
+      SyncVersion: '',
+      SecStatus: true,
+      CreateUserId: userId,
+      UpdateUserId: userId,
+      DeleteUserId: null,
+      CreateDate: now,
+      UpdateDate: now,
+      DeleteDate: null,
+    };
+
+    const nextRow: TechnicalVisitSnapshotRow = {
+      ...base,
+      [idField]: primaryId,
+      [parentField]: parentId,
+      TviID: model.TviID,
+      [statusField]: status,
+      [observationField]: observationText.trim() || null,
+      SecStatus: true,
+      UpdateUserId: userId,
+      UpdateDate: now,
+    };
+
+    const nextRows = existing
+      ? rows.map((item) =>
+          Number(item[parentField]) === parentId ? nextRow : item,
+        )
+      : [...rows, nextRow];
+
+    setSnapshot({
+      ...snapshot,
+      [key]: nextRows,
+    });
+    markDraftDirty();
+  };
+
+  const handleSaveEvidenceModal = async (payload: {
+    TveID: number;
+    TveFilID: number;
+    TveDescription: string | null;
+    PendingFile?: {
+      uri: string;
+      name: string;
+      mimeType?: string | null;
+    } | null;
+  }) => {
+    if (!model || !snapshot) return;
+    let persistedFile = payload.PendingFile ?? null;
+    if (persistedFile && persistedFile !== editingEvidence?.PendingFile) {
+      persistedFile = await persistAccountFile(
+        persistedFile,
+        accountIdentityKey,
+      );
+    }
+    const ok = upsertSnapshotRow('Evidences', 'TveID', editingEvidence, {
+      TveID: payload.TveID,
+      TveFilID: payload.TveFilID,
+      TveDescription: payload.TveDescription,
+      ...(persistedFile ? { PendingFile: persistedFile } : {}),
+    });
+    if (ok) {
+      setEvidenceModalVisible(false);
+      setEditingEvidence(null);
+    }
   };
 
   const saveSectionRow = async () => {
@@ -1610,12 +1806,43 @@ export default function TechnicalVisitDetailScreen() {
       <TechnicalVisitSections
         snapshot={snapshot}
         options={definitionOptions}
+        objectives={catalogOptions.objectives}
         onAdd={(key, parent) => openSection(key, undefined, parent)}
         onEdit={(key, row) => openSection(key, row)}
         onRemove={(key, row) => {
           const definition = editableSections.find((item) => item.key === key);
           if (definition) void removeSectionRow(definition, row);
         }}
+        onSaveDiagnosis={(payload) => {
+          void upsertSnapshotRow('Diagnoses', 'TvdID', null, {
+            ...payload,
+            FrsID: null,
+          });
+        }}
+        onRecommendationFollowUpChange={(recommendationId, status, obs) =>
+          handleSaveFollowUp(
+            'RecommendationFollowUps',
+            'TvrID',
+            'TrfID',
+            'TrfStatus',
+            'TrfObservation',
+            recommendationId,
+            status,
+            obs,
+          )
+        }
+        onCulturalFollowUpChange={(activityId, status, obs) =>
+          handleSaveFollowUp(
+            'CulturalActivityFollowUps',
+            'TcaID',
+            'TcfID',
+            'TcfStatus',
+            'TcfObservation',
+            activityId,
+            status,
+            obs,
+          )
+        }
         onPhenology={updatePhenology}
         onInstallation={(option, value) =>
           void saveCatalogValue(
@@ -1631,17 +1858,21 @@ export default function TechnicalVisitDetailScreen() {
             observation: currentObservation,
           })
         }
-        onEvidence={() => void attachEvidence()}
+        onEvidence={() => {
+          setEditingEvidence(null);
+          setEvidenceModalVisible(true);
+        }}
       />
       <View className="gap-3 md:gap-4">
         <VisitSectionHeading
           title="Visita realizada"
-          subtitle="Completa ubicación, observaciones generales y firma del productor"
+          subtitle="Completa ubicación y observaciones generales. La firma del productor es opcional."
           icon={ClipboardCheck}
         />
-        <View className="flex-row flex-wrap gap-3 md:gap-4">
+        <View className="flex-row flex-wrap items-end gap-3 md:gap-4">
           <NText
             label="Latitud GPS"
+            decimal
             value={latitude}
             onChange={(value) => {
               setLatitude(value);
@@ -1652,6 +1883,7 @@ export default function TechnicalVisitDetailScreen() {
           />
           <NText
             label="Longitud GPS"
+            decimal
             value={longitude}
             onChange={(value) => {
               setLongitude(value);
@@ -1660,12 +1892,44 @@ export default function TechnicalVisitDetailScreen() {
             placeholder="Longitud"
             containerClassName="min-w-[140px] flex-1"
           />
+          <NButton
+            variant="outline"
+            className="min-w-[180px] flex-1"
+            onPress={() => {
+              if (
+                typeof navigator !== 'undefined' &&
+                navigator.geolocation
+              ) {
+                navigator.geolocation.getCurrentPosition(
+                  ({ coords }) => {
+                    setLatitude(coords.latitude.toString());
+                    setLongitude(coords.longitude.toString());
+                    markDraftDirty();
+                  },
+                  () =>
+                    Alert.alert(
+                      'Ubicación',
+                      'No se pudo obtener la ubicación actual.',
+                    ),
+                  { enableHighAccuracy: true, timeout: 10000 },
+                );
+              } else {
+                Alert.alert(
+                  'Ubicación',
+                  'Este dispositivo no ofrece geolocalización en este entorno.',
+                );
+              }
+            }}
+          >
+            <MapPin
+              size={14}
+              className="text-foreground"
+            />
+            <Text>Usar ubicación actual</Text>
+          </NButton>
         </View>
-        <View className="gap-3 md:flex-row md:gap-4">
-          <NText
-            multiline
-            numberOfLines={6}
-            className="min-h-40 py-3"
+        <View className="gap-3 md:flex-row md:items-start md:gap-4">
+          <NTextarea
             label="Observaciones generales"
             value={observation}
             onChange={(value) => {
@@ -1673,6 +1937,7 @@ export default function TechnicalVisitDetailScreen() {
               markDraftDirty();
             }}
             placeholder="Describe los hallazgos del recorrido"
+            rows={5}
             containerClassName="min-w-0 flex-1"
           />
           <View className="min-w-0 flex-1 gap-3">
@@ -1926,17 +2191,16 @@ export default function TechnicalVisitDetailScreen() {
               </NButton>
             </View>
 
-            <NText
-              label="Comentario u observación"
+            <NTextarea
+              label="Comentario / Observación"
               value={installationCommentTarget?.observation ?? ''}
               onChange={(value) =>
                 setInstallationCommentTarget((prev) =>
                   prev ? { ...prev, observation: value } : null,
                 )
               }
-              placeholder="Escribe un comentario sobre esta instalación..."
-              multiline
-              numberOfLines={3}
+              placeholder="Escribe una observación sobre la disponibilidad o estado de esta instalación..."
+              rows={4}
             />
 
             <View className="flex-row justify-end gap-3 pt-2">
@@ -1993,6 +2257,85 @@ export default function TechnicalVisitDetailScreen() {
         supplies={catalogOptions.supplies}
         targets={catalogOptions.targets}
         onSave={handleSaveApplicationModal}
+      />
+      <TechnicalVisitActivityModal
+        visible={activityModalVisible}
+        onClose={() => {
+          setActivityModalVisible(false);
+          setEditingActivity(null);
+        }}
+        row={editingActivity}
+        options={definitionOptions}
+        waterSources={catalogOptions.waterSources}
+        onSave={(payload) => {
+          const ok = upsertSnapshotRow(
+            'Activities',
+            'TvaID',
+            editingActivity,
+            payload,
+          );
+          if (ok) {
+            setActivityModalVisible(false);
+            setEditingActivity(null);
+          }
+        }}
+      />
+      <TechnicalVisitRecommendationModal
+        visible={recommendationModalVisible}
+        onClose={() => {
+          setRecommendationModalVisible(false);
+          setEditingRecommendation(null);
+        }}
+        row={editingRecommendation}
+        plotCropId={plotCropId}
+        options={definitionOptions}
+        supplies={catalogOptions.supplies}
+        targets={catalogOptions.targets}
+        onSave={(payload) => {
+          const ok = upsertSnapshotRow(
+            'Recommendations',
+            'TvrID',
+            editingRecommendation,
+            payload,
+          );
+          if (ok) {
+            setRecommendationModalVisible(false);
+            setEditingRecommendation(null);
+          }
+        }}
+      />
+      <TechnicalVisitCulturalActivityModal
+        visible={culturalModalVisible}
+        onClose={() => {
+          setCulturalModalVisible(false);
+          setEditingCultural(null);
+        }}
+        row={editingCultural}
+        options={definitionOptions}
+        onSave={(payload) => {
+          const ok = upsertSnapshotRow(
+            'CulturalActivities',
+            'TcaID',
+            editingCultural,
+            payload,
+          );
+          if (ok) {
+            setCulturalModalVisible(false);
+            setEditingCultural(null);
+          }
+        }}
+      />
+      <TechnicalVisitEvidenceModal
+        visible={evidenceModalVisible}
+        onClose={() => {
+          setEvidenceModalVisible(false);
+          setEditingEvidence(null);
+        }}
+        row={editingEvidence}
+        onPickFile={chooseImage}
+        onSave={(payload) => {
+          void handleSaveEvidenceModal(payload);
+        }}
       />
     </ScrollView>
   );

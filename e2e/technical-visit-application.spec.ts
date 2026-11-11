@@ -483,5 +483,11 @@ test.describe('Visitas Técnicas - Modal de Aplicaciones e Insumos', () => {
 
     // El modal debe cerrarse satisfactoriamente
     await expect(page.getByText('Nueva aplicación')).not.toBeVisible({ timeout: 5000 });
+
+    // 16. Verificar paridad de "Evaluación agronómica" (inline form igual a nova-web)
+    await expect(page.getByText('Evaluación agronómica')).toBeVisible();
+    const objectiveInlineTrigger = page.getByRole('button', { name: 'Objetivo agronómico' });
+    await expect(objectiveInlineTrigger).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Órgano' })).toBeVisible();
   });
 });

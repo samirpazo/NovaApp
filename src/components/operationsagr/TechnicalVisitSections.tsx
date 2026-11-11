@@ -8,17 +8,20 @@ import {
   MessageSquare,
   Pencil,
   Plus,
+  Save,
   ShieldAlert,
   Sprout,
   Trash2,
+  X,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import * as React from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 
+import { NButton } from '@/components/forms/NButton';
+import { NSelect } from '@/components/forms/NSelect';
 import { NSwitch } from '@/components/forms/NSwitch';
 import { NText } from '@/components/forms/NText';
-import { NButton } from '@/components/forms/NButton';
 import { Text } from '@/components/ui/text';
 import { managedFilePreviewUrl } from '@/lib/fileService';
 import { formatters } from '@/lib/formatter';
@@ -30,17 +33,40 @@ import type {
 
 type Row = TechnicalVisitSnapshotRow;
 type Option = { label: string; value: number };
+type ObjectiveOption = { label: string; value: number; ObjType?: number };
 type Options = Record<string, Option[]>;
 
 type TechnicalVisitSectionsProps = {
   snapshot: TechnicalVisitSnapshot;
   options: Options;
+  objectives?: ObjectiveOption[];
   onAdd: (key: TechnicalVisitSectionKey, parent?: Row) => void;
   onEdit: (key: TechnicalVisitSectionKey, row: Row) => void;
   onRemove: (key: TechnicalVisitSectionKey, row: Row) => void;
+  onSaveDiagnosis?: (payload: {
+    TvdID: number;
+    ObjID: number;
+    TvdCategory: number;
+    TvdPlantOrgan: number | null;
+    TvdIncidencePercentage: number;
+    TvdItemDescription: string;
+  }) => void;
+  onRecommendationFollowUpChange?: (
+    recommendationId: number,
+    status: number,
+    observation: string,
+  ) => void;
+  onCulturalFollowUpChange?: (
+    activityId: number,
+    status: number,
+    observation: string,
+  ) => void;
   onPhenology: (option: Option, value: string) => void;
   onInstallation: (option: Option, value: boolean) => void;
-  onInstallationObservation?: (option: Option, currentObservation: string) => void;
+  onInstallationObservation?: (
+    option: Option,
+    currentObservation: string,
+  ) => void;
   onEvidence: () => void;
 };
 
@@ -61,7 +87,7 @@ const textOf = (value: unknown) => {
 const numberValue = (value: unknown) => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
+    const parsed = Number(value.replace(',', '.'));
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
@@ -182,23 +208,31 @@ function IconAction({
   onPress,
   icon: Icon,
   danger = false,
+  highlighted = false,
 }: {
   label: string;
   onPress: () => void;
   icon: LucideIcon;
   danger?: boolean;
+  highlighted?: boolean;
 }) {
   return (
     <NButton
       variant="ghost"
       size="icon"
-      className="h-7 w-7"
+      className={`h-7 w-7 ${highlighted ? 'bg-primary/15' : ''}`}
       accessibilityLabel={label}
       onPress={onPress}
     >
       <Icon
         size={14}
-        className={danger ? 'text-destructive' : 'text-primary'}
+        className={
+          danger
+            ? 'text-destructive'
+            : highlighted
+              ? 'text-primary'
+              : 'text-primary'
+        }
       />
     </NButton>
   );
@@ -239,17 +273,11 @@ function RowActions({
 function TwoLine({ title, detail }: { title: string; detail?: string }) {
   return (
     <View className="gap-0.5">
-      <Text
-        className="text-xs font-poppins-semibold text-foreground"
-      >
+      <Text className="text-xs font-poppins-semibold text-foreground">
         {title || '—'}
       </Text>
       {detail ? (
-        <Text
-          className="text-[10px] text-muted-foreground"
-          >
-          {detail}
-        </Text>
+        <Text className="text-[10px] text-muted-foreground">{detail}</Text>
       ) : null}
     </View>
   );
@@ -328,31 +356,40 @@ function ResponsiveTable({
               </Text>
             </View>
           ))}
-          {hasActions ? <View className="w-16" /> : null}
+          {hasActions ? (
+            <View className="w-20">
+              <Text className="text-center text-[10px] font-poppins-semibold uppercase tracking-wide text-muted-foreground">
+                Acciones
+              </Text>
+            </View>
+          ) : null}
         </View>
         {rows.map((row, index) => (
-          <View key={rowKey(row) || String(index)} className="border-b border-border bg-card last:border-b-0">
-          <View className="flex-row items-center gap-2 px-3 py-2">
-            {columns.map((column) => (
-              <View
-                key={column.key}
-                className={`min-w-0 flex-1 ${column.className ?? ''}`}
-              >
-                {column.render(row)}
-              </View>
-            ))}
-            {hasActions ? (
-              <View className="w-16">
-                <RowActions
-                  editLabel={editLabel}
-                  removeLabel={removeLabel}
-                  onEdit={onEdit ? () => onEdit(row) : undefined}
-                  onRemove={onRemove ? () => onRemove(row) : undefined}
-                />
-              </View>
-            ) : null}
-          </View>
-          {renderDetails?.(row)}
+          <View
+            key={rowKey(row) || String(index)}
+            className="border-b border-border bg-card last:border-b-0"
+          >
+            <View className="flex-row items-center gap-2 px-3 py-2">
+              {columns.map((column) => (
+                <View
+                  key={column.key}
+                  className={`min-w-0 flex-1 ${column.className ?? ''}`}
+                >
+                  {column.render(row)}
+                </View>
+              ))}
+              {hasActions ? (
+                <View className="w-20">
+                  <RowActions
+                    editLabel={editLabel}
+                    removeLabel={removeLabel}
+                    onEdit={onEdit ? () => onEdit(row) : undefined}
+                    onRemove={onRemove ? () => onRemove(row) : undefined}
+                  />
+                </View>
+              ) : null}
+            </View>
+            {renderDetails?.(row)}
           </View>
         ))}
       </View>
@@ -364,15 +401,25 @@ function ResponsiveTable({
             className="gap-2 rounded-lg border border-border bg-card p-3"
           >
             <View className="gap-1.5">
-              {columns.map((column, index) => (
+              {columns.map((column, colIndex) => (
                 <View
                   key={column.key}
-                  className={index === 0 ? "gap-1" : "flex-row items-start justify-between gap-3"}
+                  className={
+                    colIndex === 0
+                      ? 'gap-1'
+                      : 'flex-row items-start justify-between gap-3'
+                  }
                 >
                   <Text className="shrink-0 text-[10px] font-poppins-semibold uppercase tracking-wide text-muted-foreground">
                     {column.label}
                   </Text>
-                  <View className={index === 0 ? "min-w-0" : "min-w-0 flex-1 items-end"}>
+                  <View
+                    className={
+                      colIndex === 0
+                        ? 'min-w-0'
+                        : 'min-w-0 flex-1 items-end'
+                    }
+                  >
                     {column.render(row)}
                   </View>
                 </View>
@@ -396,12 +443,77 @@ function ResponsiveTable({
   );
 }
 
-function StatusBadge({ label }: { label: string }) {
+function FollowUpEditorRow({
+  title,
+  subtitle,
+  statusOptions,
+  initialStatus,
+  initialObservation,
+  onChange,
+}: {
+  title: string;
+  subtitle?: string;
+  statusOptions: Option[];
+  initialStatus: number;
+  initialObservation: string;
+  onChange?: (status: number, observation: string) => void;
+}) {
+  const [status, setStatus] = React.useState(initialStatus);
+  const [observation, setObservation] = React.useState(initialObservation);
+
+  React.useEffect(() => {
+    setStatus(initialStatus);
+  }, [initialStatus]);
+
+  React.useEffect(() => {
+    setObservation(initialObservation);
+  }, [initialObservation]);
+
   return (
-    <View className="rounded-full bg-primary/10 px-2.5 py-1">
-      <Text className="text-[10px] font-poppins-semibold text-primary">
-        {label}
-      </Text>
+    <View className="flex-col gap-3 rounded-lg border border-border/60 bg-muted/10 px-3.5 py-2.5 md:flex-row md:items-center">
+      <View className="min-w-0 gap-0.5 md:w-1/3">
+        <Text
+          className="text-xs font-poppins-medium text-foreground"
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text
+            className="text-[11px] text-muted-foreground"
+            numberOfLines={1}
+          >
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+      <View className="md:w-1/4">
+        <NSelect
+          label="Cumplimiento"
+          items={statusOptions}
+          itemText="label"
+          itemValue="value"
+          value={status || null}
+          onChange={(val) => {
+            const nextStatus = Number(val) || 0;
+            setStatus(nextStatus);
+            onChange?.(nextStatus, observation);
+          }}
+          placeholder="Seleccionar..."
+          required
+        />
+      </View>
+      <View className="md:flex-1">
+        <NText
+          label="Observación"
+          placeholder="Comentario opcional de seguimiento…"
+          value={observation}
+          onChange={(val) => {
+            setObservation(val);
+            onChange?.(status, val);
+          }}
+        />
+      </View>
     </View>
   );
 }
@@ -409,9 +521,13 @@ function StatusBadge({ label }: { label: string }) {
 export function TechnicalVisitSections({
   snapshot,
   options,
+  objectives = [],
   onAdd,
   onEdit,
   onRemove,
+  onSaveDiagnosis,
+  onRecommendationFollowUpChange,
+  onCulturalFollowUpChange,
   onPhenology,
   onInstallation,
   onInstallationObservation,
@@ -442,6 +558,71 @@ export function TechnicalVisitSections({
   const culturalFollowUps = activeRows(snapshot.CulturalActivityFollowUps);
   const evidences = activeRows(snapshot.Evidences);
 
+  // Inline state for Evaluación agronómica (Diagnoses), matching nova-web
+  const [diagnosisDraft, setDiagnosisDraft] = React.useState<{
+    TvdID: number;
+    ObjID: number | null;
+    TvdPlantOrgan: number | null;
+    TvdIncidencePercentage: string;
+  }>({
+    TvdID: 0,
+    ObjID: null,
+    TvdPlantOrgan: null,
+    TvdIncidencePercentage: '0',
+  });
+  const [editingDiagnosis, setEditingDiagnosis] = React.useState(false);
+
+  const resetDiagnosis = () => {
+    setDiagnosisDraft({
+      TvdID: 0,
+      ObjID: null,
+      TvdPlantOrgan: null,
+      TvdIncidencePercentage: '0',
+    });
+    setEditingDiagnosis(false);
+  };
+
+  const handleSaveDiagnosis = () => {
+    if (!diagnosisDraft.ObjID) {
+      Alert.alert(
+        'Revisa la evaluación',
+        'Selecciona un objetivo agronómico.',
+      );
+      return;
+    }
+    const incidence = numberValue(diagnosisDraft.TvdIncidencePercentage);
+    if (incidence == null || incidence < 0 || incidence > 100) {
+      Alert.alert(
+        'Revisa la evaluación',
+        'La incidencia debe estar entre 0 y 100 %.',
+      );
+      return;
+    }
+    const objective = objectives.find(
+      (item) => item.value === diagnosisDraft.ObjID,
+    );
+    if (!objective) {
+      Alert.alert(
+        'Revisa la evaluación',
+        'El elemento seleccionado ya no está disponible.',
+      );
+      return;
+    }
+    if (onSaveDiagnosis) {
+      onSaveDiagnosis({
+        TvdID: diagnosisDraft.TvdID,
+        ObjID: objective.value,
+        TvdCategory: objective.ObjType ?? 1,
+        TvdPlantOrgan: diagnosisDraft.TvdPlantOrgan,
+        TvdIncidencePercentage: incidence,
+        TvdItemDescription: objective.label,
+      });
+      resetDiagnosis();
+    } else {
+      onAdd('Diagnoses');
+    }
+  };
+
   const installationBase =
     options.OAG_INSTALLATION_TYPE ??
     options.OAG_VISIT_INSTALLATION_TYPE ??
@@ -461,9 +642,11 @@ export function TechnicalVisitSections({
     });
   }
 
-  const detailsFor = (application: Row) => applicationDetails.filter(
-    (detail) => Number(detail.TapID) === Number(application.TapID),
-  );
+  const detailsFor = (application: Row) =>
+    applicationDetails.filter(
+      (detail) => Number(detail.TapID) === Number(application.TapID),
+    );
+
   const applicationSummaryColumns: TableColumn[] = [
     {
       key: 'products',
@@ -486,35 +669,82 @@ export function TechnicalVisitSections({
       ),
     },
     {
-      key: 'types', label: 'Tipo aplicación',
-      render: (application) => <Text className="text-xs">{detailsFor(application).map((detail) => optionText(options, 'OAG_APPLICATION_TYPE', detail.TadApplicationType, detail.TadApplicationTypeDescription)).join(', ') || '—'}</Text>,
+      key: 'types',
+      label: 'Tipo aplicación',
+      render: (application) => (
+        <Text className="text-xs">
+          {detailsFor(application)
+            .map((detail) =>
+              optionText(
+                options,
+                'OAG_APPLICATION_TYPE',
+                detail.TadApplicationType,
+                detail.TadApplicationTypeDescription,
+              ),
+            )
+            .join(', ') || '—'}
+        </Text>
+      ),
     },
     {
-      key: 'doses', label: 'Dosis', align: 'right',
-      render: (application) => <Text className="text-right text-xs">{detailsFor(application).map((detail) => measureText(options, detail.TadDose, 'OAG_DOSE_UNIT', detail.TadDoseUnit, detail.TadDoseUnitDescription)).join(', ') || '—'}</Text>,
+      key: 'doses',
+      label: 'Dosis',
+      align: 'right',
+      render: (application) => (
+        <Text className="text-right text-xs">
+          {detailsFor(application)
+            .map((detail) =>
+              measureText(
+                options,
+                detail.TadDose,
+                'OAG_DOSE_UNIT',
+                detail.TadDoseUnit,
+                detail.TadDoseUnitDescription,
+              ),
+            )
+            .join(', ') || '—'}
+        </Text>
+      ),
     },
     {
-      key: 'quantities', label: 'Cantidad', align: 'right',
-      render: (application) => <Text className="text-right text-xs">{detailsFor(application).map((detail) => measureText(options, detail.TadQuantity, 'OAG_APPLICATION_QUANTITY_UNIT', detail.TadQuantityUnit, detail.TadQuantityUnitDescription)).join(', ') || '—'}</Text>,
+      key: 'quantities',
+      label: 'Cantidad',
+      align: 'right',
+      render: (application) => (
+        <Text className="text-right text-xs">
+          {detailsFor(application)
+            .map((detail) =>
+              measureText(
+                options,
+                detail.TadQuantity,
+                'OAG_APPLICATION_QUANTITY_UNIT',
+                detail.TadQuantityUnit,
+                detail.TadQuantityUnitDescription,
+              ),
+            )
+            .join(', ') || '—'}
+        </Text>
+      ),
     },
   ];
 
+  // Matches nova-web TechnicalVisitAssessments table columns:
+  // 1. Objetivo agronómico, 2. Órgano, 3. Incidencia (no Observación column)
   const diagnosisColumns: TableColumn[] = [
     {
       key: 'item',
       label: 'Objetivo agronómico',
-      render: (row) => (
-        <TwoLine
-          title={textOf(row.TvdItemDescription) || 'Sin descripción'}
-          detail={
-            optionText(
-              options,
-              'OAG_TECHNICAL_DIAGNOSIS_CATEGORY',
-              row.TvdCategory,
-            ) || undefined
-          }
-        />
-      ),
+      className: 'flex-[2]',
+      render: (row) => {
+        const matchedObj = objectives.find(
+          (item) => item.value === numberValue(row.ObjID),
+        );
+        return (
+          <Text className="text-xs text-foreground">
+            {matchedObj?.label || textOf(row.TvdItemDescription) || '—'}
+          </Text>
+        );
+      },
     },
     {
       key: 'organ',
@@ -538,50 +768,40 @@ export function TechnicalVisitSections({
         const incidence = numberValue(row.TvdIncidencePercentage);
         return (
           <Text className="text-right text-xs">
-            {incidence == null ? '—' : `${formatters.decimal(incidence, 2)} %`}
+            {incidence == null ? '0%' : `${incidence}%`}
           </Text>
         );
       },
     },
-    {
-      key: 'observation',
-      label: 'Observación',
-      render: (row) => (
-        <Text
-          className="text-xs"
-          >
-          {textOf(row.TvdObservation) || '—'}
-        </Text>
-      ),
-    },
   ];
 
+  // Matches nova-web TechnicalVisitFieldWork table columns:
+  // Actividad, Fecha inicio, Fecha fin, Observación
   const activityColumns: TableColumn[] = [
     {
       key: 'activity',
       label: 'Actividad',
       render: (row) => (
-        <TwoLine
-          title={optionText(
+        <Text className="text-xs">
+          {optionText(
             options,
             'OAG_VISIT_CULTURAL_ACTIVITY',
             row.TvaActivityType,
             row.TvaActivityTypeDescription,
           )}
-          detail={textOf(row.OwsName) || undefined}
-        />
+        </Text>
       ),
     },
     {
       key: 'start',
-      label: 'Inicio',
+      label: 'Fecha inicio',
       render: (row) => (
         <Text className="text-xs">{dateText(row.TvaStartDate)}</Text>
       ),
     },
     {
       key: 'end',
-      label: 'Fin',
+      label: 'Fecha fin',
       render: (row) => (
         <Text className="text-xs">{dateText(row.TvaEndDate)}</Text>
       ),
@@ -590,11 +810,7 @@ export function TechnicalVisitSections({
       key: 'observation',
       label: 'Observación',
       render: (row) => (
-        <Text
-          className="text-xs"
-          >
-          {textOf(row.TvaObservation) || '—'}
-        </Text>
+        <Text className="text-xs">{textOf(row.TvaObservation) || '—'}</Text>
       ),
     },
   ];
@@ -661,52 +877,47 @@ export function TechnicalVisitSections({
       key: 'instruction',
       label: 'Indicaciones',
       render: (row) => (
-        <Text
-          className="text-xs"
-          >
-          {textOf(row.TvrInstruction) || '—'}
-        </Text>
+        <Text className="text-xs">{textOf(row.TvrInstruction) || '—'}</Text>
       ),
     },
   ];
 
+  // Matches nova-web TechnicalVisitCulturalActivities table columns:
+  // Actividad cultural, Fecha inicio, Fecha fin, Observación
   const culturalColumns: TableColumn[] = [
     {
       key: 'activity',
       label: 'Actividad cultural',
       render: (row) => (
-        <TwoLine
-          title={optionText(
+        <Text className="text-xs">
+          {optionText(
             options,
             'OAG_VISIT_CULTURAL_ACTIVITY',
             row.TcaActivityType,
             row.TcaActivityTypeDescription,
           )}
-          detail={textOf(row.TcaObservation) || undefined}
-        />
-      ),
-    },
-    {
-      key: 'completed',
-      label: 'Completada',
-      render: (row) => (
-        <Text className="text-xs">
-          {boolValue(row.TcaIsCompleted) ? 'Sí' : 'No'}
         </Text>
       ),
     },
     {
       key: 'start',
-      label: 'Inicio',
+      label: 'Fecha inicio',
       render: (row) => (
         <Text className="text-xs">{dateText(row.TcaStartDate)}</Text>
       ),
     },
     {
       key: 'end',
-      label: 'Fin',
+      label: 'Fecha fin',
       render: (row) => (
         <Text className="text-xs">{dateText(row.TcaEndDate)}</Text>
+      ),
+    },
+    {
+      key: 'observation',
+      label: 'Observación',
+      render: (row) => (
+        <Text className="text-xs">{textOf(row.TcaObservation) || '—'}</Text>
       ),
     },
   ];
@@ -718,31 +929,43 @@ export function TechnicalVisitSections({
       render: (row) => {
         const fileId = numberValue(row.TveFilID);
         const pendingUri = pendingFileUri(row);
+        const pendingName =
+          row.PendingFile && typeof row.PendingFile === 'object'
+            ? textOf((row.PendingFile as { name?: unknown }).name)
+            : '';
         const uri =
           pendingUri ??
           (fileId != null && fileId > 0 ? managedFilePreviewUrl(fileId) : null);
         if (!uri) {
           return (
-            <View className="h-12 w-12 items-center justify-center rounded-lg bg-muted">
-              <ClipboardCheck
-                size={18}
-                className="text-muted-foreground"
-              />
-            </View>
+            <Text className="text-xs">
+              {pendingName ||
+                (fileId != null && fileId > 0 ? `Archivo ${fileId}` : '—')}
+            </Text>
           );
         }
         return (
-          <Image
-            source={{
-              uri,
-              ...(pendingUri
-                ? {}
-                : { headers: { 'X-Nova-Client': 'nova-app' } }),
-            }}
-            style={{ width: 48, height: 48, borderRadius: 8 }}
-            contentFit="cover"
-            accessibilityLabel="Archivo de evidencia"
-          />
+          <View className="flex-row items-center gap-2">
+            <Image
+              source={{
+                uri,
+                ...(pendingUri
+                  ? {}
+                  : { headers: { 'X-Nova-Client': 'nova-app' } }),
+              }}
+              style={{ width: 40, height: 40, borderRadius: 6 }}
+              contentFit="cover"
+              accessibilityLabel="Archivo de evidencia"
+            />
+            {pendingName ? (
+              <Text
+                className="text-xs text-muted-foreground"
+                numberOfLines={1}
+              >
+                {pendingName}
+              </Text>
+            ) : null}
+          </View>
         );
       },
     },
@@ -750,17 +973,19 @@ export function TechnicalVisitSections({
       key: 'description',
       label: 'Descripción',
       render: (row) => (
-        <Text
-          className="text-xs"
-          >
-          {textOf(row.TveDescription) || 'Sin descripción'}
+        <Text className="text-xs">
+          {textOf(row.TveDescription) || '—'}
         </Text>
       ),
     },
   ];
 
+  const followUpStatusOptions =
+    options.OAG_RECOMMENDATION_FOLLOW_UP_STATUS ?? [];
+
   return (
     <View className="gap-4 md:gap-5">
+      {/* 1. Aplicaciones */}
       <View className="gap-3">
         <VisitSectionHeading
           title="Aplicaciones"
@@ -777,7 +1002,13 @@ export function TechnicalVisitSections({
           columns={applicationSummaryColumns}
           rows={applications}
           rowKey={(application) => String(application.TapID)}
-          empty={<EmptyState title="No hay aplicaciones registradas" subtitle="Agrega la primera aplicación de la visita." icon={FlaskConical} />}
+          empty={
+            <EmptyState
+              title="No hay aplicaciones registradas"
+              subtitle="Agrega la primera aplicación de la visita."
+              icon={FlaskConical}
+            />
+          }
           onEdit={(application) => onEdit('Applications', application)}
           onRemove={(application) => onRemove('Applications', application)}
           editLabel="Editar aplicación"
@@ -785,11 +1016,11 @@ export function TechnicalVisitSections({
         />
       </View>
 
+      {/* 2. Estado fenológico & Evaluación agronómica */}
       <View className="gap-4 md:flex-row md:items-start md:gap-5">
         <View className="gap-3 md:w-1/3">
           <VisitSectionHeading
             title="Estado fenológico"
-            subtitle="Porcentaje por etapa del cultivo."
             icon={Leaf}
           />
           {stages.length === 0 ? (
@@ -839,7 +1070,7 @@ export function TechnicalVisitSections({
                         : 'text-muted-foreground'
                     }`}
                   >
-                    {formatters.decimal(totalPhenology, 2)} %
+                    {formatters.decimal(totalPhenology, 2)}%
                   </Text>
                 </View>
                 <View className="h-1.5 overflow-hidden rounded-full bg-muted">
@@ -860,16 +1091,96 @@ export function TechnicalVisitSections({
 
         <View className="min-w-0 gap-3 md:flex-1">
           <VisitSectionHeading
-            title="Evaluación fitosanitaria"
-            subtitle="Objetivos agronómicos, órganos afectados e incidencia observada."
+            title="Evaluación agronómica"
             icon={ShieldAlert}
             action={
-              <AddButton
-                label="Agregar"
-                onPress={() => onAdd('Diagnoses')}
-              />
+              <View className="flex-row items-center gap-2">
+                {editingDiagnosis ? (
+                  <NButton
+                    variant="outline"
+                    className="h-8 px-3"
+                    onPress={resetDiagnosis}
+                  >
+                    <X
+                      size={14}
+                      className="text-foreground"
+                    />
+                    <Text>Cancelar</Text>
+                  </NButton>
+                ) : null}
+                <NButton
+                  className="h-8 px-3"
+                  onPress={handleSaveDiagnosis}
+                >
+                  {editingDiagnosis ? (
+                    <Save
+                      size={14}
+                      className="text-primary-foreground"
+                    />
+                  ) : (
+                    <Plus
+                      size={14}
+                      className="text-primary-foreground"
+                    />
+                  )}
+                  <Text>{editingDiagnosis ? 'Actualizar' : 'Agregar'}</Text>
+                </NButton>
+              </View>
             }
           />
+
+          {/* Inline form matching nova-web TechnicalVisitAssessments */}
+          <View className="flex-col gap-3 md:flex-row md:items-start">
+            <NSelect
+              label="Objetivo agronómico"
+              items={objectives}
+              itemText="label"
+              itemValue="value"
+              value={diagnosisDraft.ObjID}
+              onChange={(value) =>
+                setDiagnosisDraft((current) => ({
+                  ...current,
+                  ObjID: value != null ? Number(value) : null,
+                }))
+              }
+              placeholder="Selecciona un objetivo"
+              searchPlaceholder="Buscar objetivo…"
+              searchable
+              clearable
+              required
+              containerClassName="md:flex-[2]"
+            />
+            <NSelect
+              label="Órgano"
+              items={options.OAG_PLANT_ORGAN ?? []}
+              itemText="label"
+              itemValue="value"
+              value={diagnosisDraft.TvdPlantOrgan}
+              onChange={(value) =>
+                setDiagnosisDraft((current) => ({
+                  ...current,
+                  TvdPlantOrgan: value != null ? Number(value) : null,
+                }))
+              }
+              placeholder="Seleccionar..."
+              clearable
+              containerClassName="md:flex-1"
+            />
+            <NText
+              label="Incidencia (%)"
+              decimal
+              value={diagnosisDraft.TvdIncidencePercentage}
+              onChange={(value) =>
+                setDiagnosisDraft((current) => ({
+                  ...current,
+                  TvdIncidencePercentage: value,
+                }))
+              }
+              required
+              containerClassName="md:flex-1"
+            />
+          </View>
+
           <ResponsiveTable
             columns={diagnosisColumns}
             rows={diagnoses}
@@ -881,18 +1192,34 @@ export function TechnicalVisitSections({
                 icon={ShieldAlert}
               />
             }
-            onEdit={(row) => onEdit('Diagnoses', row)}
-            onRemove={(row) => onRemove('Diagnoses', row)}
-            editLabel="Editar evaluación"
-            removeLabel="Eliminar evaluación"
+            onEdit={(row) => {
+              setDiagnosisDraft({
+                TvdID: Number(row.TvdID) || 0,
+                ObjID: row.ObjID != null ? Number(row.ObjID) : null,
+                TvdPlantOrgan:
+                  row.TvdPlantOrgan != null ? Number(row.TvdPlantOrgan) : null,
+                TvdIncidencePercentage: String(
+                  row.TvdIncidencePercentage ?? '0',
+                ),
+              });
+              setEditingDiagnosis(true);
+            }}
+            onRemove={(row) => {
+              if (Number(row.TvdID) === diagnosisDraft.TvdID) {
+                resetDiagnosis();
+              }
+              onRemove('Diagnoses', row);
+            }}
+            editLabel="Editar evaluación fitosanitaria"
+            removeLabel="Eliminar evaluación fitosanitaria"
           />
         </View>
       </View>
 
+      {/* 3. Actividades culturales realizadas */}
       <View className="gap-3">
         <VisitSectionHeading
           title="Actividades culturales realizadas"
-          subtitle="Labores ejecutadas durante la visita."
           icon={ClipboardList}
           action={
             <AddButton
@@ -907,22 +1234,21 @@ export function TechnicalVisitSections({
           rowKey={(row) => String(row.TvaID ?? '')}
           empty={
             <EmptyState
-              title="No hay actividades registradas"
-              subtitle="Registra las labores realizadas en el lote."
+              title="No hay actividades culturales realizadas"
               icon={ClipboardList}
             />
           }
           onEdit={(row) => onEdit('Activities', row)}
           onRemove={(row) => onRemove('Activities', row)}
-          editLabel="Editar actividad"
-          removeLabel="Eliminar actividad"
+          editLabel="Editar actividad realizada"
+          removeLabel="Eliminar actividad realizada"
         />
       </View>
 
+      {/* 4. Evaluación de instalaciones */}
       <View className="gap-3">
         <VisitSectionHeading
           title="Evaluación de instalaciones"
-          subtitle="Disponibilidad de instalaciones asociadas al lote."
           icon={ClipboardCheck}
         />
         {installationOptions.length === 0 ? (
@@ -938,6 +1264,7 @@ export function TechnicalVisitSections({
                 (item) =>
                   numberValue(item.TinInstallationType) === option.value,
               );
+              const hasObservation = Boolean(textOf(row?.TinObservation));
               return (
                 <View
                   key={option.value}
@@ -947,15 +1274,20 @@ export function TechnicalVisitSections({
                     <Text className="text-xs font-poppins-semibold">
                       {option.label}
                     </Text>
-                    {textOf(row?.TinObservation) ? (
+                    {hasObservation ? (
                       <Text className="text-[10px] text-muted-foreground">
                         {textOf(row?.TinObservation)}
                       </Text>
                     ) : null}
                   </View>
                   <IconAction
-                    label={`Comentario de ${option.label}`}
+                    label={
+                      hasObservation
+                        ? `Editar comentario de ${option.label}`
+                        : `Agregar comentario de ${option.label}`
+                    }
                     icon={MessageSquare}
+                    highlighted={hasObservation}
                     onPress={() =>
                       onInstallationObservation?.(
                         option,
@@ -974,18 +1306,36 @@ export function TechnicalVisitSections({
         )}
       </View>
 
+      {/* 5. Recomendaciones */}
       <View className="gap-3">
         <VisitSectionHeading
           title="Recomendaciones"
-          subtitle="Insumos, dosis y objetivos recomendados al productor."
           icon={ClipboardList}
-          action={
+        />
+        <View className="flex-col items-start gap-3 md:flex-row md:items-center md:justify-between">
+          <View className="min-w-0 flex-row items-center gap-2.5 border-b border-border/40 pb-2">
+            <View className="rounded-lg bg-primary/10 p-2">
+              <FlaskConical
+                size={16}
+                className="text-primary"
+              />
+            </View>
+            <View className="min-w-0">
+              <Text className="text-base font-poppins text-foreground/90">
+                Aplicaciones
+              </Text>
+              <Text className="text-xs text-muted-foreground">
+                Insumos, dosis y objetivos recomendados al productor.
+              </Text>
+            </View>
+          </View>
+          <View className="self-end md:self-auto">
             <AddButton
               label="Agregar recomendación"
               onPress={() => onAdd('Recommendations')}
             />
-          }
-        />
+          </View>
+        </View>
         <ResponsiveTable
           columns={recommendationColumns}
           rows={recommendations}
@@ -994,7 +1344,7 @@ export function TechnicalVisitSections({
             <EmptyState
               title="No hay recomendaciones registradas"
               subtitle="Agrega los insumos y objetivos indicados al productor."
-              icon={ClipboardList}
+              icon={Sprout}
             />
           }
           onEdit={(row) => onEdit('Recommendations', row)}
@@ -1004,117 +1354,56 @@ export function TechnicalVisitSections({
         />
       </View>
 
-      <View className="gap-3">
+      {/* 6. Seguimiento de recomendaciones anteriores */}
+      <View className="gap-2.5">
         <VisitSectionHeading
           title="Seguimiento de recomendaciones anteriores"
-          subtitle="Revisa el cumplimiento de las recomendaciones de visitas previas."
           icon={ClipboardList}
         />
         {previousRecommendations.length === 0 ? (
-          <EmptyState
-            title="Sin recomendaciones anteriores"
-            subtitle="No hay recomendaciones de visitas previas para revisar."
-            icon={ClipboardList}
-          />
+          <View className="rounded-lg border border-dashed border-border/60 px-4 py-3.5">
+            <Text className="text-center text-xs text-muted-foreground">
+              No hay recomendaciones de visitas anteriores para revisar.
+            </Text>
+          </View>
         ) : (
           previousRecommendations.map((recommendation, index) => {
+            const recId = numberValue(recommendation.TvrID) ?? 0;
             const existing = recommendationFollowUps.find(
-              (followUp) =>
-                numberValue(followUp.TvrID) ===
-                numberValue(recommendation.TvrID),
+              (followUp) => numberValue(followUp.TvrID) === recId,
             );
+            const itemTitle =
+              textOf(recommendation.FrsDescription) ||
+              textOf(recommendation.TvrProductDescription) ||
+              'Recomendación';
+            const itemSubtitle = [
+              textOf(recommendation.TvrObjective),
+              textOf(recommendation.TvrInstruction),
+            ]
+              .filter(Boolean)
+              .join(' · ');
             return (
-              <View
+              <FollowUpEditorRow
                 key={String(recommendation.TvrID ?? index)}
-                className="gap-2 rounded-lg border border-border bg-card p-3"
-              >
-                <View className="flex-row items-start justify-between gap-3">
-                  <View className="min-w-0 flex-1">
-                    <TwoLine
-                      title={
-                        textOf(recommendation.FrsDescription) ||
-                        textOf(recommendation.TvrProductDescription) ||
-                        'Recomendación'
-                      }
-                      detail={`Visita del ${dateText(recommendation.TviPerformedDate)}`}
-                    />
-                  </View>
-                  {existing ? (
-                    <StatusBadge
-                      label={optionText(
-                        options,
-                        'OAG_RECOMMENDATION_FOLLOW_UP_STATUS',
-                        existing.TrfStatus,
-                        existing.TrfStatusDescription,
-                      )}
-                    />
-                  ) : null}
-                </View>
-                {textOf(recommendation.TvrObjective) ? (
-                  <Text className="text-xs text-muted-foreground">
-                    {textOf(recommendation.TvrObjective)}
-                  </Text>
-                ) : null}
-                {textOf(recommendation.TvrInstruction) ? (
-                  <Text className="text-xs">
-                    {textOf(recommendation.TvrInstruction)}
-                  </Text>
-                ) : null}
-                {existing && textOf(existing.TrfObservation) ? (
-                  <Text className="rounded-lg bg-muted/50 px-2.5 py-2 text-xs">
-                    {textOf(existing.TrfObservation)}
-                  </Text>
-                ) : null}
-                <View className="flex-row flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-2">
-                  {existing ? (
-                    <>
-                      <NButton
-                        variant="outline"
-                        className="h-8 px-3"
-                        onPress={() =>
-                          onEdit('RecommendationFollowUps', existing)
-                        }
-                      >
-                        <Pencil
-                          size={14}
-                          className="text-foreground"
-                        />
-                        <Text>Editar seguimiento</Text>
-                      </NButton>
-                      <IconAction
-                        label="Eliminar seguimiento"
-                        icon={Trash2}
-                        danger
-                        onPress={() =>
-                          onRemove('RecommendationFollowUps', existing)
-                        }
-                      />
-                    </>
-                  ) : (
-                    <NButton
-                      className="h-8 px-3"
-                      onPress={() =>
-                        onAdd('RecommendationFollowUps', recommendation)
-                      }
-                    >
-                      <Plus
-                        size={14}
-                        className="text-primary-foreground"
-                      />
-                      <Text>Agregar seguimiento</Text>
-                    </NButton>
-                  )}
-                </View>
-              </View>
+                title={itemTitle}
+                subtitle={itemSubtitle || undefined}
+                statusOptions={followUpStatusOptions}
+                initialStatus={numberValue(existing?.TrfStatus) ?? 0}
+                initialObservation={textOf(existing?.TrfObservation)}
+                onChange={(status, observation) =>
+                  onRecommendationFollowUpChange?.(recId, status, observation)
+                }
+              />
             );
           })
         )}
       </View>
 
+      {/* 7. Actividades culturales sugeridas */}
       <View className="gap-3">
         <VisitSectionHeading
           title="Actividades culturales"
-          subtitle="Labores sugeridas al productor para la próxima visita."
+          subtitle="Registra las labores sugeridas al productor para revisarlas en la próxima visita."
           icon={Sprout}
           action={
             <AddButton
@@ -1130,8 +1419,7 @@ export function TechnicalVisitSections({
           empty={
             <EmptyState
               title="No hay actividades culturales sugeridas"
-              subtitle="Agrega las labores recomendadas al productor."
-              icon={Sprout}
+              icon={ClipboardList}
             />
           }
           onEdit={(row) => onEdit('CulturalActivities', row)}
@@ -1141,114 +1429,66 @@ export function TechnicalVisitSections({
         />
       </View>
 
-      <View className="gap-3">
+      {/* 8. Seguimiento de actividades anteriores */}
+      <View className="gap-2.5">
         <VisitSectionHeading
-          title="Seguimiento de actividades culturales anteriores"
-          subtitle="Revisa el cumplimiento de las labores sugeridas en visitas previas."
+          title="Seguimiento de actividades anteriores"
           icon={Sprout}
         />
         {previousCulturalActivities.length === 0 ? (
-          <EmptyState
-            title="Sin actividades culturales anteriores"
-            subtitle="No hay actividades de visitas previas para revisar."
-            icon={Sprout}
-          />
+          <View className="rounded-lg border border-dashed border-border/60 px-4 py-3.5">
+            <Text className="text-center text-xs text-muted-foreground">
+              No hay actividades de visitas anteriores para revisar.
+            </Text>
+          </View>
         ) : (
           previousCulturalActivities.map((activity, index) => {
+            const actId = numberValue(activity.TcaID) ?? 0;
             const existing = culturalFollowUps.find(
-              (followUp) =>
-                numberValue(followUp.TcaID) === numberValue(activity.TcaID),
+              (followUp) => numberValue(followUp.TcaID) === actId,
             );
+            const dateRange = [
+              textOf(activity.TcaStartDate)
+                ? dateText(activity.TcaStartDate)
+                : null,
+              textOf(activity.TcaEndDate)
+                ? dateText(activity.TcaEndDate)
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' – ');
+            const subtitle = [dateRange, textOf(activity.TcaObservation)]
+              .filter(Boolean)
+              .join(' · ');
             return (
-              <View
+              <FollowUpEditorRow
                 key={String(activity.TcaID ?? index)}
-                className="gap-2 rounded-lg border border-border bg-card p-3"
-              >
-                <View className="flex-row items-start justify-between gap-3">
-                  <View className="min-w-0 flex-1">
-                    <TwoLine
-                      title={
-                        optionText(
-                          options,
-                          'OAG_VISIT_CULTURAL_ACTIVITY',
-                          activity.TcaActivityType,
-                          activity.TcaActivityTypeDescription,
-                        ) || 'Actividad cultural'
-                      }
-                      detail={`Visita del ${dateText(activity.TviPerformedDate)} · ${dateText(activity.TcaStartDate)} al ${dateText(activity.TcaEndDate)}`}
-                    />
-                  </View>
-                  {existing ? (
-                    <StatusBadge
-                      label={optionText(
-                        options,
-                        'OAG_RECOMMENDATION_FOLLOW_UP_STATUS',
-                        existing.TcfStatus,
-                        existing.TcfStatusDescription,
-                      )}
-                    />
-                  ) : null}
-                </View>
-                {textOf(activity.TcaObservation) ? (
-                  <Text className="text-xs text-muted-foreground">
-                    {textOf(activity.TcaObservation)}
-                  </Text>
-                ) : null}
-                {existing && textOf(existing.TcfObservation) ? (
-                  <Text className="rounded-lg bg-muted/50 px-2.5 py-2 text-xs">
-                    {textOf(existing.TcfObservation)}
-                  </Text>
-                ) : null}
-                <View className="flex-row flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-2">
-                  {existing ? (
-                    <>
-                      <NButton
-                        variant="outline"
-                        className="h-8 px-3"
-                        onPress={() =>
-                          onEdit('CulturalActivityFollowUps', existing)
-                        }
-                      >
-                        <Pencil
-                          size={14}
-                          className="text-foreground"
-                        />
-                        <Text>Editar seguimiento</Text>
-                      </NButton>
-                      <IconAction
-                        label="Eliminar seguimiento"
-                        icon={Trash2}
-                        danger
-                        onPress={() =>
-                          onRemove('CulturalActivityFollowUps', existing)
-                        }
-                      />
-                    </>
-                  ) : (
-                    <NButton
-                      className="h-8 px-3"
-                      onPress={() =>
-                        onAdd('CulturalActivityFollowUps', activity)
-                      }
-                    >
-                      <Plus
-                        size={14}
-                        className="text-primary-foreground"
-                      />
-                      <Text>Agregar seguimiento</Text>
-                    </NButton>
-                  )}
-                </View>
-              </View>
+                title={
+                  optionText(
+                    options,
+                    'OAG_VISIT_CULTURAL_ACTIVITY',
+                    activity.TcaActivityType,
+                    activity.TcaActivityTypeDescription,
+                  ) || 'Actividad cultural'
+                }
+                subtitle={subtitle || undefined}
+                statusOptions={followUpStatusOptions}
+                initialStatus={numberValue(existing?.TcfStatus) ?? 0}
+                initialObservation={textOf(existing?.TcfObservation)}
+                onChange={(status, observation) =>
+                  onCulturalFollowUpChange?.(actId, status, observation)
+                }
+              />
             );
           })
         )}
       </View>
 
+      {/* 9. Evidencias */}
       <View className="gap-3">
         <VisitSectionHeading
           title="Evidencias"
-          subtitle="Fotos y documentos que respaldan la visita."
+          subtitle="Fotos y documentos que respaldan la visita"
           icon={ClipboardCheck}
           action={
             <AddButton
