@@ -26,7 +26,7 @@ export interface PickedFile {
 export async function uploadManagedFile(
   file: PickedFile,
   genParameter: string,
-  idempotencyKey: string | undefined,
+  uploadId: string | undefined,
   userId: number,
   identityKey = getActiveIdentityKey() ?? undefined,
 ): Promise<ManagedFile> {
@@ -34,6 +34,12 @@ export async function uploadManagedFile(
 
   const form = new FormData();
   form.append('genParameter', genParameter.trim());
+  // Identificador estable de la carga. El servidor lo usa para devolver el
+  // archivo ya guardado cuando el cliente reintenta una carga cuya respuesta
+  // se perdió. No se envía la cabecera Idempotency-Key porque su huella
+  // depende del cuerpo multipart, que cambia entre reintentos y provocaría
+  // un conflicto en lugar de deduplicar.
+  if (uploadId?.trim()) form.append('uploadId', uploadId.trim());
   if (Platform.OS === 'web' && file.file) form.append('file', file.file);
   else
     form.append('file', {
@@ -45,7 +51,6 @@ export async function uploadManagedFile(
   const requestConfig = {
     headers: {
       'Content-Type': 'multipart/form-data',
-      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
     },
   };
   const response = await postForUser(

@@ -121,10 +121,13 @@ test('signature media is prepared for push without mutating the fetched local re
   await prepareTechnicalVisitMedia([change], 11);
 
   expect(uploadManagedFile).toHaveBeenCalledTimes(1);
+  // El identificador de carga es el que el cliente ya guardó en la copia
+  // local: es estable entre reintentos y permite al servidor devolver el
+  // archivo ya subido en lugar de duplicarlo.
   expect(uploadManagedFile).toHaveBeenCalledWith(
     expect.objectContaining({ uri: pendingSignature.uri }),
     'ROUTE_TECHNICAL_VISIT_FILES',
-    expect.stringMatching(/^nova-media-/),
+    expect.any(String),
     11,
     undefined,
   );
@@ -222,8 +225,9 @@ test('persists each successful file receipt and reuses it after a later upload f
   expect(checkpoint.Evidences[0].PendingFile.UploadedFileId).toBe(201);
   const firstUploadKey = jest.mocked(uploadManagedFile).mock.calls[0][2];
   const secondUploadKey = jest.mocked(uploadManagedFile).mock.calls[1][2];
-  expect(firstUploadKey).toEqual(expect.stringMatching(/^nova-media-/));
-  expect(secondUploadKey).toEqual(expect.stringMatching(/^nova-media-/));
+  expect(firstUploadKey).toEqual(expect.any(String));
+  expect(secondUploadKey).toEqual(expect.any(String));
+  expect(firstUploadKey).not.toEqual(secondUploadKey);
 
   const retry = {
     Resource: SYNC_RESOURCES.OagTechnicalVisit,

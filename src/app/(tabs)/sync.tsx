@@ -1,11 +1,13 @@
 import { NButton } from '@/components/forms/NButton';
+import { NSyncConnectionNotice } from '@/components/sync/sync-connection-notice';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { formatters } from '@/lib/formatter';
+import { exportLocalBackup } from '@/sync/backup';
 import { pullNova, useSyncState } from '@/sync';
 import { useRouter } from 'expo-router';
-import { CheckCircle2, RefreshCw } from 'lucide-react-native';
-import { ScrollView, View } from 'react-native';
+import { CheckCircle2, Download, RefreshCw } from 'lucide-react-native';
+import { Platform, ScrollView, View } from 'react-native';
 
 export default function SyncTab() {
   const router = useRouter();
@@ -16,6 +18,14 @@ export default function SyncTab() {
       await pullNova();
     } catch {
       // The normalized error is rendered from the synchronization store.
+    }
+  };
+
+  const exportBackup = async () => {
+    try {
+      await exportLocalBackup();
+    } catch {
+      // El respaldo es best effort: un fallo no debe interrumpir el trabajo.
     }
   };
 
@@ -30,6 +40,7 @@ export default function SyncTab() {
           Envía cambios y actualiza los datos locales
         </Text>
       </View>
+      <NSyncConnectionNotice />
       <Card className="gap-3 p-3">
         <View className="flex-row items-center gap-2">
           <RefreshCw
@@ -89,6 +100,19 @@ export default function SyncTab() {
       >
         <Text>Ver detalles técnicos</Text>
       </NButton>
+      {Platform.OS === 'web' ? (
+        <NButton
+          className="h-9"
+          variant="outline"
+          onPress={() => void exportBackup()}
+        >
+          <Download
+            size={15}
+            className="text-primary-foreground"
+          />
+          <Text>Exportar respaldo de datos locales</Text>
+        </NButton>
+      ) : null}
     </ScrollView>
   );
 }

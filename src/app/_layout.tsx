@@ -20,6 +20,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Platform } from 'react-native';
 import { AuthGate } from '@/auth';
 import { useAuthStore } from '@/auth/store';
+import { registerBackgroundSync } from '@/sync/background-task';
+import { syncScheduler } from '@/sync/scheduler';
 import {
   hexToHslChannels,
   headerUsesDarkForeground,
@@ -51,6 +53,15 @@ export default function RootLayout() {
   React.useEffect(() => {
     void hydrateAppearance();
   }, [hydrateAppearance]);
+
+  // La sincronización en segundo plano solo arranca con una cuenta activa: sin
+  // sesión local no hay nada que sincronizar.
+  React.useEffect(() => {
+    if (!sessionUserId) return;
+    void syncScheduler.start();
+    void registerBackgroundSync();
+    return () => syncScheduler.stop();
+  }, [sessionUserId]);
 
   React.useEffect(() => {
     if (!appearanceReady) return;

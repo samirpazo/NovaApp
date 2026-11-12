@@ -246,7 +246,7 @@ async function executePull(
       throw new Error(
         'La conexión guardada no coincide con el servidor configurado en esta app.',
       );
-    await useAuthStore.getState().ensureOnlineSession();
+    await useAuthStore.getState().resolveServerCredential();
     const session = useAuthStore.getState().Session;
     const userId = session?.User.UsrID;
     if (!userId || userId !== expectedUserId || !isActiveIdentity(identityKey))

@@ -36,18 +36,51 @@ sucursales ni mesas. `BranchId` permanece opcional para una fase posterior.
 
 ## Seguridad de datos locales
 
-- En iOS y Android, access token, refresh token y sesión se guardan exclusivamente con Expo
-  SecureStore. Las nuevas escrituras usan `WHEN_UNLOCKED_THIS_DEVICE_ONLY`: no migran a otro
-  dispositivo mediante respaldos y solo están disponibles cuando el dispositivo está desbloqueado.
+- En iOS y Android, access token, refresh token, credencial de dispositivo y sesión se guardan
+  exclusivamente con Expo SecureStore. Las nuevas escrituras usan
+  `WHEN_UNLOCKED_THIS_DEVICE_ONLY`: no migran a otro dispositivo mediante respaldos y solo están
+  disponibles cuando el dispositivo está desbloqueado.
 - En web, los tokens permanecen en cookies HttpOnly administradas por NovaApi. `localStorage` solo
   conserva la sesión mínima validada por `AuthSessionSchema`; nunca debe almacenar access token ni
-  refresh token.
+  refresh token. La credencial de dispositivo es exclusiva de nativo: en web el refresh token de la
+  cookie ya enjoya de la ventana larga de Nova App.
 - `AuthUserSchema` es una lista permitida: Zod elimina cualquier campo adicional que NovaApi envíe.
   No ampliar esa lista con documento, teléfono, dirección, datos médicos u otra información sensible
   salvo que exista una necesidad funcional explícita.
 - Toda sesión recuperada del almacenamiento vuelve a validarse con Zod antes de entrar a Zustand.
 
 No sustituir estas tecnologías sin una decisión explícita del responsable del proyecto.
+
+## Confianza local y credencial del servidor
+
+La app separa dos conceptos que antes se confundían. Confundirlos hacía que un dispositivo sin
+red quedara inutilizable a los pocas horas.
+
+- **Confianza local**: la presencia del documento de sesión en el almacenamiento seguro del
+  dispositivo. Gobierna el acceso a la interfaz y a la base local. **No caduca por tiempo.**
+- **Credencial del servidor**: el access token y su refresh. Es una caché que sirve para hablar con
+  NovaApi. Si caduca o falla, la app sigue operando con los datos locales.
+
+Consecuencias obligatorias:
+
+- Un 4xx de autenticación **nunca** provoca el cierre de sesión local. Solo lo provoca un
+  revocamiento expreso del servidor: credencial de dispositivo revocada, cuenta desactivada o
+  cuenta vencida.
+- `isSessionExpired` decide si hay que **renovar** la credencial, nunca si hay que cerrar sesión.
+- La renovación es silenciosa y en segundo plano: access token vigente → refresh token →
+  credencial de dispositivo (`POST /Token/DeviceToken/Exchange`). Es la única vía que permite
+  recuperar la sesión sin contraseña tras un periodo largo sin conexión.
+- `POST /Token/Session/Status` es la única fuente para distinguir “no hay red” de “la sesión
+  expiró” y de “la cuenta ya no está habilitada”. No deducir esa diferencia del texto de un error.
+- El guard de rutas (`AuthGate`) se basa únicamente en la confianza local. Un arranque sin red debe
+  mostrar la app y los datos locales, no una pantalla de login.
+- La app nunca guarda la contraseña del usuario. La credencial de dispositivo sustituye esa
+  necesidad y es revocable.
+
+Ventanas de sesión del backend (`Authentication:*`): Nova App usa `NovaAppAccessTokenMinutes`
+(60), `NovaAppRefreshTokenDays` (90), `NovaAppSessionTimeoutMinutes` (43200 = 30 días deslizante)
+y `NovaAppDeviceTokenDays` (180). Su sesión usa `SecSession.AppType = 3`, separado del de la web
+(`1`) para que un “cerrar sesión en todas partes” de Nova Web no invalide los equipos en campo.
 
 ## Densidad de componentes
 
@@ -83,6 +116,7 @@ una variante mayor por una razón concreta, como el login, pero no debe cambiar 
 | `NCrudTable` | Tabla responsive genérica usada por `NCrud` | `src/components/crud/n-crud-table.tsx` |
 | `NCrudDataSource` | Lectura paginada/filtrada desde una fuente | `src/components/crud/contracts.ts` |
 | `NSignature` | Captura y reemplazo de firma | `src/components/forms/NSignature.tsx` |
+| `NSyncConnectionNotice` | Aviso no bloqueante de sincronización detenida | `src/components/sync/sync-connection-notice.tsx` |
 
 La app no tiene un componente independiente llamado `NTable`: las pantallas estándar usan
 `NCrudTable` dentro de `NCrud`. Antes de agregar variantes o props, leer los tipos de la
@@ -112,6 +146,15 @@ implementación; no copiar APIs de Nova Web si la implementación nativa tiene o
     selectores ni relaciones activas.
 17. Todo listado NCrud debe usar `NCrudDataSource`. No cargar una colección completa en estado React
     para entregarla mediante `rows`; los selectores auxiliares sí pueden observar su propio catálogo.
+18. La confianza local del dispositivo no caduca por tiempo. Un fallo de autenticación del servidor
+    degrada la sincronización, nunca el acceso a los datos locales.
+19. La renovación de la credencial del servidor ocurre en segundo plano y nunca bloquea el arranque
+    de la app.
+20. El cierre de sesión es la única acción del usuario que elimina la credencial del dispositivo.
+    Ni un fallo de red ni uno de autenticación borran datos locales.
+21. Una carga de archivo lleva siempre el identificador estable que el cliente guarda en la copia
+    local (`uploadId`). El servidor lo usa para deduplicar; no se debe volver a depender de la
+    huella del cuerpo multipart para idempotencia.
 
 ## Estado de recursos
 
@@ -154,10 +197,17 @@ existen en `/sync/pull` ni en `/sync/push`.
 - `src/sync/read-only-discard.ts`: detección y descarte de restos locales heredados.
 - `src/sync/conflicts.ts`: persistencia y resolución de conflictos.
 - `src/sync/useSyncIndicators.ts`: conteos reactivos locales para badges de cambios y conflictos.
-- `src/sync/config.ts`: URL y futuro alcance de sucursal.
+- `src/sync/config.ts`: URL, tokens y credencial de dispositivo.
+- `src/sync/scheduler.ts`: sincronización en segundo plano (primer plano, conectividad, temporizador).
+- `src/sync/background-task.ts`: tarea en segundo plano del sistema operativo.
+- `src/sync/headless.ts`: activación de la cuenta sin React, para la tarea en segundo plano.
+- `src/sync/backup.ts`: respaldo de los cambios locales pendientes.
+- `src/auth/service.ts`: login, renovación de credencial y clasificación de fallos.
+- `src/auth/store.ts`: confianza local, estado de credencial y bloqueo de sincronización.
 - `src/components/crud/offline-crud.tsx`: listado CRUD reutilizable.
 - `src/components/sync/conflict-comparison.tsx`: comparación responsive entre versión local y
   versión del servidor.
+- `src/components/sync/sync-connection-notice.tsx`: aviso no bloqueante de sincronización detenida.
 - `src/app/(tabs)/_layout.tsx`: shell autenticado con header y cinco tabs.
 - `src/features/security/options/`: consulta y caché local del menú móvil autorizado.
 - `src/lib/optionIcon.ts`: resuelve dinámicamente `OptIcon` usando las exportaciones Lucide de Nova App.
@@ -166,6 +216,7 @@ existen en `/sync/pull` ni en `/sync/push`.
 - `src/app/(tabs)/technical-visits.tsx` y `technical-visit-detail.tsx`: visitas técnicas offline.
 - `docs/TECHNICAL-VISITS-OFFLINE-READINESS.md`: inventario de tablas/catálogos y fases para
   completar visitas técnicas offline con paridad funcional con Nova Web.
+- `docs/OFFLINE-READINESS.md`: garantías, matriz de fallos y límites del trabajo sin conexión.
 
 Todas las pantallas autenticadas deben vivir dentro de `src/app/(tabs)/`, incluso cuando no sean
 una de las cinco pestañas principales. Las rutas secundarias se registran con `href: null` en el
@@ -177,6 +228,9 @@ Backend relacionado:
 - `NovaApi/Controllers/Sync/SyncController.cs`
 - `NovaApi/Models/Sync/SyncPushRequest.cs`
 - `NovaApi/Middleware/IdempotencyMiddleware.cs`
+- `NovaApi/Controllers/Security/TokenController.cs` (login, refresh, credencial de dispositivo, estado)
+- `NovaApi/Services/Auth/ClientSessionPolicy.cs` (ventanas de sesión por tipo de cliente)
+- `NovaApi/Middleware/SessionValidationMiddleware.cs` (validación de sesión por tipo de cliente)
 
 ## Cómo crear una entidad local nueva
 
@@ -222,4 +276,6 @@ Una funcionalidad offline-first no está terminada solo porque guarda localmente
 - Pull incremental;
 - conflicto en edición concurrente;
 - ambas decisiones de conflicto;
+- arranque sin red con la sesión local intacta;
+- renovación silenciosa de la credencial cuando vuelve la conectividad;
 - lint, typecheck y compilación backend limpios.

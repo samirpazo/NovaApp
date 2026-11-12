@@ -117,7 +117,7 @@ async function uploadPendingFile(
   const uploaded = await uploadManagedFile(
     uploadFile,
     route,
-    `nova-media-${file.UploadId}`,
+    file.UploadId,
     userId,
     identityKey,
   );

@@ -2,8 +2,13 @@ export type SyncFailureKind =
   'conflict' | 'network' | 'validation' | 'cancelled' | 'unknown';
 
 export interface SyncTelemetryEvent {
-  event: 'sync_completed' | 'sync_failed';
-  durationMs: number;
+  event:
+    | 'sync_completed'
+    | 'sync_failed'
+    | 'sync_skipped_offline'
+    | 'credential_renewed'
+    | 'credential_blocked';
+  durationMs?: number;
   downloaded?: number;
   uploaded?: number;
   pages?: number;

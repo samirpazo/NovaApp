@@ -225,10 +225,14 @@ del Push, la app las carga con `POST /GenFiles/upload` y `ROUTE_TECHNICAL_VISIT_
 snapshot local el identificador estable de intento y el `FileId` recibido, y envía la visita como
 agregado. Así, los archivos cuya respuesta de carga se confirmó no vuelven a solicitarse cuando falla
 un archivo posterior o el Push. El checkpoint fusiona esos recibos con el snapshot local más reciente.
-Nova debe soportar idempotencia durable por `Idempotency-Key` para cerrar el caso de respuesta de carga
-perdida: el middleware actual compara el hash del cuerpo HTTP multipart completo, incluidos bytes que
-pueden variar al reconstruir `FormData`. Sin una garantía del servidor o una prueba aislada que confirme
-replay idéntico, no se afirma entrega exactamente una vez tras una respuesta ambigua. Después de que el
+La idempotencia de la carga no depende de `Idempotency-Key`: ese middleware compara el hash del
+cuerpo HTTP multipart completo, incluidos los bytes que varían al reconstruir `FormData` (el límite
+multipart es aleatorio), de modo que un reintento de la misma carga recibía un `409` en lugar de
+deduplicar y la evidencia quedaba atascada para siempre. En su lugar, la app envía en el cuerpo
+multipart el identificador estable de intento que ya guarda en el snapshot local (`uploadId`) y
+NovaApi lo persiste en `GenFile.FilUploadId` con índice único: si el identificador ya existe,
+`POST /GenFiles/upload` devuelve el archivo guardado en lugar de crear un duplicado. Con esto la
+entrega es exactamente una vez incluso cuando la respuesta se pierde. Después de que el
 Push se confirma, la app aplica el agregado y la versión canónicos del servidor al registro local.
 
 La firma existente se obtiene mediante una petición autenticada de `api` y se conserva como imagen
@@ -246,12 +250,61 @@ Las imágenes de `GenDefinitionDetail` se cargan antes mediante `POST /GenFiles/
 `ROUTE_DEFINITION_IMGS`. La entidad local y el Push solo conservan el `FileId` en `DedImageFilID`;
 el archivo administrado permanece inmutable y no se replica por WatermelonDB.
 
+## Sincronización en segundo plano
+
+La app de campo permanece horas sin cobertura y el técnico no debe depender de un botón para
+volver a dejar los datos en el servidor. La sincronización automática combina cuatro señales, todas
+sobre el mismo `pullNova()` y con exclusión mutua (nunca hay dos sincronizaciones simultáneas):
+
+| Señal | Disparo | Fiabilidad |
+|---|---|---|
+| Primer plano | `AppState` pasa a `active` | Alta |
+| Conectividad | `NetInfo` recupera la red | Alta |
+| Temporizador | Cada 5 minutos con la app abierta | Media |
+| Tarea del sistema | `expo-background-task`, `minimumInterval: 15` | Opportunista |
+
+Reglas:
+
+- No se intenta sincronizar sin red: se informa `sync_skipped_offline` y se espera.
+- Entre dos sincronizaciones automáticas hay un mínimo de 60 segundos.
+- Un fallo aplica espera creciente: 30 s, 1 min, 5 min, 15 min, 1 h. La espera se persiste para
+  que un reinicio de la app no la reinicie.
+- La tarea del sistema se define en el ámbito global del módulo (`src/sync/background-task.ts`)
+  porque el sistema puede lanzarla en un contexto de JavaScript frío. Esa tarea reconstruye el
+  ámbito de la cuenta con `src/sync/headless.ts`, que lee la sesión del almacenamiento seguro y
+  activa la base local sin depender de React.
+- En Android, WorkManager aplica la restricción de conectividad de forma nativa. En iOS la
+  ventana la decide el sistema: **no hay cadencia garantizada** y la cobertura fiable la dan el
+  primer plano y la recuperación de conectividad.
+- La sincronización manual del usuario no pasa por el planificador: respeta el intervalo mínimo y
+  la espera creciente, igual que las automáticas.
+
+## Credencial del servidor y confianza local
+
+La sesión del servidor es una caché. La app opera con los datos locales aunque la credencial no
+se pueda renovar, y solo sale de la cuenta cuando el servidor revoca expresamente esa confianza.
+
+- Cadena de renovación: access token vigente → `POST /Token/Refresh` → `POST
+  /Token/DeviceToken/Exchange`. La credencial de dispositivo es opaca, vive 180 días, se renueva
+  en cada canje y se puede revocar; permite recuperar la sesión sin contraseña.
+- `POST /Token/Session/Status` informa el motivo real (`ok`, `session-expired`, `device-expired`,
+  `device-revoked`, `account-disabled`, `account-expired`). Es la única fuente para distinguir un
+  problema de red de una cuenta desactivada.
+- La renovación ocurre en segundo plano al arrancar y en cada señal del planificador. Nunca
+  bloquea el arranque: la app abre y muestra los datos locales de inmediato.
+- `SyncBlocked` y `CredentialReason` describen el estado; `NSyncConnectionNotice` los muestra sin
+  bloquear la captura de visitas.
+
 ## Observabilidad local
 
 Cada sincronización emite un evento estructurado `sync_completed` o `sync_failed` con duración,
 cantidad enviada/recibida/páginas o una categoría limitada de fallo. No se emiten tokens, UUIDs,
 usuarios, payloads ni mensajes remotos. La pantalla de sincronización muestra duración y páginas de
 la última ejecución para diagnóstico local.
+
+La capa de sesión emite además `credential_renewed` (la credencial del servidor se renovó),
+`credential_blocked` (no se pudo renovar y la sincronización queda detenida) y
+`sync_skipped_offline` (se omitió un intento por falta de red).
 
 ### Idempotencia
 

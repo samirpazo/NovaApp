@@ -126,6 +126,10 @@ binarias como recursos de WatermelonDB.
 
 5. **Cierre funcional**: validar alta de programación, apertura/captura de visita, firma/evidencia,
    cierre y reapertura offline, Push idempotente, Pull/reconciliación y conflictos.
+   La infraestructura que sostiene estos escenarios ya está en su lugar: sesión local que no
+   caduca por tiempo (`docs/OFFLINE-READINESS.md`), sincronización automática en segundo plano y
+   cargas de archivo idempotentes por `uploadId`, de modo que una firma nunca queda atascada por
+   una respuesta perdida.
 
 La siguiente parte debe completar los selectores de las secciones de detalle y cerrar el alta offline
 de programaciones una vez que el bootstrap confirme campañas y catálogos agrícolas en el dispositivo.

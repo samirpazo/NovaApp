@@ -42,7 +42,7 @@ src/
     */*/service.ts      Comandos, validaciones y reglas de negocio
     */*/types.ts        DTOs de entrada y salida para la UI
   lib/                  API, storage, formato y seguridad
-  sync/                 Configuración, motor, conflictos y estado
+  sync/                 Configuración, motor, conflictos, planificador y respaldo
 ```
 
 ## Enrutamiento
@@ -77,10 +77,26 @@ Flujo de login:
 Implementación de storage:
 
 - Web: `localStorage` para configuración/sesión; cookies para autenticación HTTP.
-- iOS/Android: `expo-secure-store` para configuración y tokens.
+- iOS/Android: `expo-secure-store` para configuración, tokens y credencial de dispositivo.
 - Entidades: WatermelonDB, separado del storage de autenticación.
 
-Cerrar sesión siempre borra la sesión local, incluso si el servidor no responde.
+Cerrar sesión siempre borra la sesión local y la credencial del dispositivo, incluso si el servidor
+no responde. **Nunca borra la base local de la cuenta**: las visitas capturadas en campo sobreviven
+al cierre de sesión.
+
+### Confianza local y credencial del servidor
+
+La app no trata al token como la identidad del usuario. Son dos cosas independientes:
+
+| | Confianza local | Credencial del servidor |
+|---|---|---|
+| Dónde vive | Documento de sesión en SecureStore | Access token, refresh token y credencial de dispositivo |
+| Vigencia | No caduca por tiempo | Access token 60 min, refresh 90 días, credencial de dispositivo 180 días |
+| Qué gobierna | Acceso a la interfaz y a la base local | Talking con NovaApi |
+| Cuándo se pierde | Solo con el cierre de sesión explícito del usuario o con un revocamiento expreso del servidor | Se renueva sola en segundo plano |
+
+Consecuencia práctica: un `401` del servidor **nunca** cierra la sesión local. Solo lo hacen un
+revocamiento de la credencial de dispositivo, una cuenta desactivada o una cuenta vencida.
 
 ### Renovación de tokens en el cliente
 
@@ -90,18 +106,30 @@ Todos los clientes creados por `createApiClient` comparten dos interceptores de 
    servidor responde 400 por CSRF, se reinicializa el token y se reintenta una vez.
 2. **Refresh**: el arranque, la sincronización previa y los 401 comparten una única renovación
    concurrente (single-flight). Si funciona, se guarda la nueva expiración y la petición original
-   se reintenta una vez con el token rotado (nativo) o las cookies nuevas (web). Si falla:
-   - Falla transitoria (sin respuesta de red, 5xx, 429): se conserva la sesión local
-     (offline-first) y la siguiente petición en línea reintenta el refresh.
-   - Falla permanente (400/401/403 o sesión revocada/refresh inválido): se limpia la sesión local
-     y la app vuelve al login. La sincronización no conserva una sesión visualmente activa que el
-     servidor ya rechazó.
+   se reintenta una vez con el token rotado (nativo) o las cookies nuevas (web). Si falla, la cadena
+   de recuperación es:
+   - Refresh rejected: se consulta `POST /Token/Session/Status` para conocer el motivo real.
+   - `POST /Token/DeviceToken/Exchange`: canjea la credencial de larga duración del dispositivo por
+     una sesión nueva, sin contraseña y sin interacción del usuario. Es la vía que permite operar
+     tras un periodo largo sin conexión.
+   - Falla transitoria (sin respuesta de red, 5xx, 429): se conserva la sesión local y la
+     siguiente petición en línea reintenta.
+   - Falla con revocamiento expreso (cuenta desactivada, vencida o credencial revocada): se cierra
+     el acceso local.
 
-Al cerrar o invalidar una sesión también se elimina el token CSRF mantenido en memoria. Durante el
-arranque, un refresh rechazado permanentemente elimina el acceso local; solo los fallos transitorios
-conservan la sesión para continuar offline.
+Al cerrar o invalidar una sesión también se elimina el token CSRF mantenido en memoria.
 
 Los endpoints `/Token*` quedan excluidos de ambos interceptores para evitar recursión.
+
+### Sincronización en segundo plano
+
+`src/sync/scheduler.ts` combina primer plano, conectividad y temporizador; la tarea del sistema
+(`src/sync/background-task.ts`) cubre el caso en que la app no está abierta. Ambas señales
+terminan en el mismo `pullNova()`, con exclusión mutua y espera creciente ante los fallos. La tarea
+del sistema reconstruye el ámbito de la cuenta con `src/sync/headless.ts`, porque arranca en un
+contexto de JavaScript frío sin interfaz montada.
+
+Ver `docs/SYNC.md` y `docs/OFFLINE-READINESS.md` para el detalle.
 
 ## Base de datos local
 

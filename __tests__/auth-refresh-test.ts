@@ -15,10 +15,13 @@ jest.mock('@/lib/storage', () => ({
 jest.mock('@/sync/config', () => ({
   clearAccessToken: jest.fn(),
   clearRefreshToken: jest.fn(),
+  clearDeviceToken: jest.fn(),
   getAccessToken: jest.fn().mockResolvedValue(null),
   getRefreshToken: jest.fn().mockResolvedValue(null),
+  getDeviceToken: jest.fn().mockResolvedValue(null),
   saveAccessToken: jest.fn(),
   saveRefreshToken: jest.fn(),
+  saveDeviceToken: jest.fn(),
 }));
 
 import { refreshSession } from '@/auth/service';
@@ -42,6 +45,9 @@ describe('renovación de sesión', () => {
       IsLoading: false,
       IsReady: true,
       Error: null,
+      CredentialState: 'unknown',
+      CredentialReason: null,
+      SyncBlocked: false,
     });
   });
 
@@ -126,7 +132,9 @@ describe('renovación de sesión', () => {
     }) as never);
     jest.mocked(api.get).mockResolvedValue({ data: { Data: 'csrf-b' } });
 
-    const pendingRefresh = useAuthStore.getState().ensureOnlineSession();
+    const pendingRefresh = useAuthStore
+      .getState()
+      .resolveServerCredential();
     await refreshStarted;
     await useAuthStore.getState().signIn('account-b', 'fictional-password');
     releaseRefresh({
@@ -161,13 +169,13 @@ describe('renovación de sesión', () => {
     });
     jest.mocked(api.get).mockResolvedValue({ data: { Data: 'csrf' } });
 
-    await useAuthStore.getState().ensureOnlineSession();
+    await useAuthStore.getState().resolveServerCredential();
 
     expect(useAuthStore.getState().Session).toEqual(renewedSession);
     expect(api.post).toHaveBeenCalledWith('/Token/Refresh', {});
   });
 
-  test('cierra la sesión local si el servidor rechaza definitivamente el refresh', async () => {
+  test('conserva la sesión local si el servidor rechaza definitivamente el refresh', async () => {
     jest.mocked(storage.getItem).mockResolvedValue(
       JSON.stringify({
         ...session,
@@ -180,15 +188,18 @@ describe('renovación de sesión', () => {
     });
     jest.mocked(api.post)
       .mockRejectedValueOnce(unauthorized)
-      .mockRejectedValueOnce(new Error('El logout remoto no está disponible.'));
+      .mockRejectedValueOnce(new Error('El logout remoto no está disponible.'))
+      .mockRejectedValue(new Error('Sin estado de sesión.'));
 
-    await expect(useAuthStore.getState().ensureOnlineSession()).rejects.toBe(
-      unauthorized,
-    );
+    await expect(
+      useAuthStore.getState().resolveServerCredential(),
+    ).rejects.toThrow();
 
-    expect(useAuthStore.getState().IsAuthenticated).toBe(false);
-    expect(useAuthStore.getState().Session).toBeNull();
-    expect(storage.removeItem).toHaveBeenCalledWith('nova.auth.session');
+    // La confianza local sobrevive: el dispositivo conserva el acceso a los
+    // datos locales aunque el servidor ya no renueve la credencial.
+    expect(useAuthStore.getState().IsAuthenticated).toBe(true);
+    expect(useAuthStore.getState().Session).not.toBeNull();
+    expect(storage.removeItem).not.toHaveBeenCalledWith('nova.auth.session');
   });
 
   test('conserva la sesión local si el refresh falla por red', async () => {
@@ -203,9 +214,9 @@ describe('renovación de sesión', () => {
     });
     jest.mocked(api.post).mockRejectedValue(networkError);
 
-    await expect(useAuthStore.getState().ensureOnlineSession()).rejects.toBe(
-      networkError,
-    );
+    await expect(
+      useAuthStore.getState().resolveServerCredential(),
+    ).rejects.toThrow();
 
     expect(useAuthStore.getState().IsAuthenticated).toBe(true);
     expect(storage.removeItem).not.toHaveBeenCalled();

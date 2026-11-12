@@ -5,6 +5,7 @@ import { z } from 'zod';
 const CONNECTION_KEY = 'nova.sync.connection';
 const ACCESS_TOKEN_KEY = 'nova.auth.accessToken';
 const REFRESH_TOKEN_KEY = 'nova.auth.refreshToken';
+const DEVICE_TOKEN_KEY = 'nova.auth.deviceToken';
 
 function normalizeBaseUrl(value: string): string {
   const url = new URL(value);
@@ -81,4 +82,27 @@ export async function saveRefreshToken(refreshToken: string): Promise<void> {
 
 export async function clearRefreshToken(): Promise<void> {
   await storage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+/**
+ * Credencial de larga duración del dispositivo. Permite recuperar una sesión
+ * sin contraseña ni interacción del usuario tras un periodo largo sin conexión.
+ *
+ * En web no se usa: el navegador mantiene el refresh token en una cookie
+ * HttpOnly y el backend ya le aplica la ventana larga de Nova App.
+ */
+export async function getDeviceToken(): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
+  return storage.getItem(DEVICE_TOKEN_KEY);
+}
+
+export async function saveDeviceToken(deviceToken: string): Promise<void> {
+  if (Platform.OS === 'web') return;
+  const token = deviceToken.trim();
+  if (!token) throw new Error('La credencial de dispositivo no puede estar vacía.');
+  await storage.setItem(DEVICE_TOKEN_KEY, token);
+}
+
+export async function clearDeviceToken(): Promise<void> {
+  await storage.removeItem(DEVICE_TOKEN_KEY);
 }

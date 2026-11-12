@@ -107,7 +107,6 @@ function attachSecurityInterceptors(): void {
         if (
           auth.IsLoading ||
           auth.Session?.User.UsrID !== originalRequest._novaUserId ||
-          auth.Session?.SsnID !== originalRequest._novaSessionId ||
           (originalRequest._novaIdentityKey &&
             getActiveIdentityKey() !== originalRequest._novaIdentityKey)
         )
@@ -242,7 +241,6 @@ async function isRequestIdentityCurrent(
   return (
     !auth.IsLoading &&
     auth.Session?.User.UsrID === userId &&
-    auth.Session.SsnID === sessionId &&
     getActiveIdentityKey() === identityKey
   );
 }
@@ -253,17 +251,25 @@ async function performRefresh(
 ): Promise<boolean> {
   try {
     if (!(await isCurrent())) return false;
-    const { refreshSession } = await import('@/auth/service');
-    await refreshSession(isCurrent, identityKeyForRefresh);
-    return isCurrent();
-  } catch (error) {
-    if (!(await isCurrent())) return false;
-    const { isTransientAuthFailure } = await import('@/auth/service');
-    if (isTransientAuthFailure(error)) return false;
-    // Permanent failure (400/401/403 or an invalid refresh token): revoke the local session.
+    const { renewServerCredential } = await import('@/auth/service');
+    const outcome = await renewServerCredential({
+      isCurrent,
+      refreshKey: identityKeyForRefresh,
+    });
+    if (outcome.ok) return isCurrent();
+    // La credencial del servidor falló. La confianza local del dispositivo se
+    // conserva: solo un revocamiento explícito del servidor cierra la sesión.
     const { useAuthStore } = await import('@/auth/store');
     if (!(await isCurrent())) return false;
-    await useAuthStore.getState().signOut();
+    useAuthStore.getState().applyCredentialFailure(outcome.kind);
+    return false;
+  } catch (error) {
+    if (!(await isCurrent())) return false;
+    const { classifyAuthFailure } = await import('@/auth/service');
+    const kind = await classifyAuthFailure(error);
+    const { useAuthStore } = await import('@/auth/store');
+    if (!(await isCurrent())) return false;
+    useAuthStore.getState().applyCredentialFailure(kind);
     return false;
   }
 }
