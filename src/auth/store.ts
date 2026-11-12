@@ -109,10 +109,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (accessToken) return accessToken;
     }
 
-    const outcome = await renewServerCredential({
-      isCurrent,
-      refreshKey: `sync:${session.SsnID}`,
-    });
+    const outcome = await renewServerCredential({ isCurrent });
     if (!outcome.ok) {
       if (isRevokingFailure(outcome.kind))
         await get().revokeLocalTrust(outcome.kind);
@@ -209,10 +206,7 @@ async function renewCredentialInBackground(
   session: AuthSession,
   isCurrent: () => Promise<boolean>,
 ): Promise<void> {
-  const outcome = await renewServerCredential({
-    isCurrent,
-    refreshKey: `auth:${session.SsnID}`,
-  });
+  const outcome = await renewServerCredential({ isCurrent });
 
   if (outcome.ok) {
     if (!(await isCurrent())) return;

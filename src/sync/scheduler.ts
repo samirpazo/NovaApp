@@ -140,7 +140,10 @@ class SyncScheduler {
    * Ejecuta una sincronización automática. Nunca propaga el error: un fallo
    * solo significa que habrá que reintentar más tarde.
    */
-  async trigger(trigger: SyncTrigger): Promise<void> {
+  async trigger(
+    trigger: SyncTrigger,
+    options: { force?: boolean } = {},
+  ): Promise<void> {
     if (!useAuthStore.getState().IsAuthenticated) return;
     if (!useAuthStore.getState().Session) return;
     if (this.running) return;
@@ -151,6 +154,14 @@ class SyncScheduler {
     let ran = false;
     try {
       if (!(await this.waitForAccountDatabase())) return;
+
+      // Una acción explícita del usuario (por ejemplo, volver a iniciar
+      // sesión) salta el intervalo mínimo y la espera: no tiene sentido
+      // delaying lo que el usuario acaba de pedir.
+      if (options.force) {
+        this.nextAttemptAt = 0;
+        this.lastFinishedAt = 0;
+      }
 
       const now = Date.now();
       if (now < this.nextAttemptAt) return;

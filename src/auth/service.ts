@@ -334,7 +334,6 @@ export async function classifyAuthFailure(
  */
 export async function renewServerCredential(options?: {
   isCurrent?: () => Promise<boolean>;
-  refreshKey?: string;
 }): Promise<RenewOutcome> {
   const isCurrent = options?.isCurrent ?? (async () => true);
 
@@ -345,9 +344,13 @@ export async function renewServerCredential(options?: {
   }
 
   try {
+    // La clave de renovación se deriva de la sesión y no del llamador: así
+    // el arranque, el interceptor de 401 y la sincronización comparten un
+    // único vuelo. Con dos renovaciones simultáneas, la segunda usaría un
+    // refresh token que la primera ya rotó y fallaría con 401.
     const session = await refreshSession(
       isCurrent,
-      options?.refreshKey ?? 'default',
+      `session:${stored?.SsnID ?? 'default'}`,
     );
     credentialRejected = false;
     reportSyncTelemetry({ event: 'credential_renewed' });

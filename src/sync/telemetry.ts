@@ -1,5 +1,10 @@
 export type SyncFailureKind =
-  'conflict' | 'network' | 'validation' | 'cancelled' | 'unknown';
+  | 'conflict'
+  | 'network'
+  | 'validation'
+  | 'cancelled'
+  | 'credential'
+  | 'unknown';
 
 export interface SyncTelemetryEvent {
   event:
@@ -32,6 +37,12 @@ export function classifySyncFailure(message: string): SyncFailureKind {
     value.includes('zod')
   )
     return 'validation';
+  if (
+    value.includes('sesión') ||
+    value.includes('credencial') ||
+    value.includes('autentic')
+  )
+    return 'credential';
   return 'unknown';
 }
 

@@ -252,10 +252,7 @@ async function performRefresh(
   try {
     if (!(await isCurrent())) return false;
     const { renewServerCredential } = await import('@/auth/service');
-    const outcome = await renewServerCredential({
-      isCurrent,
-      refreshKey: identityKeyForRefresh,
-    });
+    const outcome = await renewServerCredential({ isCurrent });
     if (outcome.ok) return isCurrent();
     // La credencial del servidor falló. La confianza local del dispositivo se
     // conserva: solo un revocamiento explícito del servidor cierra la sesión.
