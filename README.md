@@ -81,6 +81,33 @@ binarios.
 Mientras WatermelonDB siga sin validación oficial para New Architecture, Expo Doctor se informa
 como check visible no bloqueante; no se han excluido sus advertencias.
 
+### Proyectos nativos
+
+`ios/` y `android/` se generan con `npx expo prebuild` y no se versionan. La app usa
+`expo-background-task` para la sincronización en segundo plano, así que **necesita una compilación
+nativa**: el development client de Expo Go no sirve.
+
+```bash
+npx expo prebuild          # regenera ios/ y android/
+cd ios && pod install      # dependencias iOS
+npm run ios                # compila y levanta en el simulador
+npm run android            # compila y levanta en el emulador
+```
+
+En iOS, `expo-background-task` necesita `UIBackgroundModes: processing` y
+`BGTaskSchedulerPermittedIdentifiers`; el plugin de configuración los aplica durante el prebuild.
+
+**Requisito de JDK 17 en Android.** React Native 0.83 pide `jvmToolchain(17)`. Si Gradle no
+encuentra un JDK 17 local intenta descargarlo con el resolver de Foojay, que es incompatible con
+Gradle 9 y aborta la compilación con
+`JvmVendorSpec does not have member field IBM_SEMERU`. Se resuelve declarando la ruta del JDK 17
+en `android/gradle.properties` y en `~/.gradle/gradle.properties`:
+
+```properties
+org.gradle.java.installations.paths=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+org.gradle.java.installations.auto-download=false
+```
+
 Durante el desarrollo actual:
 
 - NovaApi: `http://localhost:8080`

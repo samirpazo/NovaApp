@@ -37,6 +37,7 @@
     "clsx": "^2.1.1",
     "expo": "~55.0.31",
     "expo-background-task": "~55.0.22",
+    "expo-build-properties": "~55.0.18",
     "expo-constants": "~55.0.17",
     "expo-crypto": "~55.0.19",
     "expo-dev-client": "~55.0.40",
