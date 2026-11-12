@@ -53,6 +53,13 @@ import {
   applyTechnicalVisitAcknowledgements,
   prepareTechnicalVisitMedia,
 } from '@/sync/technical-visit-media';
+import {
+  detectReadOnlyDrift,
+  discardReadOnlyDrift,
+  discardReadOnlyLeftovers,
+  hasReadOnlyDrift,
+} from '@/sync/read-only-discard';
+import { resolveSyncConflict } from '@/sync/read-only-conflict';
 
 const LAST_PULL_KEY = localStorageKey<PullResult>('nova.sync.lastPull');
 const TECHNICAL_VISIT_BOOTSTRAP_SCOPE_KEY = localStorageKey<string>(
@@ -72,8 +79,6 @@ function createChangeSet(): MutableChangeSet {
   return {
     [SYNC_RESOURCES.GenDefinition]: emptyTableChanges(),
     [SYNC_RESOURCES.GenDefinitionDetail]: emptyTableChanges(),
-    [SYNC_RESOURCES.RstBranch]: emptyTableChanges(),
-    [SYNC_RESOURCES.RstTable]: emptyTableChanges(),
     [SYNC_RESOURCES.OagTechnicalVisit]: emptyTableChanges(),
     [SYNC_RESOURCES.OagTechnicalVisitSchedule]: emptyTableChanges(),
     [SYNC_RESOURCES.GenCampaign]: emptyTableChanges(),
@@ -119,16 +124,6 @@ function rawData(raw: DirtyRaw): Record<string, unknown> {
   return data;
 }
 
-function preservePendingSyncVersion(
-  _table: string,
-  local: DirtyRaw,
-  _remote: DirtyRaw,
-  resolved: DirtyRaw,
-): DirtyRaw {
-  if (local._status !== 'synced') resolved.SyncVersion = local.SyncVersion;
-  return resolved;
-}
-
 function pushChangesFrom({ changes }: SyncPushArgs): SyncPushChange[] {
   const result: SyncPushChange[] = [];
   for (const resource of Object.values(SYNC_RESOURCES)) {
@@ -137,13 +132,8 @@ function pushChangesFrom({ changes }: SyncPushArgs): SyncPushChange[] {
     )[resource];
     if (!table) continue;
     if (SYNC_ACCESS[resource] === 'ReadOnly') {
-      if (
-        table.created.length ||
-        table.updated.length ||
-        table.deleted.length
-      ) {
-        throw new Error(`${resource} es un recurso local de solo lectura.`);
-      }
+      // El servidor gobierna estos catálogos: la app no los edita y sus restos
+      // locales se descartan en lugar de bloquear el Push.
       continue;
     }
     for (const raw of table.created) {
@@ -288,13 +278,23 @@ async function executePull(
       TECHNICAL_VISIT_BOOTSTRAP_SCOPE_KEY,
     );
     const bootstrapTechnicalVisits = bootstrapScope !== currentScope;
+    // El servidor gobierna los catálogos de solo lectura. Si el móvil arrastra
+    // restos de una versión anterior, se descartan y el catálogo se vuelve a
+    // descargar para quedar alineado con la versión oficial.
+    const readOnlyDrift = await detectReadOnlyDrift(database);
+    const restoreReadOnlyCatalog = hasReadOnlyDrift(readOnlyDrift);
+    if (restoreReadOnlyCatalog) {
+      await discardReadOnlyDrift(readOnlyDrift, database);
+    }
     const limit = Math.min(500, Math.max(1, options.limit ?? 250));
     let downloaded = 0;
     let uploaded = 0;
     let pages = 0;
     let finalCursor = 0;
     let bootstrapRequested =
-      (options.forceBootstrap ?? false) || bootstrapTechnicalVisits;
+      (options.forceBootstrap ?? false) ||
+      bootstrapTechnicalVisits ||
+      restoreReadOnlyCatalog;
     const acknowledgedTechnicalVisits: {
       SyncId: string;
       ExpectedSyncVersion: string;
@@ -363,7 +363,10 @@ async function executePull(
         !isActiveIdentity(identityKey) ||
         useAuthStore.getState().Session?.User.UsrID !== userId
       )
-        throw new Error('La cuenta cambió durante la sincronización.');
+        throw new Error('La cuenta cambió antes de iniciar la sincronización.');
+      // El Pull ya repuso el catálogo oficial: lo que sigue pendiente en
+      // recursos de solo lectura no pertenece al catálogo y se elimina.
+      await discardReadOnlyLeftovers(args.changes, database);
       const pendingChanges = pushChangesFrom(args);
       const storedConflicts = await getSyncConflicts(database);
       const rejectedIds: Partial<Record<SyncResource, string[]>> = {};
@@ -447,8 +450,7 @@ async function executePull(
                 (responseResult) => {
                   if (
                     responseResult.Status !== 'Conflict' ||
-                    !responseResult.Data ||
-                    responseResult.Resource === SYNC_RESOURCES.RstTable
+                    !responseResult.Data
                   )
                     return [];
                   const local = batch.find(
@@ -495,7 +497,7 @@ async function executePull(
     await synchronize({
       database,
       sendCreatedAsUpdated: true,
-      conflictResolver: preservePendingSyncVersion,
+      conflictResolver: resolveSyncConflict,
       pullChanges,
       pushChanges,
     });
@@ -511,7 +513,7 @@ async function executePull(
       await synchronize({
         database,
         sendCreatedAsUpdated: true,
-        conflictResolver: preservePendingSyncVersion,
+        conflictResolver: resolveSyncConflict,
         pullChanges,
       });
     }

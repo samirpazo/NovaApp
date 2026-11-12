@@ -61,7 +61,14 @@ function OptionTreeRow({
   const isOpen = forceOpen || openIds.has(item.OptID);
   const route = getRouteByCode(item.OptCode);
   const Icon = optionIcon(item.OptIcon, item.TypeOption === 1);
-  if (item.OptCode === 'RST_BRANCH' || item.OptCode === 'RST_TABLE') return null;
+  // La app móvil no expone estas pantallas: el catálogo de definiciones se
+  // consume como solo lectura y las mesas de restaurante no existen aquí.
+  if (
+    item.OptCode === 'RST_BRANCH' ||
+    item.OptCode === 'RST_TABLE' ||
+    item.OptCode === 'GEN_DEFINITIONS'
+  )
+    return null;
 
   const activate = () => {
     if (hasChildren || item.TypeOption === 1) {

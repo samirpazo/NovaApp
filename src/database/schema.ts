@@ -7,7 +7,7 @@ import { technicalVisitCatalogColumns } from '@/database/technical-visit-catalog
 export { entityBaseColumns } from '@/database/schema-base-columns';
 
 export const databaseSchema = appSchema({
-  version: 5,
+  version: 6,
   tables: [
     tableSchema({
       name: SYNC_RESOURCES.GenDefinition,
@@ -38,38 +38,6 @@ export const databaseSchema = appSchema({
         { name: 'DedGroup', type: 'string', isOptional: true },
         { name: 'DedImagePath', type: 'string', isOptional: true },
         { name: 'DedImageFilID', type: 'number', isOptional: true },
-      ],
-    }),
-    tableSchema({
-      name: SYNC_RESOURCES.RstBranch,
-      columns: [
-        ...entityBaseColumns,
-        { name: 'BrhID', type: 'number', isIndexed: true },
-        { name: 'BrhResID', type: 'number' },
-        { name: 'BrhName', type: 'string' },
-        { name: 'BrhAddress', type: 'string', isOptional: true },
-        { name: 'BrhPhone', type: 'string', isOptional: true },
-        { name: 'BrhEmail', type: 'string', isOptional: true },
-        { name: 'BrhManagerName', type: 'string', isOptional: true },
-        { name: 'BrhCurrencyDefID', type: 'number', isOptional: true },
-      ],
-    }),
-    tableSchema({
-      name: SYNC_RESOURCES.RstTable,
-      columns: [
-        ...entityBaseColumns,
-        { name: 'TabID', type: 'number', isIndexed: true },
-        { name: 'TabTableNumber', type: 'number' },
-        { name: 'TabCapacity', type: 'number' },
-        { name: 'TabStatus', type: 'number' },
-        { name: 'BrhID', type: 'number', isOptional: true, isIndexed: true },
-        { name: 'TabPosX', type: 'number' },
-        { name: 'TabPosY', type: 'number' },
-        { name: 'TabWidth', type: 'number' },
-        { name: 'TabHeight', type: 'number' },
-        { name: 'TabRotation', type: 'number' },
-        { name: 'TabShape', type: 'string' },
-        { name: 'TabZIndex', type: 'number' },
       ],
     }),
     tableSchema({

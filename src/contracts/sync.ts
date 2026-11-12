@@ -1,13 +1,9 @@
 import {
   GenDefinitionDetailSchema,
   GenDefinitionSchema,
-  RstBranchSchema,
-  RstTableSchema,
   GenCampaignSchema,
   type GenDefinition,
   type GenDefinitionDetail,
-  type RstBranch,
-  type RstTable,
   type GenCampaign,
 } from '@/contracts/entities';
 import {
@@ -30,8 +26,6 @@ import { z } from 'zod';
 export const SYNC_RESOURCES = {
   GenDefinition: 'GenDefinition',
   GenDefinitionDetail: 'GenDefinitionDetail',
-  RstBranch: 'RstBranch',
-  RstTable: 'RstTable',
   OagTechnicalVisit: 'OagTechnicalVisit',
   OagTechnicalVisitSchedule: 'OagTechnicalVisitSchedule',
   GenCampaign: 'GenCampaign',
@@ -50,8 +44,6 @@ export const SYNC_RESOURCES = {
 export const SyncResourceSchema = z.enum([
   SYNC_RESOURCES.GenDefinition,
   SYNC_RESOURCES.GenDefinitionDetail,
-  SYNC_RESOURCES.RstBranch,
-  SYNC_RESOURCES.RstTable,
   SYNC_RESOURCES.OagTechnicalVisit,
   SYNC_RESOURCES.OagTechnicalVisitSchedule,
   SYNC_RESOURCES.GenCampaign,
@@ -72,7 +64,8 @@ export type SyncResource = z.infer<typeof SyncResourceSchema>;
 export type SyncOperation = z.infer<typeof SyncOperationSchema>;
 export type SyncAccess = 'ReadOnly' | 'ReadWrite';
 export type WritableSyncResource = Exclude<SyncResource,
-  | 'RstTable' | 'GenCampaign' | 'OagFruitFarm' | 'OagPlotFarm'
+  | 'GenDefinition' | 'GenDefinitionDetail'
+  | 'GenCampaign' | 'OagFruitFarm' | 'OagPlotFarm'
   | 'OagFruitFarmSupervisor' | 'OagCultive' | 'OagVariety'
   | 'OagFarmSupplies' | 'OagFarmSuppliesTarget' | 'OagObjective'
   | 'OagObjectiveCultive' | 'OagWaterSource'
@@ -81,8 +74,6 @@ export type WritableSyncResource = Exclude<SyncResource,
 export interface SyncEntityMap {
   GenDefinition: GenDefinition;
   GenDefinitionDetail: GenDefinitionDetail;
-  RstBranch: RstBranch;
-  RstTable: RstTable;
   OagTechnicalVisit: OagTechnicalVisit;
   OagTechnicalVisitSchedule: OagTechnicalVisitSchedule;
   GenCampaign: GenCampaign;
@@ -99,10 +90,10 @@ export interface SyncEntityMap {
 }
 
 export const SYNC_ACCESS: Record<SyncResource, SyncAccess> = {
-  GenDefinition: 'ReadWrite',
-  GenDefinitionDetail: 'ReadWrite',
-  RstBranch: 'ReadWrite',
-  RstTable: 'ReadOnly',
+  // Las definiciones son catálogo de solo lectura en la app: se descargan para
+  // alimentar los selects de la visita técnica, pero la app ya no las edita.
+  GenDefinition: 'ReadOnly',
+  GenDefinitionDetail: 'ReadOnly',
   OagTechnicalVisit: 'ReadWrite',
   OagTechnicalVisitSchedule: 'ReadWrite',
   GenCampaign: 'ReadOnly',
@@ -117,6 +108,11 @@ export const SYNC_ACCESS: Record<SyncResource, SyncAccess> = {
   OagObjectiveCultive: 'ReadOnly',
   OagWaterSource: 'ReadOnly',
 };
+
+/** El servidor gobierna el recurso: la app móvil no lo escribe. */
+export function isReadOnlyResource(resource: string): boolean {
+  return SYNC_ACCESS[resource as SyncResource] === 'ReadOnly';
+}
 
 export interface SyncPullChange<TResource extends SyncResource = SyncResource> {
   Resource: TResource;
@@ -146,16 +142,6 @@ export const SyncPullChangeSchema = z.discriminatedUnion('Resource', [
     Data: GenDefinitionDetailSchema.nullish().transform(
       (value) => value ?? null,
     ),
-  }),
-  z.object({
-    ...syncChangeBase,
-    Resource: z.literal(SYNC_RESOURCES.RstBranch),
-    Data: RstBranchSchema.nullish().transform((value) => value ?? null),
-  }),
-  z.object({
-    ...syncChangeBase,
-    Resource: z.literal(SYNC_RESOURCES.RstTable),
-    Data: RstTableSchema.nullish().transform((value) => value ?? null),
   }),
   z.object({
     ...syncChangeBase,
@@ -233,7 +219,6 @@ export const SyncPushChangeSchema = z.discriminatedUnion('Resource', [
     SYNC_RESOURCES.GenDefinitionDetail,
     GenDefinitionDetailSchema,
   ),
-  pushChangeForResource(SYNC_RESOURCES.RstBranch, RstBranchSchema),
   pushChangeForResource(
     SYNC_RESOURCES.OagTechnicalVisit,
     OagTechnicalVisitSchema,
@@ -258,20 +243,6 @@ export const SyncPushResultSchema = z.discriminatedUnion('Resource', [
     Status: z.enum(['Applied', 'Conflict', 'Rejected']),
     Message: z.string().nullish(),
     Data: GenDefinitionDetailSchema.nullish(),
-  }),
-  z.object({
-    Resource: z.literal(SYNC_RESOURCES.RstBranch),
-    SyncId: GuidSchema,
-    Status: z.enum(['Applied', 'Conflict', 'Rejected']),
-    Message: z.string().nullish(),
-    Data: RstBranchSchema.nullish(),
-  }),
-  z.object({
-    Resource: z.literal(SYNC_RESOURCES.RstTable),
-    SyncId: GuidSchema,
-    Status: z.enum(['Applied', 'Conflict', 'Rejected']),
-    Message: z.string().nullish(),
-    Data: RstTableSchema.nullish(),
   }),
   z.object({
     Resource: z.literal(SYNC_RESOURCES.OagTechnicalVisit),
@@ -317,16 +288,6 @@ export const SyncConflictSchema = z.discriminatedUnion('Resource', [
     DetectedAt: z.string(),
   }),
   z.object({
-    Resource: z.literal(SYNC_RESOURCES.RstBranch),
-    SyncId: GuidSchema,
-    Operation: SyncOperationSchema,
-    Message: z.string(),
-    LocalData: RstBranchSchema.nullable(),
-    ServerData: RstBranchSchema,
-    KeepLocal: z.boolean().default(false),
-    DetectedAt: z.string(),
-  }),
-  z.object({
     Resource: z.literal(SYNC_RESOURCES.OagTechnicalVisit),
     SyncId: GuidSchema,
     Operation: SyncOperationSchema,
@@ -356,7 +317,6 @@ export const SyncConflictResolutionSchema = z.discriminatedUnion('Decision', [
     Resource: z.enum([
       SYNC_RESOURCES.GenDefinition,
       SYNC_RESOURCES.GenDefinitionDetail,
-      SYNC_RESOURCES.RstBranch,
       SYNC_RESOURCES.OagTechnicalVisit,
       SYNC_RESOURCES.OagTechnicalVisitSchedule,
     ]),
@@ -367,7 +327,6 @@ export const SyncConflictResolutionSchema = z.discriminatedUnion('Decision', [
     Resource: z.enum([
       SYNC_RESOURCES.GenDefinition,
       SYNC_RESOURCES.GenDefinitionDetail,
-      SYNC_RESOURCES.RstBranch,
       SYNC_RESOURCES.OagTechnicalVisit,
       SYNC_RESOURCES.OagTechnicalVisitSchedule,
     ]),

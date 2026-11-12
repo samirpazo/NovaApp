@@ -86,5 +86,12 @@ export const databaseMigrations = schemaMigrations({
         unsafeExecuteSql('ALTER TABLE "OagFarmSuppliesTarget" RENAME COLUMN "PlgID" TO "ObjID";'),
       ],
     },
+    {
+      toVersion: 6,
+      steps: [
+        unsafeExecuteSql('DROP TABLE IF EXISTS "RstBranch";'),
+        unsafeExecuteSql('DROP TABLE IF EXISTS "RstTable";'),
+      ],
+    },
   ],
 });

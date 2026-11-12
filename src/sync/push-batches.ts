@@ -52,7 +52,6 @@ export function classifyPushResults(
 const resourceOrder: Partial<Record<SyncPushChange['Resource'], number>> = {
   [SYNC_RESOURCES.GenDefinition]: 0,
   [SYNC_RESOURCES.GenDefinitionDetail]: 1,
-  [SYNC_RESOURCES.RstBranch]: 2,
   [SYNC_RESOURCES.OagTechnicalVisitSchedule]: 3,
   [SYNC_RESOURCES.OagTechnicalVisit]: 4,
 };

@@ -18,16 +18,16 @@ const read = (relativePath: string) =>
   fs.readFileSync(path.join(appRoot, relativePath), 'utf8');
 
 describe('NCrud screen migration', () => {
-  const screens = [
-    'src/app/(tabs)/definitions.tsx',
-    'src/app/(tabs)/definition-details.tsx',
-  ];
+  it('la lista de visitas técnicas usa NCrud en modo offline', () => {
+    const source = read('src/app/(tabs)/technical-visits.tsx');
 
-  it.each(screens)('%s consumes an NCrudDataSource', (screen) => {
-    const source = read(screen);
+    expect(source).toMatch(/<NCrud\b/);
+    expect(source).toMatch(/offline=\{\{ resource:/);
+  });
 
-    expect(source).toMatch(/dataSource=\{|config=\{[^\n]*dataSource/);
-    expect(source).not.toMatch(/\brows=\{/);
+  it('no expone pantallas de edición de definiciones', () => {
+    expect(() => read('src/app/(tabs)/definitions.tsx')).toThrow();
+    expect(() => read('src/app/(tabs)/definition-details.tsx')).toThrow();
   });
 
   it('does not expose superseded draft contracts', () => {

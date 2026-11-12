@@ -117,8 +117,8 @@ implementación; no copiar APIs de Nova Web si la implementación nativa tiene o
 
 | Recurso               | Acceso            | ID entero | Alcance                         |
 | --------------------- | ----------------- | --------- | ------------------------------- |
-| `GenDefinition`       | Lectura/escritura | `DefID`   | General                         |
-| `GenDefinitionDetail` | Lectura/escritura | `DedID`   | General                         |
+| `GenDefinition`       | Solo lectura      | `DefID`   | General                         |
+| `GenDefinitionDetail` | Solo lectura      | `DedID`   | General                         |
 | `OagTechnicalVisitSchedule` | Lectura/escritura | `TvsID` | Supervisor autenticado (`PrsID`) |
 | `OagTechnicalVisit`   | Lectura/escritura | `TviID`   | Aggregate de su programación asignada |
 | `GenCampaign` | Solo lectura | `CmpID` | Campañas de la instalación |
@@ -131,7 +131,16 @@ implementación; no copiar APIs de Nova Web si la implementación nativa tiene o
 | `OagObjective`, `OagObjectiveCultive` | Solo lectura | `ObjID`, `OjcID` | Objetivos agronómicos y relaciones con cultivos asignados |
 | `OagWaterSource` | Solo lectura | `OwsID` | Fuentes de agua de lotes asignados |
 
-Nota sobre Restaurant: La integración de Restaurant (`RstBranch`, `RstTable`) con Sync fue una implementación experimental y fue completamente retirada del backend. Los modelos locales se mantienen temporalmente en WatermelonDB para compatibilidad de esquemas previos, pero el servidor ya no incluye estos recursos en `/sync/pull` ni en `/sync/push`.
+Las definiciones son catálogo de solo lectura en la app móvil: se descargan para alimentar los
+selectores de la visita técnica, pero la app no las edita ni las empuja. NovaApi entrega el
+catálogo con cualquiera de los permisos `GEN_DEFINITIONS` u `OAG_TECHNICAL_VISIT`, para que los
+selectores no queden vacíos en campo. Si una instalación heredada arrastra cambios locales sobre
+esos catálogos, la sincronización los descarta y repone la versión oficial: los restos nunca
+bloquean el Push de las visitas técnicas.
+
+Nota sobre Restaurant: la integración de Restaurant (`RstBranch`, `RstTable`) con Sync fue una
+implementación experimental y fue completamente retirada, también del contrato local de la app. No
+existen en `/sync/pull` ni en `/sync/push`.
 
 ## Archivos clave
 
@@ -141,6 +150,8 @@ Nota sobre Restaurant: La integración de Restaurant (`RstBranch`, `RstTable`) c
 - `src/database/schema.ts`: esquema local.
 - `src/database/models/`: modelos WatermelonDB.
 - `src/sync/pull.ts`: orquestación Pull + Push + reconciliación.
+- `src/sync/read-only-conflict.ts`: el servidor gana los conflictos de los catálogos de solo lectura.
+- `src/sync/read-only-discard.ts`: detección y descarte de restos locales heredados.
 - `src/sync/conflicts.ts`: persistencia y resolución de conflictos.
 - `src/sync/useSyncIndicators.ts`: conteos reactivos locales para badges de cambios y conflictos.
 - `src/sync/config.ts`: URL y futuro alcance de sucursal.

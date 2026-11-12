@@ -203,6 +203,13 @@ lo consumen. La caché migra a WatermelonDB schema v4 y solicita un bootstrap po
 los registros existentes. La revisión local de bootstrap v4 solicita una descarga completa adicional
 para instalaciones que ya habían marcado la revisión previa; el merge conserva los cambios pendientes.
 
+Las definiciones y sus detalles son catálogo de solo lectura en la app móvil: la app no ofrece
+edición ni los empuja. NovaApi los entrega en `/sync/pull` con cualquiera de los permisos
+`GEN_DEFINITIONS` u `OAG_TECHNICAL_VISIT`, de modo que los selectores de la visita técnica nunca
+quedan vacíos en campo. Una instalación heredada puede arrastrar cambios locales sobre esas tablas:
+la app los descarta y repone la versión oficial (el servidor gana el conflicto), y esos restos
+nunca bloquean el Push de las visitas técnicas.
+
 El filtro de estado de visita comparte la definición `OAG_TECHNICAL_VISIT_FILTER_STATUS` entre web y
 móvil. Sus abreviaturas estables (`all`, `pending`, `registered`) controlan el filtro; la app toma las
 descripciones desde `GenDefinitionDetail` sincronizado. El seed está en

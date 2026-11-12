@@ -33,8 +33,6 @@ type LocalCounts = Record<
 const emptyCounts: LocalCounts = {
   GenDefinition: 0,
   GenDefinitionDetail: 0,
-  RstBranch: 0,
-  RstTable: 0,
   OagTechnicalVisit: 0,
   OagTechnicalVisitSchedule: 0,
   GenCampaign: 0,
@@ -53,8 +51,6 @@ const emptyCounts: LocalCounts = {
 const resourceLabels: Record<keyof LocalCounts, string> = {
   GenDefinition: 'Definiciones',
   GenDefinitionDetail: 'Valores de definiciones',
-  RstBranch: 'Sucursales',
-  RstTable: 'Mesas',
   OagTechnicalVisit: 'Visitas técnicas',
   OagTechnicalVisitSchedule: 'Programaciones de visitas',
   GenCampaign: 'Campañas',
@@ -292,7 +288,7 @@ export default function SyncScreen() {
           >
             Registros locales
           </Text>
-          {Object.entries(counts).filter(([resource]) => resource !== 'RstBranch' && resource !== 'RstTable').map(([resource, count]) => (
+          {Object.entries(counts).map(([resource, count]) => (
             <View
               key={resource}
               className="flex-row items-center justify-between border-b border-border py-2 last:border-b-0 last:pb-0"

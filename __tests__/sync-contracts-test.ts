@@ -154,7 +154,7 @@ describe('contratos de sincronización', () => {
 
     expect(() =>
       SyncPushChangeSchema.parse({
-        Resource: SYNC_RESOURCES.RstTable,
+        Resource: SYNC_RESOURCES.OagObjective,
         SyncId: syncId,
         Operation: 'C',
         SyncVersion: '',
@@ -163,10 +163,10 @@ describe('contratos de sincronización', () => {
     ).toThrow();
   });
 
-  test('rechaza RstTable como recurso de Push', () => {
+  test('rechaza un catálogo de solo lectura como recurso de Push', () => {
     expect(() =>
       SyncPushChangeSchema.parse({
-        Resource: SYNC_RESOURCES.RstTable,
+        Resource: SYNC_RESOURCES.OagObjective,
         SyncId: syncId,
         Operation: 'U',
         Data: definition,
@@ -214,7 +214,7 @@ describe('contratos de sincronización', () => {
     expect(() =>
       SyncConflictResolutionSchema.parse({
         Decision: 'KeepLocal',
-        Resource: SYNC_RESOURCES.RstTable,
+        Resource: SYNC_RESOURCES.OagObjective,
         SyncId: syncId,
       }),
     ).toThrow();

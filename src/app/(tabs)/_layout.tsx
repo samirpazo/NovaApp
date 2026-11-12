@@ -109,14 +109,6 @@ export default function TabLayout() {
         options={{ href: null }}
       />
       <Tabs.Screen
-        name="definition-details"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="definitions"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
         name="sync-details"
         options={{ href: null }}
       />

@@ -1,10 +1,8 @@
 import type { Href } from 'expo-router';
 
-import { generalRoutes } from '@/lib/routes/general';
 import { operationsAgrRoutes } from '@/lib/routes/operationsagr';
 
 export const ROUTE_MAP = {
-  ...generalRoutes,
   ...operationsAgrRoutes,
 } satisfies Record<string, Href>;
 
