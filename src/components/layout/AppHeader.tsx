@@ -1,7 +1,9 @@
 import { useAuthStore } from '@/auth';
+import { ProfileAvatar } from '@/components/account/profile-avatar';
 import { NButton } from '@/components/forms/NButton';
 import { Text } from '@/components/ui/text';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { loadMyProfilePhoto } from '@/lib/person-photo';
 import { getLastPull, pullNova, useSyncState } from '@/sync';
 import {
   headerUsesDarkForeground,
@@ -22,6 +24,7 @@ const badge = (count: number) => (count > 99 ? '99+' : String(count));
 
 export function AppHeader({ pendingChanges, sceneGutter }: AppHeaderProps) {
   const user = useAuthStore((state) => state.Session?.User);
+  const [photo, setPhoto] = React.useState<string | null>(null);
   const headerColor = useAppearanceStore(
     (state) => state.preview.HeaderColor || '#002aff',
   );
@@ -29,6 +32,18 @@ export function AppHeader({ pendingChanges, sceneGutter }: AppHeaderProps) {
   const foregroundClass = darkForeground ? 'text-zinc-950' : 'text-white';
   const sync = useSyncState();
   const pending = pendingChanges > 0;
+
+  React.useEffect(() => {
+    let active = true;
+    void loadMyProfilePhoto()
+      .then((source) => {
+        if (active) setPhoto(source);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [user?.UsrID]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -83,10 +98,17 @@ export function AppHeader({ pendingChanges, sceneGutter }: AppHeaderProps) {
               : 'rgba(255,255,255,0.16)',
           }}
         >
-          <UserRound
-            size={16}
-            className={foregroundClass}
-          />
+          {photo ? (
+            <ProfileAvatar
+              source={photo}
+              size={32}
+            />
+          ) : (
+            <UserRound
+              size={16}
+              className={foregroundClass}
+            />
+          )}
         </View>
         <View className="min-w-0 flex-1">
           <Text
