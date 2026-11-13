@@ -1,14 +1,19 @@
 import { useAuthStore } from '@/auth';
+import { ProfileAvatar } from '@/components/account/profile-avatar';
 import { NButton } from '@/components/forms/NButton';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
+import { loadMyProfilePhoto } from '@/lib/person-photo';
 import { useRouter } from 'expo-router';
 import {
   ChevronRight,
   Hash,
+  IdCard,
   LogOut,
   Mail,
+  MapPin,
   Palette,
+  Phone,
   ShieldCheck,
   UserRound,
 } from 'lucide-react-native';
@@ -50,6 +55,20 @@ export default function ProfileTab() {
   const user = Session?.User;
   const displayName = user?.FullName || user?.UsrName || 'Usuario';
   const qrValue = `nova:user:${user?.UsrID ?? 0}`;
+  const [photo, setPhoto] = React.useState<string | null>(null);
+  const location = [user?.PaiName, user?.PrvName, user?.DtrName, user?.DptName]
+    .filter((value): value is string => !!value && value.trim().length > 0)
+    .join(' · ');
+
+  React.useEffect(() => {
+    let cancelled = false;
+    void loadMyProfilePhoto().then((source) => {
+      if (!cancelled) setPhoto(source);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.UsrID]);
 
   const logout = async () => {
     await signOut();
@@ -83,11 +102,11 @@ export default function ProfileTab() {
       </View>
 
       <View className="flex-row items-center gap-3 py-1">
-        <View className="h-12 w-12 items-center justify-center rounded-lg border border-border bg-muted">
-          <Text className="font-poppins-semibold text-lg">
-            {displayName.trim().charAt(0).toUpperCase()}
-          </Text>
-        </View>
+        <ProfileAvatar
+          source={photo}
+          name={displayName}
+          size={48}
+        />
         <View className="min-w-0 flex-1">
           <Text
             className="font-poppins-semibold text-base"
@@ -118,6 +137,31 @@ export default function ProfileTab() {
           label="Identificador"
           value={String(user?.UsrID ?? 'No registrado')}
         />
+        {user?.PrsDocumentNumber ? (
+          <AccountRow
+            icon={IdCard}
+            label={
+              user.TypeDocumentName
+                ? `${user.TypeDocumentName}`
+                : 'Documento'
+            }
+            value={user.PrsDocumentNumber}
+          />
+        ) : null}
+        {user?.PrsPhone ? (
+          <AccountRow
+            icon={Phone}
+            label="Teléfono"
+            value={user.PrsPhone}
+          />
+        ) : null}
+        {location ? (
+          <AccountRow
+            icon={MapPin}
+            label="Ubicación"
+            value={location}
+          />
+        ) : null}
       </Card>
 
       <Card className="items-center gap-2.5 p-3">

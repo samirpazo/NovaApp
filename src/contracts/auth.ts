@@ -8,6 +8,20 @@ const expirationSchema = z
     'La fecha de expiración de la sesión no es válida.',
   );
 
+/**
+ * Datos del usuario que la app conserva tras autenticarse.
+ *
+ * Es una lista permitida: Zod descarta cualquier campo adicional que NovaApi
+ * envíe. Ampliarla exige una necesidad funcional explícita, y solo con datos
+ * que el trabajo en campo necesita.
+ *
+ * El backend ya envía en el login (`SecUserCe`, función `SecUser_ByUsrName`)
+ * los datos de la persona vinculada al usuario. Aquí se admiten los que
+ * identifican y contactan al responsable de una visita, y se descartan
+ * deliberadamente los sensibles: dirección, documento de identidad, grupo
+ * sanguíneo, contacto de emergencia, condiciones médicas y RUC, así como los
+ * datos laborales del acuerdo (tipo de pago, situación y contrato).
+ */
 export const AuthUserSchema = z.object({
   UsrID: z.number().int().positive(),
   UsrName: z.string().min(1),
@@ -18,6 +32,19 @@ export const AuthUserSchema = z.object({
   MaternalLastName: z.string().nullish(),
   PrsID: z.number().int().nullish(),
   UsrChangePassword: z.boolean().nullish(),
+  // Identificación de la persona.
+  PrsDocumentNumber: z.string().nullish(),
+  TypeDocument: z.number().int().nullish(),
+  TypeDocumentName: z.string().nullish(),
+  // Contacto.
+  PrsPhone: z.string().nullish(),
+  // Ubicación administrativa.
+  DptName: z.string().nullish(),
+  PrvName: z.string().nullish(),
+  DtrName: z.string().nullish(),
+  PaiName: z.string().nullish(),
+  AreName: z.string().nullish(),
+  PstName: z.string().nullish(),
 });
 
 /**

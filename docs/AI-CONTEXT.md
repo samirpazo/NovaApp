@@ -47,6 +47,13 @@ sucursales ni mesas. `BranchId` permanece opcional para una fase posterior.
 - `AuthUserSchema` es una lista permitida: Zod elimina cualquier campo adicional que NovaApi envíe.
   No ampliar esa lista con documento, teléfono, dirección, datos médicos u otra información sensible
   salvo que exista una necesidad funcional explícita.
+  La lista admite los datos de la persona vinculada al usuario que el backend ya envía en el login
+  (`SecUserCe` / `SecUser_ByUsrName`) y que el trabajo en campo necesita: identificación
+  (`PrsDocumentNumber`, `TypeDocument`, `TypeDocumentName`), contacto (`PrsPhone`) y ubicación
+  administrativa (`DptName`, `PrvName`, `DtrName`, `PaiName`, `AreName`, `PstName`). Se descartan
+  deliberadamente la dirección, el documento de identidad, el grupo sanguíneo, el contacto de
+  emergencia, las condiciones médicas, el RUC, la fecha y el sexo, y los datos laborales del
+  acuerdo. `__tests__/auth-user-profile-test.ts` fija esta frontera.
 - Toda sesión recuperada del almacenamiento vuelve a validarse con Zod antes de entrar a Zustand.
 
 No sustituir estas tecnologías sin una decisión explícita del responsable del proyecto.
@@ -203,6 +210,7 @@ existen en `/sync/pull` ni en `/sync/push`.
 - `src/sync/headless.ts`: activación de la cuenta sin React, para la tarea en segundo plano.
 - `src/sync/backup.ts`: respaldo de los cambios locales pendientes.
 - `src/auth/service.ts`: login, renovación de credencial y clasificación de fallos.
+- `src/lib/person-photo.ts`: foto de la cuenta y de cualquier persona, cacheada en el ámbito local.
 - `src/auth/store.ts`: confianza local, estado de credencial y bloqueo de sincronización.
 - `src/components/crud/offline-crud.tsx`: listado CRUD reutilizable.
 - `src/components/sync/conflict-comparison.tsx`: comparación responsive entre versión local y

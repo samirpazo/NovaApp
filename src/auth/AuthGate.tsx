@@ -12,6 +12,7 @@ import { useSyncState } from '@/sync/state';
 import { usePathname, useRouter } from 'expo-router';
 import * as React from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { loadMyProfilePhoto } from '@/lib/person-photo';
 import {
   flushPendingAppearance,
   loadServerAppearance,
@@ -159,6 +160,13 @@ export function AuthGate({ children }: React.PropsWithChildren) {
       cancelled = true;
     };
   }, [IsAuthenticated, Session?.User.UsrID, Session?.User.PrsID, commitAppearance, personId, scopeReadyFor, userId]);
+
+  // La foto de la cuenta se descarga una vez y queda cacheada en el
+  // almacenamiento local de la cuenta: asi el perfil la muestra sin red.
+  React.useEffect(() => {
+    if (!IsAuthenticated || !userId || scopeReadyFor?.userId !== userId) return;
+    void loadMyProfilePhoto().catch(() => undefined);
+  }, [IsAuthenticated, scopeReadyFor, userId]);
 
   if (!IsReady) {
     return (
