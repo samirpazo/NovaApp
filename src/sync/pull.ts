@@ -45,7 +45,7 @@ import {
 } from '@/sync/conflicts';
 import { type PullResult, useSyncState } from '@/sync/state';
 import { classifySyncFailure, reportSyncTelemetry } from '@/sync/telemetry';
-import { initialPullCursor } from '@/sync/pull-options';
+import { pullCursors } from '@/sync/pull-options';
 import { normalizeObjectiveContract } from '@/sync/normalize-objective-contract';
 import { activateSyncScope } from '@/sync/scope';
 import { classifyPushResults, pushSequentially } from '@/sync/push-batches';
@@ -62,9 +62,6 @@ import {
 import { resolveSyncConflict } from '@/sync/read-only-conflict';
 
 const LAST_PULL_KEY = localStorageKey<PullResult>('nova.sync.lastPull');
-const TECHNICAL_VISIT_BOOTSTRAP_SCOPE_KEY = localStorageKey<string>(
-  'nova.sync.technicalVisitBootstrapScope.v4',
-);
 const MAX_PULL_PAGES = 10_000;
 
 type MutableChangeSet = Record<SyncResource, SyncTableChangeSet>;
@@ -273,11 +270,6 @@ async function executePull(
     // Flush its offline queue alongside the regular manual synchronization.
     await flushPendingAppearance(userId, identityKey);
 
-    const currentScope = activeScope.scope;
-    const bootstrapScope = await database.localStorage.get(
-      TECHNICAL_VISIT_BOOTSTRAP_SCOPE_KEY,
-    );
-    const bootstrapTechnicalVisits = bootstrapScope !== currentScope;
     // El servidor gobierna los catálogos de solo lectura. Si el móvil arrastra
     // restos de una versión anterior, se descartan y el catálogo se vuelve a
     // descargar para quedar alineado con la versión oficial.
@@ -291,10 +283,8 @@ async function executePull(
     let uploaded = 0;
     let pages = 0;
     let finalCursor = 0;
-    let bootstrapRequested =
-      (options.forceBootstrap ?? false) ||
-      bootstrapTechnicalVisits ||
-      restoreReadOnlyCatalog;
+    // Recover scoped catalogs and joined labels even when they have no journal entry.
+    let bootstrapRequested = true;
     const acknowledgedTechnicalVisits: {
       SyncId: string;
       ExpectedSyncVersion: string;
@@ -304,52 +294,53 @@ async function executePull(
 
     const pullChanges = async ({ lastPulledAt }: { lastPulledAt?: number }) => {
       const changes = createChangeSet();
-      let cursor = initialPullCursor(lastPulledAt, bootstrapRequested);
+      const cursors = pullCursors(lastPulledAt, bootstrapRequested);
       bootstrapRequested = false;
-      let hasMore: boolean;
-
-      do {
-        if (
-          !isActiveIdentity(identityKey) ||
-          useAuthStore.getState().Session?.User.UsrID !== userId
-        )
-          throw new Error('La cuenta cambió durante la sincronización.');
-        if (++pages > MAX_PULL_PAGES)
-          throw new Error(
-            'Nova devolvió demasiadas páginas de sincronización.',
+      for (let cursor of cursors) {
+        let hasMore: boolean;
+        do {
+          if (
+            !isActiveIdentity(identityKey) ||
+            useAuthStore.getState().Session?.User.UsrID !== userId
+          )
+            throw new Error('La cuenta cambió durante la sincronización.');
+          if (++pages > MAX_PULL_PAGES)
+            throw new Error(
+              'Nova devolvió demasiadas páginas de sincronización.',
+            );
+          const response = await getForUser('/sync/pull', userId, {
+            params: {
+              contractVersion: 2,
+              limit,
+              ...(connection.BranchId === undefined
+                ? {}
+                : { branchId: connection.BranchId }),
+              ...(cursor === undefined ? {} : { cursor }),
+            },
+            signal: options.signal,
+          }, identityKey);
+          const envelope = createResponseApiSchema(SyncPullResponseSchema).parse(
+            normalizeObjectiveContract(response.data),
           );
-        const response = await getForUser('/sync/pull', userId, {
-          params: {
-            contractVersion: 2,
-            limit,
-            ...(connection.BranchId === undefined
-              ? {}
-              : { branchId: connection.BranchId }),
-            ...(cursor === undefined ? {} : { cursor }),
-          },
-          signal: options.signal,
-        }, identityKey);
-        const envelope = createResponseApiSchema(SyncPullResponseSchema).parse(
-          normalizeObjectiveContract(response.data),
-        );
-        if (
-          !isActiveIdentity(identityKey) ||
-          useAuthStore.getState().Session?.User.UsrID !== userId
-        )
-          throw new Error('La cuenta cambió durante la sincronización.');
-        if (!envelope.Succeeded || !envelope.Data) {
-          throw new Error(
-            envelope.Message || 'Nova no devolvió datos de sincronización.',
-          );
-        }
+          if (
+            !isActiveIdentity(identityKey) ||
+            useAuthStore.getState().Session?.User.UsrID !== userId
+          )
+            throw new Error('La cuenta cambió durante la sincronización.');
+          if (!envelope.Succeeded || !envelope.Data) {
+            throw new Error(
+              envelope.Message || 'Nova no devolvió datos de sincronización.',
+            );
+          }
 
-        for (const change of envelope.Data.Changes)
-          applyLatestChange(changes, change);
-        downloaded += envelope.Data.Changes.length;
-        finalCursor = envelope.Data.Cursor;
-        cursor = envelope.Data.Cursor;
-        hasMore = envelope.Data.HasMore;
-      } while (hasMore);
+          for (const change of envelope.Data.Changes)
+            applyLatestChange(changes, change);
+          downloaded += envelope.Data.Changes.length;
+          finalCursor = envelope.Data.Cursor;
+          cursor = envelope.Data.Cursor;
+          hasMore = envelope.Data.HasMore;
+        } while (hasMore);
+      }
 
       // WatermelonDB treats 0 as "never synchronized". Offset the backend cursor by one.
       return {
@@ -502,10 +493,6 @@ async function executePull(
       pushChanges,
     });
     await applyTechnicalVisitAcknowledgements(acknowledgedTechnicalVisits, database);
-    await database.localStorage.set(
-      TECHNICAL_VISIT_BOOTSTRAP_SCOPE_KEY,
-      currentScope,
-    );
 
     // The server owns numeric IDs and rowversions. A second Pull reconciles those
     // fields after WatermelonDB has marked the accepted local batch as synced.

@@ -497,3 +497,43 @@ test.describe('Visitas Técnicas - Modal de Aplicaciones e Insumos', () => {
     await expect(page.getByRole('button', { name: 'Órgano' })).toBeVisible();
   });
 });
+
+test('new visit captures GPS, stays unsaved until Save, then persists its fields', async ({ page, context }) => {
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: -5.3817511, longitude: -80.7381973 });
+  const session = {
+    AccessTokenExpiration: '2099-01-01T00:00:00Z', SsnID: 1,
+    User: { UsrID: 1, UsrName: 'admin', PrsID: 1 },
+  };
+  await page.route(/.*\/Token\/CsrfToken.*/i, route => route.fulfill({ json: { Succeeded: true, Message: '', Data: 'csrf' } }));
+  await page.route(/.*\/Token\/(Refresh|Session\/Status).*/i, route => route.fulfill({ json: { Succeeded: true, Message: '', Data: session } }));
+  await page.route(/.*\/SecUser\/MyOptions.*/i, route => route.fulfill({ json: { Succeeded: true, Message: '', Data: [] } }));
+  const pullUrls: string[] = [];
+  await page.route(/.*\/sync\/pull.*/i, route => {
+    pullUrls.push(route.request().url());
+    return route.fulfill({ json: { Succeeded: true, Message: '', Data: { Cursor: 1, HasMore: false, IsBootstrap: true, Changes: mockSyncChanges.filter(change => change.Resource !== 'OagTechnicalVisit') } } });
+  });
+  await page.goto('/login');
+  await page.evaluate(session => {
+    localStorage.setItem('nova.auth.session', JSON.stringify(session));
+    localStorage.setItem('nova.sync.connection', JSON.stringify({ BaseUrl: 'http://localhost:9090' }));
+  }, session);
+  await page.goto('/technical-visits');
+  await expect(page.getByText('Sin registrar', { exact: true })).toBeVisible({ timeout: 20000 });
+  await page.getByRole('button', { name: /Abrir visita/i }).click();
+  await expect(page.getByPlaceholder('Latitud', { exact: true })).toHaveValue('-5.3817511');
+  await expect(page.getByPlaceholder('Longitud', { exact: true })).toHaveValue('-80.7381973');
+  await expect(page.getByPlaceholder('Latitud', { exact: true })).not.toBeEditable();
+  await expect(page.getByText('Obteniendo ubicación…')).not.toBeVisible();
+  await page.goto('/technical-visits');
+  await expect(page.getByText('Sin registrar', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Abrir visita/i }).click();
+  await expect(page.getByPlaceholder('Latitud', { exact: true })).toHaveValue('-5.3817511');
+  await page.getByPlaceholder('Describe los hallazgos del recorrido').fill('Guardada únicamente por acción del técnico');
+  await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click();
+  await expect(page.getByText('Registrado', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Abrir visita/i }).click();
+  await expect(page.getByPlaceholder('Describe los hallazgos del recorrido')).toHaveValue('Guardada únicamente por acción del técnico');
+  await expect(page.getByPlaceholder('Longitud', { exact: true })).toHaveValue('-80.7381973');
+  expect(pullUrls.some(url => !new URL(url).searchParams.has('cursor'))).toBe(true);
+});

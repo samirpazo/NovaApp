@@ -221,7 +221,7 @@ existen en `/sync/pull` ni en `/sync/push`.
 - `src/lib/optionIcon.ts`: resuelve dinámicamente `OptIcon` usando las exportaciones Lucide de Nova App.
 - `src/app/(tabs)/sync-details.tsx`: pantalla técnica de sincronización.
 - `src/app/(tabs)/conflict-resolution.tsx`: resolución manual.
-- `src/app/(tabs)/technical-visits.tsx` y `technical-visit-detail.tsx`: visitas técnicas offline.
+- `src/app/(tabs)/technical-visits.tsx` y `technical-visit-detail.tsx`: visitas técnicas offline; alta en memoria hasta «Guardar cambios», GPS automático de solo lectura con Expo Location.
 - `docs/TECHNICAL-VISITS-OFFLINE-READINESS.md`: inventario de tablas/catálogos y fases para
   completar visitas técnicas offline con paridad funcional con Nova Web.
 - `docs/OFFLINE-READINESS.md`: garantías, matriz de fallos y límites del trabajo sin conexión.

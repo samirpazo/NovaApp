@@ -24,23 +24,6 @@ import { useSyncState } from '@/sync/state';
 import { scheduledTechnicalVisit } from '@/lib/technical-visit-validation';
 import { createTechnicalVisitTemporaryId } from '@/sync/technical-visit-temp-ids';
 
-type VisitSnapshot = {
-  Visit: Record<string, unknown>;
-  Applications: unknown[];
-  ApplicationDetails: unknown[];
-  Diagnoses: unknown[];
-  Phenology: unknown[];
-  Activities: unknown[];
-  Installations: unknown[];
-  Recommendations: unknown[];
-  PreviousRecommendations: unknown[];
-  RecommendationFollowUps: unknown[];
-  CulturalActivities: unknown[];
-  PreviousCulturalActivities: unknown[];
-  CulturalActivityFollowUps: unknown[];
-  Evidences: unknown[];
-};
-
 interface TechnicalVisitScheduleRow extends NCrudRow {
   TvsID: number;
   TvsScheduledDate: string;
@@ -192,75 +175,9 @@ export default function TechnicalVisitsScreen() {
         );
         return;
       }
-      const syncId = randomUUID();
-      const temporaryId = createTechnicalVisitTemporaryId();
-      const now = DateTime.utc().toISO() ?? '';
-      const ownerId = user?.UsrID ?? 0;
-      const snapshot: VisitSnapshot = {
-        Visit: {
-          SyncId: syncId,
-          SyncVersion: '',
-          SecStatus: true,
-          CreateUserId: ownerId,
-          UpdateUserId: ownerId,
-          DeleteUserId: null,
-          CreateDate: now,
-          UpdateDate: now,
-          DeleteDate: null,
-          TviID: temporaryId,
-          TvsID: schedule.TvsID,
-          TviPerformedDate: now,
-          TviDocumentSeries: null,
-          TviDocumentNumber: null,
-          TviLatitude: null,
-          TviLongitude: null,
-          TviObservation: null,
-          TviSignatureFilID: null,
-        },
-        Applications: [],
-        ApplicationDetails: [],
-        Diagnoses: [],
-        Phenology: [],
-        Activities: [],
-        Installations: [],
-        Recommendations: [],
-        PreviousRecommendations: [],
-        RecommendationFollowUps: [],
-        CulturalActivities: [],
-        PreviousCulturalActivities: [],
-        CulturalActivityFollowUps: [],
-        Evidences: [],
-      };
-      await database.write(() =>
-        database
-          .get<OagTechnicalVisitModel>(SYNC_RESOURCES.OagTechnicalVisit)
-          .create((record) => {
-            record._raw.id = syncId;
-            record.SyncId = syncId;
-            record.SyncVersion = '';
-            record.SecStatus = true;
-            record.CreateUserId = ownerId;
-            record.UpdateUserId = ownerId;
-            record.DeleteUserId = null;
-            record.CreateDate = now;
-            record.UpdateDate = now;
-            record.DeleteDate = null;
-            record.TviID = temporaryId;
-            record.TvsID = schedule.TvsID;
-            record.TviPerformedDate = now;
-            record.TviDocumentSeries = null;
-            record.TviDocumentNumber = null;
-            record.TviLatitude = null;
-            record.TviLongitude = null;
-            record.TviObservation = null;
-            record.TviSignatureFilID = null;
-            record.Snapshot = JSON.stringify(snapshot);
-          }),
-      );
-      await refresh();
       router.push({
         pathname: '/technical-visit-detail',
-        params: { id: syncId },
+        params: { scheduleId: schedule.id },
       });
     } catch {
       Alert.alert(
@@ -287,7 +204,7 @@ export default function TechnicalVisitsScreen() {
       CmpName: schedule.CmpName,
       TvsObservation: schedule.TvsObservation,
       VisitStatus:
-        (visit?.TviID ?? schedule.TviID ?? 0) > 0
+        visit != null || (schedule.TviID ?? 0) > 0
           ? 'Registrado'
           : 'Sin registrar',
     };

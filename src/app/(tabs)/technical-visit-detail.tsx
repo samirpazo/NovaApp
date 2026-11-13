@@ -1,7 +1,15 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { DateTime } from 'luxon';
 import * as React from 'react';
-import { Alert, Modal, Platform, ScrollView, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  View,
+} from 'react-native';
+import { technicalVisitLocation } from '@/lib/technical-visit-location';
+import { createTechnicalVisitDraft } from '@/lib/technical-visit-draft';
 import * as DocumentPicker from 'expo-document-picker';
 
 import { useAuthStore } from '@/auth/store';
@@ -434,10 +442,16 @@ const editableSections: SectionDefinition[] = [
 export default function TechnicalVisitDetailScreen() {
   const database = getActiveDatabase();
   const accountIdentityKey = getActiveIdentityKey();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, scheduleId } = useLocalSearchParams<{
+    id?: string;
+    scheduleId?: string;
+  }>();
   const router = useRouter();
   const userId = useAuthStore((state) => state.Session?.User.UsrID ?? 0);
-  const [model, setModel] = React.useState<OagTechnicalVisitModel | null>(null);
+  const [model, setModel] = React.useState<Pick<
+    OagTechnicalVisitModel,
+    'id' | 'TviID' | 'TvsID' | 'TviDocumentNumber' | 'TviDocumentSeries'
+  > | null>(null);
   const [schedule, setSchedule] =
     React.useState<OagTechnicalVisitScheduleModel | null>(null);
   const [snapshot, setSnapshot] = React.useState<TechnicalVisitSnapshot | null>(
@@ -447,6 +461,10 @@ export default function TechnicalVisitDetailScreen() {
   const [latitude, setLatitude] = React.useState('');
   const [longitude, setLongitude] = React.useState('');
   const [observation, setObservation] = React.useState('');
+  const [locationAttempt, setLocationAttempt] = React.useState(0);
+  const [locationError, setLocationError] = React.useState<string | null>(null);
+  const [locating, setLocating] = React.useState(false);
+  const draftRef = React.useRef<TechnicalVisitSnapshot | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [draftDirty, setDraftDirty] = React.useState(false);
   const draftDirtyRef = React.useRef(false);
@@ -598,64 +616,69 @@ export default function TechnicalVisitDetailScreen() {
         .query(Q.where('SecStatus', true))
         .fetch(),
     ])
-      .then(([supplies, targets, objectives, objectiveCultives, waterSources]) => {
-        if (cancelled) return;
-        const objectiveNames = new Map(
-          objectives.map((objective) => [objective.ObjID, objective.ObjDescription]),
-        );
-        setCatalogOptions({
-          supplies: supplies.map((item) => {
-            const ingredient = item.FrsActiveIngredientName
-              ? ` - ${item.FrsActiveIngredientName}`
-              : '';
-            const code = item.FrsCode ? ` (${item.FrsCode})` : '';
-            return {
-              label: `${item.FrsDescription}${ingredient}${code}`,
-              value: item.FrsID,
-              description: item.FrsDescription,
-            };
-          }),
-          targets: targets.map((item) => {
-            const objName = objectiveNames.get(item.ObjID) ?? 'Objetivo';
-            const doseRange = [item.FstMinDose, item.FstMaxDose]
-              .filter((d) => d != null)
-              .join('–');
-            return {
-              label: `${objName} · dosis ${doseRange || 'sin rango'}`,
-              value: item.FstID,
-              FrsID: item.FrsID,
-              ObjID: item.ObjID,
-              CltID: item.CltID,
-              FstMinDose: item.FstMinDose,
-              FstMaxDose: item.FstMaxDose,
-              objectiveName: objName,
-            };
-          }),
-          objectives: objectives
-            .filter(
-              (objective) =>
-                !plotCropId ||
-                objectiveCultives.some(
-                  (relation) =>
-                    relation.CltID === plotCropId &&
-                    relation.ObjID === objective.ObjID,
-                ) ||
-                targets.some(
-                  (target) =>
-                    target.CltID === plotCropId &&
-                    target.ObjID === objective.ObjID,
-                ),
-            )
-            .map((item) => ({
-              label: item.ObjDescription,
-              value: item.ObjID,
-              ObjType: item.ObjType,
-            })),
-          waterSources: waterSources
-            .filter((item) => item.PlfID === schedule?.PlfID)
-            .map((item) => ({ label: item.OwsName, value: item.OwsID })),
-        });
-      })
+      .then(
+        ([supplies, targets, objectives, objectiveCultives, waterSources]) => {
+          if (cancelled) return;
+          const objectiveNames = new Map(
+            objectives.map((objective) => [
+              objective.ObjID,
+              objective.ObjDescription,
+            ]),
+          );
+          setCatalogOptions({
+            supplies: supplies.map((item) => {
+              const ingredient = item.FrsActiveIngredientName
+                ? ` - ${item.FrsActiveIngredientName}`
+                : '';
+              const code = item.FrsCode ? ` (${item.FrsCode})` : '';
+              return {
+                label: `${item.FrsDescription}${ingredient}${code}`,
+                value: item.FrsID,
+                description: item.FrsDescription,
+              };
+            }),
+            targets: targets.map((item) => {
+              const objName = objectiveNames.get(item.ObjID) ?? 'Objetivo';
+              const doseRange = [item.FstMinDose, item.FstMaxDose]
+                .filter((d) => d != null)
+                .join('–');
+              return {
+                label: `${objName} · dosis ${doseRange || 'sin rango'}`,
+                value: item.FstID,
+                FrsID: item.FrsID,
+                ObjID: item.ObjID,
+                CltID: item.CltID,
+                FstMinDose: item.FstMinDose,
+                FstMaxDose: item.FstMaxDose,
+                objectiveName: objName,
+              };
+            }),
+            objectives: objectives
+              .filter(
+                (objective) =>
+                  !plotCropId ||
+                  objectiveCultives.some(
+                    (relation) =>
+                      relation.CltID === plotCropId &&
+                      relation.ObjID === objective.ObjID,
+                  ) ||
+                  targets.some(
+                    (target) =>
+                      target.CltID === plotCropId &&
+                      target.ObjID === objective.ObjID,
+                  ),
+              )
+              .map((item) => ({
+                label: item.ObjDescription,
+                value: item.ObjID,
+                ObjType: item.ObjType,
+              })),
+            waterSources: waterSources
+              .filter((item) => item.PlfID === schedule?.PlfID)
+              .map((item) => ({ label: item.OwsName, value: item.OwsID })),
+          });
+        },
+      )
       .catch(() =>
         setCatalogOptions({
           supplies: [],
@@ -730,8 +753,35 @@ export default function TechnicalVisitDetailScreen() {
 
   const loadVisit = React.useCallback(
     async (isCancelled: () => boolean) => {
-      if (!id) return;
+      if (!id && !scheduleId) return;
       try {
+        if (!id && scheduleId) {
+          const source = await database
+            .get<OagTechnicalVisitScheduleModel>(
+              SYNC_RESOURCES.OagTechnicalVisitSchedule,
+            )
+            .find(scheduleId);
+          if (!source.SecStatus) {
+            Alert.alert('Visita no disponible', 'La programación está inactiva.');
+            return;
+          }
+          if (isCancelled() || draftDirtyRef.current) return;
+          const draft =
+            draftRef.current ?? createTechnicalVisitDraft(source.TvsID, userId);
+          draftRef.current = draft;
+          setModel({
+            id: String(draft.Visit.SyncId),
+            TviID: Number(draft.Visit.TviID),
+            TvsID: source.TvsID,
+            TviDocumentNumber: null,
+            TviDocumentSeries: null,
+          });
+          setSchedule(source);
+          setSnapshot(draft);
+          setDate(String(draft.Visit.TviPerformedDate));
+          return;
+        }
+        if (!id) return;
         const record = await database
           .get<OagTechnicalVisitModel>(SYNC_RESOURCES.OagTechnicalVisit)
           .find(id);
@@ -794,7 +844,7 @@ export default function TechnicalVisitDetailScreen() {
           );
       }
     },
-    [id],
+    [database, id, scheduleId, userId],
   );
 
   useFocusEffect(
@@ -816,8 +866,38 @@ export default function TechnicalVisitDetailScreen() {
     };
   }, [loadVisit, syncFinishedAt]);
 
+  React.useEffect(() => {
+    if (id || !scheduleId) return;
+    let cancelled = false;
+    setLocating(true);
+    setLocationError(null);
+    void technicalVisitLocation()
+      .then((position) => {
+        if (cancelled) return;
+        setLatitude(String(position.coords.latitude));
+        setLongitude(String(position.coords.longitude));
+      })
+      .catch((error: unknown) => {
+        if (!cancelled)
+          setLocationError(error instanceof Error ? error.message : 'No se pudo obtener la ubicación.');
+      })
+      .finally(() => {
+        if (!cancelled) setLocating(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, scheduleId, locationAttempt]);
+
   const save = async () => {
-    if (!model || !snapshot) return;
+    if (
+      !model ||
+      !snapshot ||
+      saving ||
+      locating ||
+      (!id && (!latitude || !longitude))
+    )
+      return;
     setSaveFeedback(null);
     const parsedDate = DateTime.fromISO(date.trim(), { setZone: true });
     const lat = latitude.trim() ? Number(latitude) : null;
@@ -864,8 +944,11 @@ export default function TechnicalVisitDetailScreen() {
             accountIdentityKey,
           ),
         };
-      await database.write(() =>
-        model.update((record) => {
+      await database.write(async () => {
+        const collection = database.get<OagTechnicalVisitModel>(
+          SYNC_RESOURCES.OagTechnicalVisit,
+        );
+        const assign = (record: OagTechnicalVisitModel) => {
           record.TviPerformedDate = String(next.Visit.TviPerformedDate);
           record.TviLatitude = lat;
           record.TviLongitude = lon;
@@ -873,8 +956,36 @@ export default function TechnicalVisitDetailScreen() {
           record.UpdateUserId = userId;
           record.UpdateDate = now;
           record.Snapshot = JSON.stringify(snapshotToSave);
-        }),
-      );
+        };
+        if (id) {
+          const record = await collection.find(id);
+          await record.update(assign);
+        } else {
+          const existing = await collection
+            .query(Q.where('SecStatus', true), Q.where('TvsID', model.TvsID))
+            .fetch();
+          if (existing.length || (schedule?.TviID ?? 0) > 0)
+            throw new Error(
+              'Esta programación ya tiene una visita. Vuelve al listado para abrirla.',
+            );
+          await collection.create((record) => {
+            record._raw.id = model.id;
+            record.SyncId = model.id;
+            record.SyncVersion = '';
+            record.SecStatus = true;
+            record.CreateUserId = userId;
+            record.CreateDate = String(next.Visit.CreateDate);
+            record.DeleteUserId = null;
+            record.DeleteDate = null;
+            record.TviID = model.TviID;
+            record.TvsID = model.TvsID;
+            record.TviDocumentSeries = null;
+            record.TviDocumentNumber = null;
+            record.TviSignatureFilID = null;
+            assign(record);
+          });
+        }
+      });
       draftDirtyRef.current = false;
       setDraftDirty(false);
       saved = true;
@@ -1628,7 +1739,7 @@ export default function TechnicalVisitDetailScreen() {
     markDraftDirty();
   };
 
-  if (!model || !snapshot || model.id !== id)
+  if (!model || !snapshot || (id && model.id !== id))
     return (
       <View className="flex-1 items-center justify-center">
         <Text>Cargando visita guardada…</Text>
@@ -1642,6 +1753,41 @@ export default function TechnicalVisitDetailScreen() {
       className="flex-1 bg-background"
       contentContainerClassName="mx-auto w-full max-w-7xl gap-4 px-3 py-3 pb-24 md:gap-6 md:px-4 md:py-5 md:pb-28"
     >
+      <Modal
+        visible={locating || locationError !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {}}
+      >
+        <View className="flex-1 items-center justify-center bg-black/50">
+          <View
+            accessibilityViewIsModal
+            className="items-center gap-3 rounded-lg border border-border bg-background p-6"
+          >
+            {locating ? (
+              <>
+                <ActivityIndicator accessibilityLabel="Obteniendo ubicación" />
+                <Text role="status">Obteniendo ubicación…</Text>
+              </>
+            ) : (
+              <>
+                <Text role="alert">{locationError}</Text>
+                <NButton
+                  onPress={() => setLocationAttempt((attempt) => attempt + 1)}
+                >
+                  <Text>Reintentar ubicación</Text>
+                </NButton>
+                <NButton
+                  variant="outline"
+                  onPress={() => router.replace('/technical-visits')}
+                >
+                  <Text>Volver al listado</Text>
+                </NButton>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
       <View className="flex-row items-center gap-3">
         <NButton
           size="icon"
@@ -1866,7 +2012,7 @@ export default function TechnicalVisitDetailScreen() {
       <View className="gap-3 md:gap-4">
         <VisitSectionHeading
           title="Visita realizada"
-          subtitle="Completa ubicación y observaciones generales. La firma del productor es opcional."
+          subtitle="La ubicación se obtiene automáticamente al registrar. Completa las observaciones; la firma es opcional."
           icon={ClipboardCheck}
         />
         <View className="flex-row flex-wrap items-end gap-3 md:gap-4">
@@ -1874,10 +2020,8 @@ export default function TechnicalVisitDetailScreen() {
             label="Latitud GPS"
             decimal
             value={latitude}
-            onChange={(value) => {
-              setLatitude(value);
-              markDraftDirty();
-            }}
+            editable={false}
+            clearable={false}
             placeholder="Latitud"
             containerClassName="min-w-[140px] flex-1"
           />
@@ -1885,48 +2029,11 @@ export default function TechnicalVisitDetailScreen() {
             label="Longitud GPS"
             decimal
             value={longitude}
-            onChange={(value) => {
-              setLongitude(value);
-              markDraftDirty();
-            }}
+            editable={false}
+            clearable={false}
             placeholder="Longitud"
             containerClassName="min-w-[140px] flex-1"
           />
-          <NButton
-            variant="outline"
-            className="min-w-[180px] flex-1"
-            onPress={() => {
-              if (
-                typeof navigator !== 'undefined' &&
-                navigator.geolocation
-              ) {
-                navigator.geolocation.getCurrentPosition(
-                  ({ coords }) => {
-                    setLatitude(coords.latitude.toString());
-                    setLongitude(coords.longitude.toString());
-                    markDraftDirty();
-                  },
-                  () =>
-                    Alert.alert(
-                      'Ubicación',
-                      'No se pudo obtener la ubicación actual.',
-                    ),
-                  { enableHighAccuracy: true, timeout: 10000 },
-                );
-              } else {
-                Alert.alert(
-                  'Ubicación',
-                  'Este dispositivo no ofrece geolocalización en este entorno.',
-                );
-              }
-            }}
-          >
-            <MapPin
-              size={14}
-              className="text-foreground"
-            />
-            <Text>Usar ubicación actual</Text>
-          </NButton>
         </View>
         <View className="gap-3 md:flex-row md:items-start md:gap-4">
           <NTextarea

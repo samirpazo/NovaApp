@@ -51,7 +51,13 @@
       "expo-web-browser",
       "expo-sharing",
       "expo-background-task",
-      "./plugins/withPodDeploymentTarget"
+      "./plugins/withPodDeploymentTarget",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Nova usa tu ubicaci\u00f3n para registrar d\u00f3nde realizas la visita t\u00e9cnica."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

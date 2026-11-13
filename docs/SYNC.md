@@ -102,10 +102,10 @@ Respuesta lógica:
 ### Bootstrap
 
 Sin cursor, NovaApi devuelve el estado inicial de los recursos permitidos. Toma también el cursor
-máximo del journal para que las siguientes ejecuciones sean incrementales.
+máximo del journal para continuar con los cambios incrementales.
 
-Nova App ofrece **Descargar estado completo** para solicitar deliberadamente este bootstrap aunque
-ya exista un cursor local. Se usa para recuperar instalaciones antiguas cuyo cursor fue creado antes
+Nova App refresca este estado completo automáticamente después del journal en cada sincronización.
+La acción **Descargar estado completo** sigue disponible para solicitar la misma recuperación. Se usa para recuperar instalaciones antiguas cuyo cursor fue creado antes
 de que el journal cubriera todos los registros. La operación fusiona altas y actualizaciones del
 servidor; no ejecuta `unsafeResetDatabase()` ni descarta cambios locales pendientes.
 
@@ -183,10 +183,11 @@ Las visitas técnicas usan dos recursos. `OagTechnicalVisitSchedule` se sincroni
 editable y queda limitado al `PrsID` autenticado. `OagTechnicalVisit` es el recurso agregado:
 su fila local conserva el encabezado y un `Snapshot` JSON con todas las secciones de la visita.
 Los tokens web incluyen el claim `PrsID` cuando la cuenta está vinculada a una persona; para tokens
-web anteriores, NovaApi resuelve la relación desde la cuenta autenticada. Como los recursos OAG se
-incorporan después de otros catálogos al esquema local, NovaApp solicita una descarga completa una
-vez por alcance para incluir programaciones y visitas ya existentes que no tengan cambios recientes
-en el journal.
+web anteriores, NovaApi resuelve la relación desde la cuenta autenticada. Cada sincronización descarga primero los cambios incrementales (incluidas las eliminaciones) y
+luego el estado completo autorizado. Así repone catálogos y nombres relacionados de las
+programaciones que pueden no tener entradas recientes en el journal. La reconciliación posterior
+al Push sigue siendo incremental. La descarga fusiona datos sin borrar cambios offline pendientes;
+aumenta el tráfico según el tamaño del alcance autorizado.
 El backend ordena primero las programaciones, remapea sus IDs temporales y después guarda cada
 visita mediante `SaveAggregate`. El permiso requerido en Push es `OAG_TECHNICAL_VISIT`.
 El cambio del encabezado registra el agregado en el journal, por lo que el Pull móvil recibe un
@@ -199,9 +200,8 @@ ReadOnly. `GenCampaign` es global; fundos, lotes, fuentes y asignaciones activas
 al alcance actual del `PrsID`. Las relaciones de insumos y objetivos agronómicos se limitan a los cultivos de esos
 lotes. Las definiciones
 y detalles ya se sincronizaban antes. No se replica `GenParameter`: los selectores web revisados no
-lo consumen. La caché migra a WatermelonDB schema v4 y solicita un bootstrap por alcance para traer
-los registros existentes. La revisión local de bootstrap v4 solicita una descarga completa adicional
-para instalaciones que ya habían marcado la revisión previa; el merge conserva los cambios pendientes.
+lo consumen. La caché usa WatermelonDB schema v4; todos los catálogos autorizados se refrescan en cada
+sincronización, incluso si la instalación ya tenía cursor.
 
 Las definiciones y sus detalles son catálogo de solo lectura en la app móvil: la app no ofrece
 edición ni los empuja. NovaApi los entrega en `/sync/pull` con cualquiera de los permisos
@@ -538,9 +538,22 @@ seguridad.
 
 ### Recuperación de snapshots de visitas existentes
 
-La marca local `nova.sync.technicalVisitBootstrapScope.v4` fuerza un bootstrap una sola vez por
-alcance para recuperar snapshots que pudieron quedar incompletos en instalaciones anteriores.
-La descarga fusiona datos y conserva los cambios offline pendientes con el mecanismo normal de
-WatermelonDB. No reinicia la base local. El listado abre la visita mediante el `TviID` de su
-programación y vuelve a consultar el almacenamiento al pulsar el ojo de esa fila. Si esa visita
-registrada todavía no está descargada, no crea un borrador vacío en su lugar.
+Cada sincronización recupera snapshots y relaciones desde el estado completo autorizado, después
+del journal incremental. No reinicia la base local. El listado abre la visita mediante el `TviID`
+de su programación y vuelve a consultar el almacenamiento al pulsar el ojo de esa fila. Si esa
+visita registrada todavía no está descargada, no crea un borrador vacío en su lugar.
+
+### Alta de visita y ubicación
+
+Abrir una programación sin visita inicia un borrador en memoria: no crea filas WatermelonDB ni
+cambios para Push. El UUID y el ID temporal se reservan para enlazar las secciones del borrador.
+«Guardar cambios» crea una única fila con su snapshot completo dentro de `database.write`; el
+servidor asigna los IDs positivos y guarda las secciones mediante el agregado habitual.
+Salir antes de guardar descarta el borrador; una visita local guardada ya aparece como registrada.
+
+En una visita nueva, Expo Location pide permiso de primer plano y captura automáticamente GPS con
+un modal de progreso. Las coordenadas no son editables ni borrables y no hay botón de captura
+manual. Un error o permiso denegado permite reintentar o volver al listado; no permite guardar
+una visita nueva sin ubicación. Abrir una visita guardada conserva sus coordenadas originales.
+La captura espera como máximo 20 segundos tras obtener permiso. El nuevo módulo nativo requiere
+regenerar los proyectos nativos con `npx expo prebuild` y recompilar el development build de Android/iOS; la configuración no habilita ubicación de fondo.
