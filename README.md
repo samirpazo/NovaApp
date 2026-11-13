@@ -113,6 +113,17 @@ Durante el desarrollo actual:
 - NovaApi: `http://localhost:8080`
 - Nova App Web: `http://localhost:8081`
 
+## Despliegue a Producción (Web / PWA)
+
+La versión web está desplegada en `https://novaapp.novateam.tech` mediante un contenedor Podman servido por Nginx.
+
+Para volver a desplegar tras realizar cambios:
+```bash
+bash scripts/deploy-prod.sh
+```
+
+Consulta [DEPLOYMENT.md](DEPLOYMENT.md) para detalles de arquitectura, puertos, variables de entorno y rollback.
+
 ## Proyectos relacionados
 
 - **Nova**: repositorio del backend NovaApi, dominios, infraestructura y Nova Web.
